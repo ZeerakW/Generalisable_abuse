@@ -15,7 +15,7 @@ def read_json(fh: str, enc, doc_key: str, label_key: str, **kwargs) -> Tuple[str
     :return data_tup: Tuple containing document, label, and other indexed items.
     """
 
-    for line in open(fh, 'r', encoding = enc):
+    for line in open('../../data/' + fh, 'r', encoding = enc):
         try:
             dict_in = json.loads(line)
         except Exception as e:
@@ -45,5 +45,3 @@ def read_json(fh: str, enc, doc_key: str, label_key: str, **kwargs) -> Tuple[str
                               format(e, keys, dict_in), file = sys.stderr)
 
     return tuple(out_vals)
-
-
