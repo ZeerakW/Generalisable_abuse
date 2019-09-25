@@ -102,3 +102,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Ignore pytorch tutorial stuff
+src/pytorch_tutorial
