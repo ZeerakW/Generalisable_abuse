@@ -1,17 +1,17 @@
+from collections import OrderedDict
 from typing import List, Tuple, Callable
-from src.shared import features as feats
+from src.shared.fileio import write_results, print_results
 from src.shared.metrics import select_metrics
 from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LogisticRegression
 from sklearn.feature_extraction import DictVectorizer
 from src.shared.types import NPData, ModelType, VectType
 from slearn.feature_extraction.text import CountVectorizer, TfidfVectorizer, HashingVectorizer
 
 
-def select_vectorizer(vectorizer: str):
+def select_vectorizer(vectorizer: str) -> VectType:
     """Identify vectorizer used and return it to be used.
-    :param vectorizer:
-
+    :param vectorizer: Vectorizer to be used.
+    :return v: Vectorizer function.
     """
 
     if not any(vec in vectorizer for vec in ['dict', 'count', 'hash', 'tfidf']):
@@ -30,12 +30,13 @@ def select_vectorizer(vectorizer: str):
     return v
 
 
-def train(dataX: NPData, dataY: NPData,
+def train(model: ModelType, dataX: NPData, dataY: NPData,
           testX: NPData, testY: NPData,
           featurizer: Callable,
           vectorizer: str,
           devX: NPData = [], devY: NPData = []) -> Tuple[ModelType, VectType, VectType]:
     """Train a model and return the fitted model, vectorizer, and labelencoder.
+    :param model: Uninitialised model
     :param dataX: Training data.
     :param dataY: Training labels.
     :param devX: [Optional] Dev data.
@@ -44,7 +45,6 @@ def train(dataX: NPData, dataY: NPData,
     :return out_tuple: Fitted classifier, vectorizer, and labelencoder.
     """
     # Initialise things
-    clf = LogisticRegression()
     le = LabelEncoder()
     vect = select_vectorizer(vectorizer)
 
@@ -60,30 +60,32 @@ def train(dataX: NPData, dataY: NPData,
     trainX = vect.transform(train_feat)
 
     # Fit model
-    clf.fit(trainX, trainY)
+    model.fit(trainX, trainY)
 
-    return clf, vect, le
+    return model, vect, le
 
 
 def evaluate_model(model: ModelType, label_encoder: VectType, vect: VectType,
-                   metrics: List[str], featurizer: Callable,
-                   dataX: NPData, dataY: NPData) -> dict:
+                   metrics: List[str], featurizer: Callable, result_fh: str,
+                   dataX: NPData, dataY: NPData, params: dict = {}) -> dict:
     """Evaluate model on the data.
     :param model: Fitted model.
     :param label_encoder: Fitted labelencoder.
     :param vect: Fitted vectorizer.
     :param metric: Metric to use to evaluate model.
     :param featurizer: Function to transform data to featurised.
+    :param result_fh: File to write results to.
     :param dataX: Data to predict on.
     :param dataY: Labels to evaluate on.
+    :param params: Parameters for the model.
     :return performance: Dictionary containing evaluations.
     """
 
-    performance = {}
+    performance = OrderedDict()
 
     # Get metric functions and generate features
     dataX_feats = featurizer(dataX)
-    eval_metrics = select_metrics(metrics)
+    eval_metrics = select_metrics(metrics, 'sklearn')
 
     # Do transformations
     X = vect.transform(dataX_feats)
@@ -94,5 +96,8 @@ def evaluate_model(model: ModelType, label_encoder: VectType, vect: VectType,
 
     for m in eval_metrics.keys():
         performance[m] = eval_metrics[m](Y, preds)
+
+    write_results(performance, params, result_fh, 'w')
+    print_results(performance, params, iter_info = {}, first = True)
 
     return performance
