@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from typing import List, Tuple, Callable
 from src.shared.fileio import write_results, print_results
-from src.shared.metrics import select_metrics
+from src.shared.metrics import select_metrics
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction import DictVectorizer
 from src.shared.types import NPData, ModelType, VectType
