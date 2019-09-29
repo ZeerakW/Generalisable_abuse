@@ -1,7 +1,4 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim
 
 
 class LSTMClassifier(nn.Module):
@@ -24,15 +21,17 @@ class LSTMClassifier(nn.Module):
         self.to_output = nn.Linear(hidden_dim, no_classes)
 
         # Set the method for producing "probability" distribution.
-        self.softmax = F.log_softmax(no_classes, dim = 1)
+        self.softmax = nn.LogSoftmax(dim = 1)
 
     def forward(self, sequence):
         """The forward step in the classifier.
         :param sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
-        emb = self.embeddings(sequence)
-        out, last_layer = self.lstm(emb.view(len(sequence), 1, -1))
-        class_scores = self.softmax(self.to_output(out.view(len(sequence), -1)))
 
-        return class_scores
+        emb = self.embeddings(sequence)  # Get embedding for the sequence
+        out, last_layer = self.lstm(emb.view(len(sequence), 1, -1))  # Get layers of the LSTM
+        class_scores = self.to_output(out.view(len(sequence), -1))
+        prob_dist = self.softmax(class_scores)  # The probability distribution
+
+        return prob_dist
