@@ -14,9 +14,8 @@ class CNNClassifier(nn.Module):
         :param max_feats: The maximum length of the sequence to consider.
         """
         self.embedding = nn.Embedding(max_feats, embedding_dim)
-        # Potentially missing some weight matrix manipulation but not sure why that's needed so try without
         self.conv = [nn.ModuleList(nn.Conv2d(1, no_filters, (w, embedding_dim)) for w in window_sizes)]
-        self.linear = nn.Linear(len(window_sizes) * no_filters, no_classes)  # Why these fil
+        self.linear = nn.Linear(len(window_sizes) * no_filters, no_classes)
 
     def forward(self, sequence):
         """The forward step of the model.
