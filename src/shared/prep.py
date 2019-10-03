@@ -1,3 +1,8 @@
+import spacy
+from typing import List
+import src.shared.types as types
+
+
 class Dataset(object):
 
     def __init__(self, data_dir: str, ftype: str, sep: str = 'tab'):
@@ -9,6 +14,7 @@ class Dataset(object):
         self.data_dir = data_dir
         self.ftype = ftype
         self.sep = sep
+        self.tagger = spacy.load('en')
 
     def ix_to_label(self, label_to_ix):
         """Take label-index mapping and create map index to label.
@@ -31,3 +37,35 @@ class Dataset(object):
             label_to_ix[label] = len(label_to_ix)
 
         return label_to_ix
+
+    def tag(self, document: types.DocType):
+        """Tag document using spacy.
+        :param document: Document to be parsed.
+        :return doc: Document that has been passed through spacy's tagger.
+        """
+        doc = self.tagger(document)
+        return doc
+
+    def extract_tokens(self, document: types.DocType) -> List[str]:
+        """Extract tokens from the document.
+        :param document: Spacy tagged document.
+        :return tokens: List of strings containing tokens.
+        """
+        tokens = [tok.text for tok in document]
+        return tokens
+
+    def extract_pos(self, document: types.DocType) -> List[str]:
+        """Extract POS from the document.
+        :param document: Spacy tagged document.
+        :return tags: List of strings containing POS tags.
+        """
+        tags = [tok.pos_ for tok in document]
+        return tags
+
+    def extract_dep(self, document: types.DocType) -> List[str]:
+        """Extract dependency tags from the document.
+        :param document: Spacy tagged document.
+        :return tags: List of strings containing dependency tags.
+        """
+        tags = [tok.dep_ for tok in document]
+        return tags
