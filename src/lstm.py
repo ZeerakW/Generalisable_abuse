@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class LSTMClassifier(nn.Module):
 
-    def __init(self, hidden_dim: int, input_dim: int, embedding_dim: int, no_classes: int, no_layers: int,:
+    def __init(self, hidden_dim: int, input_dim: int, embedding_dim: int, no_classes: int, no_layers: int):
         """Initialise the LSTM.
         :param hidden_dim: The dimensionality of the hidden dimension.
         :param input_dim: The dimensionality of the input to the embedding generation.
@@ -18,7 +18,7 @@ class LSTMClassifier(nn.Module):
 
         # Define layers of the network
         self.embeddings = nn.Embedding(input_dim, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, no_layers)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim)
         self.to_output = nn.Linear(hidden_dim, no_classes)
 
         # Set the method for producing "probability" distribution.
