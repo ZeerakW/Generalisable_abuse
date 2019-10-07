@@ -106,41 +106,26 @@ class Dataset(torchtext.data.TabularDataset):
         doc = self.tagger(document)
         return doc
 
-    def extract_tokens(self, document: types.DocType) -> List[str]:
-        """Extract tokens from the document.
-        :param document: Spacy tagged document.
-        :return tokens: List of strings containing tokens.
+    def get_spacy_annotations(self, document: types.DocType, processes: List[str]) -> Tuple:
+        """Get annotations from SpaCy requested.
+        :param document: The document to process.
+        :param processes: The annotation processes to get.
+        :return res (tuple): Tuple containing annotations requested.
         """
-        tokens = [tok.text for tok in document]
-        return tokens
+        res = [(tok.text, tok.pos_, tok.dep_, (tok.dep_, tok.head.dep_)) for tok in document]
+        token, pos, dep, head = zip(*res)
 
-    def extract_pos(self, document: types.DocType) -> List[str]:
-        """Extract POS from the document.
-        :param document: Spacy tagged document.
-        :return tags: List of strings containing POS tags.
-        """
-        tags = [tok.pos_ for tok in document]
-        return tags
+        res = [None, None, None, None]
 
-    def extract_dep(self, document: types.DocType) -> List[str]:
-        """Extract dependency tags from the document.
-        :param document: Spacy tagged document.
-        :return tags: List of strings containing dependency tags.
-        """
-        tags = [tok.dep_ for tok in document]
-        return tags
+        if 'token' in processes:
+            res[0] = token
+        if 'pos' in processes:
+            res[1] = pos
+        if 'dep' in processes:
+            res[2] = dep
+        if 'head' in processes:
+            res[3] = head
+        if 'children' in processes:
+            raise NotImplementedError
 
-    def extract_head_dep(self, document: types.DocType) -> List[Tuple[str, str]]:
-        """Extract head of words and the dependency of the current word from the document.
-        :param document: Spacy tagged document.
-        :return tags: List of tuple of strings containing dependency tag of words and their heads.
-        """
-        tags = [(tok.dep_, tok.head.dep_) for tok in document]
-        return tags
-
-    def extract_dep_children(self, document: types.DocType) -> List[Tuple[str, str, ...]]:
-        """Extract the dependency neighbours of each word.
-        :param document (types.DocType, required): Spacy tagged document.
-        :return tags (List[Tuple[str]]): Neighbours in the dependency tree of the current token.
-        """
-        raise NotImplementedError
+        return tuple(res)
