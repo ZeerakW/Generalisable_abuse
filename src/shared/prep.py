@@ -1,20 +1,88 @@
+import os
+import json
 import spacy
-from typing import List
+from collections import defaultdict
+from typing import List, Tuple, Dict, Union
 import src.shared.types as types
 
 
 class Dataset(object):
 
-    def __init__(self, data_dir: str, ftype: str, sep: str = 'tab'):
+    def __init__(self, data_dir: str, ftype: str, batch_size, shuffle, sep: str = 'tab'):
         """Initialise data class.
         :param data_dir: Path to dataset.
         :param ftype: File type of the data file.
+        :param batch_size: Batch
+        :param shuffle: Shuffle the data between each epoch.
         :param sep: Seperator (if csv/tsv file).
         """
         self.data_dir = data_dir
         self.ftype = ftype
         self.sep = sep
+        self.batch_size = batch_size
+        self.shuffle = shuffle
         self.tagger = spacy.load('en')
+
+    def load_data(self, splits: Dict[str, str], fields: List[str]) -> tuple:
+        """Load the dataset and any splits.
+        :param splits (Dict[str, str]): Dictionary containing dataset splits and file names.
+        :param fields: The fields of the data that we are interested in. The final entry is always the label.
+        :return ret_val (tuple): 3-tuple of train, dev, and test data.
+        """
+        data_dict, label_dict = {}, {}
+        for k, v in splits:
+            data_dict[k], label_dict[k] = self._load_data(os.path.abspath(self.data_dir + '/' + v), fields)
+
+        ret_val = []
+
+        if 'train' in data_dict.keys():
+            ret_val[0] = data_dict['train']
+            self.train = data_dict['train']
+            self.trainY = label_dict['train']
+
+        if 'dev' in data_dict.keys():
+            ret_val[1] = data_dict['dev']
+            self.devY = label_dict['dev']
+            self.dev = data_dict['dev']
+        else:
+            ret_val[1] = None
+
+        if 'test' in data_dict.keys():
+            ret_val[2] = data_dict['test']
+            self.testY = label_dict['test']
+            self.test = data_dict['test']
+        else:
+            ret_val[2] = None
+
+        return ret_val
+
+    @classmethod
+    def _load_data(cls, fp: str,
+                   fields: Union[Dict[str, int], Dict[str, str]],
+                   label: Union[str, int], skip_header = False) -> Tuple[types.NPData, types.NPData, ...]:
+        """The actual data loading method.
+        :param fp: Full path to the file.
+        :param fields (Dict[str, int]): The name of the fields and potentially the position in the csv.
+        :param label: Label index or key.
+        :param skip_header (bool, optional. Default: False): Skip the header in the file.
+        :return ...: The loaded dataset and the labels.
+        """
+        output_dict = defaultdict(list)
+        labels = []
+
+        with open(fp, 'r', encoding = 'utf-8') as fin:
+            for line in fin:
+                if cls.ftype in ['csv', 'tsv']:
+                    loaded = line.split(cls.sep)
+                    for k in fields.keys():
+                        output_dict[k].append(loaded[fields[k]])  # TODO Double check this.
+                elif cls.ftype in ['json']:
+                    loaded = json.loads(line)
+                    for k in output_dict.keys():
+                        output_dict[k].append(loaded[k])  # TODO Double check this.
+
+                labels.append(fields[label])
+        return output_dict, labels
 
     def ix_to_label(self, label_to_ix):
         """Take label-index mapping and create map index to label.
@@ -69,3 +137,18 @@ class Dataset(object):
         """
         tags = [tok.dep_ for tok in document]
         return tags
+
+    def extract_head_dep(self, document: types.DocType) -> List[Tuple[str, str]]:
+        """Extract head of words and the dependency of the current word from the document.
+        :param document: Spacy tagged document.
+        :return tags: List of tuple of strings containing dependency tag of words and their heads.
+        """
+        tags = [(tok.dep_, tok.head.dep_) for tok in document]
+        return tags
+
+    def extract_dep_neighbours(self, document: types.DocType) -> List[Tuple[str, str, ...]]:
+        """Extract the dependency neighbours of each word.
+        :param document (types.DocType, required): Spacy tagged document.
+        :return tags (List[Tuple[str]]): Neighbours in the dependency tree of the current token.
+        """
+        raise NotImplementedError
