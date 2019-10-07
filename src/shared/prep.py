@@ -1,27 +1,44 @@
 import os
 import json
+import torchtext
 import spacy
 from collections import defaultdict
 from typing import List, Tuple, Dict, Union
 import src.shared.types as types
 
 
-class Dataset(object):
+class Dataset(torchtext.data.TabularDataset):
 
-    def __init__(self, data_dir: str, ftype: str, batch_size, shuffle, sep: str = 'tab'):
+    def __init__(self, data_dir: str, fields: types.FieldType, splits: Dict[str, str], ftype: str = 'tsv',
+                 batch_size: int = 64, shuffle: bool = True, sep: str = 'tab', skip_header: bool = True):
         """Initialise data class.
-        :param data_dir: Path to dataset.
+        :param data_dir (str): Directory containing dataset.
+        :param fields (Dict[str, str]): The data fields in the file.
+        :param splits (str): Dictionary containing filenames type of data.
         :param ftype: File type of the data file.
-        :param batch_size: Batch
+        :param batch_size (int):
         :param shuffle: Shuffle the data between each epoch.
         :param sep: Seperator (if csv/tsv file).
         """
-        self.data_dir = data_dir
-        self.ftype = ftype
-        self.sep = sep
+
+        [splits.update({k: data_dir + '/' + splits[k]}) for k in splits.keys()]
+
+        num_files = len(splits.keys())  # Get the number of datasets.
+        if num_files == 1:
+            train = super(Dataset, self).splits(path = data_dir, format = ftype, fields = fields,
+                                                skip_header = skip_header, **splits)
+        elif num_files == 2:
+            train, test = super(Dataset, self).splits(path = data_dir, format = ftype, fields = fields,
+                                                      skip_header = skip_header, **splits)
+        elif num_files == 3:
+            train, dev, test = super(Dataset, self).splits(path = data_dir, format = ftype, fields = fields,
+                                                           skip_header = skip_header, **splits)
+
+
+
+
         self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.tagger = spacy.load('en')
+        self.tagger = spacy.load('en', disable = ['ner'])
 
     def load_data(self, splits: Dict[str, str], fields: List[str]) -> tuple:
         """Load the dataset and any splits.
