@@ -1,8 +1,6 @@
-import os
-import json
+import re
 import torchtext
 import spacy
-from collections import defaultdict
 from typing import List, Tuple, Dict, Union
 import src.shared.types as types
 
@@ -21,85 +19,62 @@ class Dataset(torchtext.data.TabularDataset):
         :param sep: Seperator (if csv/tsv file).
         """
 
+        self.tagger = spacy.load('en', disable = ['ner'])
         [splits.update({k: data_dir + '/' + splits[k]}) for k in splits.keys()]
-
         num_files = len(splits.keys())  # Get the number of datasets.
+
+        data_load = {'path': data_dir,
+                     'format': ftype,
+                     'fields': fields,
+                     'skip_header': skip_header,
+                     'num_files': num_files}
+        data_load.update(splits)
+
         if num_files == 1:
-            train = super(Dataset, self).splits(path = data_dir, format = ftype, fields = fields,
-                                                skip_header = skip_header, **splits)
+            train = self.load_data(data_load)
+            self.data = (train, None, None)
         elif num_files == 2:
-            train, test = super(Dataset, self).splits(path = data_dir, format = ftype, fields = fields,
-                                                      skip_header = skip_header, **splits)
+            train, test = self.load_data(data_load)
+            self.data = (train, None, test)
         elif num_files == 3:
-            train, dev, test = super(Dataset, self).splits(path = data_dir, format = ftype, fields = fields,
-                                                           skip_header = skip_header, **splits)
-
-
-
+            train, dev, test = self.load_data(data_load)
+            self.data = (train, dev, test)
 
         self.batch_size = batch_size
-        self.tagger = spacy.load('en', disable = ['ner'])
 
-    def load_data(self, splits: Dict[str, str], fields: List[str]) -> tuple:
-        """Load the dataset and any splits.
-        :param splits (Dict[str, str]): Dictionary containing dataset splits and file names.
-        :param fields: The fields of the data that we are interested in. The final entry is always the label.
-        :return ret_val (tuple): 3-tuple of train, dev, and test data.
+    def clean_document(self, text: types.DocType, processes: List[str]):
+        """Data cleaning method.
+        :param text (types.DocType): The document to be cleaned.
+        :param processes (List[str]): Strings of the cleaning processes to take.
+        :return cleaned: Return the cleaned text.
         """
-        data_dict, label_dict = {}, {}
-        for k, v in splits:
-            data_dict[k], label_dict[k] = self._load_data(os.path.abspath(self.data_dir + '/' + v), fields)
+        cleaned = str(text)
+        if 'lower' in processes:
+            cleaned = cleaned.lower()
+        if 'url' in processes:
+            cleaned = re.sub(r'https?:/\/\S+', '<URL>', cleaned)
+        if 'hashtag' in processes:
+            cleaned = re.sub(r'#[a-zA-Z0-9]*\b', '<HASHTAG>', cleaned)
 
-        ret_val = []
-
-        if 'train' in data_dict.keys():
-            ret_val[0] = data_dict['train']
-            self.train = data_dict['train']
-            self.trainY = label_dict['train']
-
-        if 'dev' in data_dict.keys():
-            ret_val[1] = data_dict['dev']
-            self.devY = label_dict['dev']
-            self.dev = data_dict['dev']
-        else:
-            ret_val[1] = None
-
-        if 'test' in data_dict.keys():
-            ret_val[2] = data_dict['test']
-            self.testY = label_dict['test']
-            self.test = data_dict['test']
-        else:
-            ret_val[2] = None
-
-        return ret_val
+        return cleaned
 
     @classmethod
-    def _load_data(cls, fp: str,
-                   fields: Union[Dict[str, int], Dict[str, str]],
-                   label: Union[str, int], skip_header = False) -> Tuple[types.NPData, types.NPData, ...]:
-        """The actual data loading method.
-        :param fp: Full path to the file.
-        :param fields (Dict[str, int]): The name of the fields and potentially the position in the csv.
-        :param label: Label index or key.
-        :param skip_header (bool, optional. Default: False): Skip the header in the file.
-        :return ...: The loaded dataset and the labels.
+    def load_data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
+                  train: str, validation: str = None, test: str = None, skip_header: bool = True,
+                  num_files: int = 3) -> Tuple[types.NPData, ...]:
+        """Load the dataset and return the data.
+        :param path (str): Directory the data is stored in.
+        :param format (str): Format of the data.
+        :param fields (types.FieldType): Initialised fields.
+        :param train (str): Filename of the training data.
+        :param validation (str, default: None): Filename of the development data.
+        :param test (str, default: None): Filename of the test data.
+        :param skip_header (bool, default: True): Skip first line.
+        :return data: Return loaded data.
         """
-        output_dict = defaultdict(list)
-        labels = []
-
-        with open(fp, 'r', encoding = 'utf-8') as fin:
-            for line in fin:
-                if cls.ftype in ['csv', 'tsv']:
-                    loaded = line.split(cls.sep)
-                    for k in fields.keys():
-                        output_dict[k].append(loaded[fields[k]])  # TODO Double check this.
-                elif cls.ftype in ['json']:
-                    loaded = json.loads(line)
-                    for k in output_dict.keys():
-                        output_dict[k].append(loaded[k])  # TODO Double check this.
-
-                labels.append(fields[label])
-        return output_dict, labels
+        data = super(Dataset, cls).splits(path = path, format = format, fields = fields, train = train,
+                                          validation = validation, test = test, skip_header = skip_header)
+        return data
 
     def ix_to_label(self, label_to_ix):
         """Take label-index mapping and create map index to label.
@@ -163,7 +138,7 @@ class Dataset(torchtext.data.TabularDataset):
         tags = [(tok.dep_, tok.head.dep_) for tok in document]
         return tags
 
-    def extract_dep_neighbours(self, document: types.DocType) -> List[Tuple[str, str, ...]]:
+    def extract_dep_children(self, document: types.DocType) -> List[Tuple[str, str, ...]]:
         """Extract the dependency neighbours of each word.
         :param document (types.DocType, required): Spacy tagged document.
         :return tags (List[Tuple[str]]): Neighbours in the dependency tree of the current token.
