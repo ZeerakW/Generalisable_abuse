@@ -58,6 +58,15 @@ class Dataset(torchtext.data.TabularDataset):
 
         return cleaned
 
+    def tokenize(self, document: types.DocType, processes: List[str]):
+        """Tokenize the document using SpaCy and clean it as it is processed.
+        :param document: Document to be parsed.
+        :param processes: The cleaning processes to engage in.
+        :return toks: Document that has been passed through spacy's tagger.
+        """
+        toks = [tok.text for tok in self.tagger(self.clean_document(document, processes = processes))]
+        return toks
+
     @classmethod
     def load_data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
                   train: str, validation: str = None, test: str = None, skip_header: bool = True,
@@ -103,7 +112,7 @@ class Dataset(torchtext.data.TabularDataset):
         :param document: Document to be parsed.
         :return doc: Document that has been passed through spacy's tagger.
         """
-        doc = self.tagger(document)
+        doc = self.tagger(self.clean_document(document))
         return doc
 
     def get_spacy_annotations(self, document: types.DocType, processes: List[str]) -> Tuple:
