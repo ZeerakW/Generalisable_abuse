@@ -1,24 +1,39 @@
 import re
-import torchtext
+from torchtext import data
 import spacy
 from typing import List, Tuple, Dict, Union
 import src.shared.types as types
 
 
-class Dataset(torchtext.data.TabularDataset):
+class BatchGenerator:
+    """A class to get the information from the batches."""
+
+    def __init__(self, dataloader, datafield, labelfield):
+        self.data, self.df, self.lf = dataloader, datafield, labelfield
+
+    def __len__(self):
+        return len(self.dl)
+
+    def __iter__(self):
+        for batch in self.data:
+            X = getattr(batch, self.df)
+            y = getattr(batch, self.lf)
+            yield (X, y)
+
+
+class Dataset(data.TabularDataset):
 
     def __init__(self, data_dir: str, fields: types.FieldType, splits: Dict[str, str], ftype: str = 'tsv',
-                 batch_size: int = 64, shuffle: bool = True, sep: str = 'tab', skip_header: bool = True):
+                 batch_sizes: Tuple[int, ...] = (32), shuffle: bool = True, sep: str = 'tab', skip_header: bool = True):
         """Initialise data class.
         :param data_dir (str): Directory containing dataset.
         :param fields (Dict[str, str]): The data fields in the file.
         :param splits (str): Dictionary containing filenames type of data.
         :param ftype: File type of the data file.
-        :param batch_size (int):
+        :param batch_sizes (Tuple[int]): Tuple of batch size for each dataset.
         :param shuffle: Shuffle the data between each epoch.
         :param sep: Seperator (if csv/tsv file).
         """
-
         self.tagger = spacy.load('en', disable = ['ner'])
         [splits.update({k: data_dir + '/' + splits[k]}) for k in splits.keys()]
         num_files = len(splits.keys())  # Get the number of datasets.
@@ -40,7 +55,7 @@ class Dataset(torchtext.data.TabularDataset):
             train, dev, test = self.load_data(data_load)
             self.data = (train, dev, test)
 
-        self.batch_size = batch_size
+        self.batch_sizes = batch_sizes
 
     def clean_document(self, text: types.DocType, processes: List[str]):
         """Data cleaning method.
@@ -84,6 +99,9 @@ class Dataset(torchtext.data.TabularDataset):
         data = super(Dataset, cls).splits(path = path, format = format, fields = fields, train = train,
                                           validation = validation, test = test, skip_header = skip_header)
         return data
+
+    def generate_batches(self):
+        raise NotImplementedError
 
     def ix_to_label(self, label_to_ix):
         """Take label-index mapping and create map index to label.
