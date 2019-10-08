@@ -1,7 +1,7 @@
 import re
 from torchtext import data
 import spacy
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, Callable
 import src.shared.types as types
 
 
@@ -103,7 +103,7 @@ class Dataset(data.TabularDataset):
                                           validation = validation, test = test, skip_header = skip_header)
         return data
 
-    def generate_batches(self, sort_key, datasets: Tuple[types.NPData, ...] = None):
+    def generate_batches(self, sort_func: Callable, datasets: Tuple[types.NPData, ...] = None):
         """Create the minibatching here.
         :param train (types.NPData, optional): Provide a processed train dataset.
         :param test (types.NPData, optional): Provide a processed test dataset.
@@ -113,13 +113,13 @@ class Dataset(data.TabularDataset):
         if datasets:
             batches = data.BucketIterator.splits(datasets,
                                                  self.batch_sizes,
-                                                 sort_key = lambda x: len(sort_key),
+                                                 sort_key = sort_func,
                                                  device = self.device,
                                                  sort_within_batch = True, repeat = self.repeat)
         else:
             batches = data.BucketIterator.splits(self.data,
                                                  self.batch_sizes,
-                                                 sort_key = lambda x: len(sort_key),
+                                                 sort_key = sort_func,
                                                  device = self.device,
                                                  sort_within_batch = True, repeat = self.repeat)
         return batches
