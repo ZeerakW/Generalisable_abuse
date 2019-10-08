@@ -23,16 +23,18 @@ class BatchGenerator:
 
 class Dataset(data.TabularDataset):
 
-    def __init__(self, data_dir: str, fields: types.FieldType, splits: Dict[str, str], ftype: str = 'tsv',
-                 batch_sizes: Tuple[int, ...] = (32), shuffle: bool = True, sep: str = 'tab', skip_header: bool = True):
+    def __init__(self, data_dir: str, fields: types.FieldType, splits: Dict[str, str], ftype: str,
+                 batch_sizes: Tuple[int, ...] = (32), shuffle: bool = True, sep: str = 'tab', skip_header: bool = True,
+                 repeat_in_batches = False):
         """Initialise data class.
         :param data_dir (str): Directory containing dataset.
         :param fields (Dict[str, str]): The data fields in the file.
         :param splits (str): Dictionary containing filenames type of data.
         :param ftype: File type of the data file.
         :param batch_sizes (Tuple[int]): Tuple of batch size for each dataset.
-        :param shuffle: Shuffle the data between each epoch.
-        :param sep: Seperator (if csv/tsv file).
+        :param shuffle (bool, default: True): Shuffle the data between each epoch.
+        :param sep (str): Seperator (if csv/tsv file).
+        :param repeat_in_batches (bool, default: False): Repeat data within batches
         """
         self.tagger = spacy.load('en', disable = ['ner'])
         [splits.update({k: data_dir + '/' + splits[k]}) for k in splits.keys()]
@@ -56,6 +58,7 @@ class Dataset(data.TabularDataset):
             self.data = (train, dev, test)
 
         self.batch_sizes = batch_sizes
+        self.repeat = repeat_in_batches
 
     def clean_document(self, text: types.DocType, processes: List[str]):
         """Data cleaning method.
@@ -100,8 +103,26 @@ class Dataset(data.TabularDataset):
                                           validation = validation, test = test, skip_header = skip_header)
         return data
 
-    def generate_batches(self):
-        raise NotImplementedError
+    def generate_batches(self, sort_key, datasets: Tuple[types.NPData, ...] = None):
+        """Create the minibatching here.
+        :param train (types.NPData, optional): Provide a processed train dataset.
+        :param test (types.NPData, optional): Provide a processed test dataset.
+        :param dev (types.NPData, optional): Provide a processed test dataset.
+        :return ret: Return the batched data.
+        """
+        if datasets:
+            batches = data.BucketIterator.splits(datasets,
+                                                 self.batch_sizes,
+                                                 sort_key = lambda x: len(sort_key),
+                                                 device = self.device,
+                                                 sort_within_batch = True, repeat = self.repeat)
+        else:
+            batches = data.BucketIterator.splits(self.data,
+                                                 self.batch_sizes,
+                                                 sort_key = lambda x: len(sort_key),
+                                                 device = self.device,
+                                                 sort_within_batch = True, repeat = self.repeat)
+        return batches
 
     def ix_to_label(self, label_to_ix):
         """Take label-index mapping and create map index to label.
