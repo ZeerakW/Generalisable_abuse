@@ -23,9 +23,9 @@ class BatchGenerator:
 
 class Dataset(data.TabularDataset):
 
-    def __init__(self, data_dir: str, fields: types.FieldType, splits: Dict[str, str], ftype: str,
-                 batch_sizes: Tuple[int, ...] = (32), shuffle: bool = True, sep: str = 'tab', skip_header: bool = True,
-                 repeat_in_batches = False):
+    def __init__(self, data_dir: str, splits: Dict[str, str], ftype: str,
+                 fields: List[Tuple[types.FieldType, ...]] = None, batch_sizes: Tuple[int, ...] = (32),
+                 shuffle: bool = True, sep: str = 'tab', skip_header: bool = True, repeat_in_batches = False):
         """Initialise data class.
         :param data_dir (str): Directory containing dataset.
         :param fields (Dict[str, str]): The data fields in the file.
@@ -37,28 +37,52 @@ class Dataset(data.TabularDataset):
         :param repeat_in_batches (bool, default: False): Repeat data within batches
         """
         self.tagger = spacy.load('en', disable = ['ner'])
-        [splits.update({k: data_dir + '/' + splits[k]}) for k in splits.keys()]
         num_files = len(splits.keys())  # Get the number of datasets.
 
-        data_load = {'path': data_dir,
-                     'format': ftype,
-                     'fields': fields,
-                     'skip_header': skip_header,
-                     'num_files': num_files}
-        data_load.update(splits)
-
-        if num_files == 1:
-            train = self.load_data(data_load)
-            self.data = (train, None, None)
-        elif num_files == 2:
-            train, test = self.load_data(data_load)
-            self.data = (train, None, test)
-        elif num_files == 3:
-            train, dev, test = self.load_data(data_load)
-            self.data = (train, dev, test)
-
+        self.data_load = {'path': data_dir,
+                          'format': ftype,
+                          'fields': fields,
+                          'skip_header': skip_header,
+                          'num_files': num_files}
+        self.data_load.update(splits)
+        self.dfields = fields
         self.batch_sizes = batch_sizes
         self.repeat = repeat_in_batches
+
+    @classmethod
+    def load_data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
+                  train: str, validation: str = None, test: str = None, skip_header: bool = True,
+                  num_files: int = 3) -> Tuple[types.NPData, ...]:
+        """Load the dataset and return the data.
+        :param path (str): Directory the data is stored in.
+        :param format (str): Format of the data.
+        :param fields (Union[List[types.FieldType], Dict[str tuple]]): Initialised fields.
+        :param train (str): Filename of the training data.
+        :param validation (str, default: None): Filename of the development data.
+        :param test (str, default: None): Filename of the test data.
+        :param skip_header (bool, default: True): Skip first line.
+        :param num_files (int, default: 3): Number of files/datasets to load.
+        :return data: Return loaded data.
+        """
+        if num_files == 1:
+            train = cls._data(**cls.data_load)
+            cls.data = (train, None, None)
+        elif num_files == 2:
+            train, test = cls._data(**cls.data_load)
+            cls.data = (train, None, test)
+        elif num_files == 3:
+            train, dev, test = cls._data(**cls.data_load)
+            cls.data = (train, dev, test)
+        return cls.data
+
+    @property
+    def fields(self):
+        return self.dfields
+
+    @fields.setter
+    def fields(self, fields):
+        self.dfields = fields
+        self.data_load.update({'fields': fields})
 
     def clean_document(self, text: types.DocType, processes: List[str]):
         """Data cleaning method.
@@ -86,22 +110,15 @@ class Dataset(data.TabularDataset):
         return toks
 
     @classmethod
-    def load_data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
-                  train: str, validation: str = None, test: str = None, skip_header: bool = True,
-                  num_files: int = 3) -> Tuple[types.NPData, ...]:
-        """Load the dataset and return the data.
-        :param path (str): Directory the data is stored in.
-        :param format (str): Format of the data.
-        :param fields (types.FieldType): Initialised fields.
-        :param train (str): Filename of the training data.
-        :param validation (str, default: None): Filename of the development data.
-        :param test (str, default: None): Filename of the test data.
-        :param skip_header (bool, default: True): Skip first line.
+    def _data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
+              train: str, validation: str = None, test: str = None, skip_header: bool = True,
+              num_files: int = 3) -> Tuple[types.NPData, ...]:
+        """Use the loader in torchtext.
         :return data: Return loaded data.
         """
-        data = super(Dataset, cls).splits(path = path, format = format, fields = fields, train = train,
-                                          validation = validation, test = test, skip_header = skip_header)
-        return data
+        splitted = data.TabularDataset.splits(path = path, format = format, fields = fields, train = train,
+                                              validation = validation, test = test, skip_header = skip_header)
+        return splitted
 
     def generate_batches(self, sort_func: Callable, datasets: Tuple[types.NPData, ...] = None):
         """Create the minibatching here.
