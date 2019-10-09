@@ -1,8 +1,8 @@
 import re
-from torchtext import data
 import spacy
-from typing import List, Tuple, Dict, Union, Callable
+from torchtext import data
 import src.shared.types as types
+from typing import List, Tuple, Dict, Union, Callable
 
 
 class BatchGenerator:
@@ -12,7 +12,7 @@ class BatchGenerator:
         self.data, self.df, self.lf = dataloader, datafield, labelfield
 
     def __len__(self):
-        return len(self.dl)
+        return len(self.data)
 
     def __iter__(self):
         for batch in self.data:
@@ -26,7 +26,7 @@ class Dataset(data.TabularDataset):
     def __init__(self, data_dir: str, splits: Dict[str, str], ftype: str,
                  fields: List[Tuple[types.FieldType, ...]] = None, cleaners: List[str] = None,
                  batch_sizes: Tuple[int, ...] = (32), shuffle: bool = True, sep: str = 'tab', skip_header: bool = True,
-                 repeat_in_batches = False):
+                 repeat_in_batches = False, device: str = 'cpu'):
         """Initialise data class.
         :param data_dir (str): Directory containing dataset.
         :param fields (Dict[str, str]): The data fields in the file.
@@ -37,6 +37,7 @@ class Dataset(data.TabularDataset):
         :param shuffle (bool, default: True): Shuffle the data between each epoch.
         :param sep (str): Seperator (if csv/tsv file).
         :param repeat_in_batches (bool, default: False): Repeat data within batches
+        :param device (str, default: 'cpu'): Device to process on
         """
         self.tagger = spacy.load('en', disable = ['ner'])
         num_files = len(splits.keys())  # Get the number of datasets.
@@ -51,6 +52,7 @@ class Dataset(data.TabularDataset):
         self.batch_sizes = batch_sizes
         self.repeat = repeat_in_batches
         self.cleaners = cleaners
+        self.device = device
 
     @property
     def fields(self):
@@ -116,6 +118,8 @@ class Dataset(data.TabularDataset):
             cleaned = re.sub(r'https?:/\/\S+', '<URL>', cleaned)
         if 'hashtag' in self.cleaners or 'hashtag' in processes:
             cleaned = re.sub(r'#[a-zA-Z0-9]*\b', '<HASHTAG>', cleaned)
+        if 'username' in self.cleaners or 'username' in processes:
+            cleaned = re.sub(r'@\S+', '<USER>')
 
         return cleaned
 
