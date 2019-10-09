@@ -52,21 +52,6 @@ class Dataset(data.TabularDataset):
         self.repeat = repeat_in_batches
         self.cleaners = cleaners
 
-    def load_data(self) -> Tuple[types.NPData, ...]:
-        """Load the dataset and return the data.
-        :return data: Return loaded data.
-        """
-        if self.load_params['num_files'] == 1:
-            train = self._data(**self.load_params)
-            self.data = (train, None, None)
-        elif self.load_params['num_files'] == 2:
-            train, test = self._data(**self.load_params)
-            self.data = (train, None, test)
-        elif self.load_params['num_files'] == 3:
-            train, dev, test = self._data(**self.load_params)
-            self.data = (train, dev, test)
-        return self.data
-
     @property
     def fields(self):
         return self.dfields
@@ -84,30 +69,20 @@ class Dataset(data.TabularDataset):
     def data_params(self, params):
         self.load_params.update(params)
 
-    def clean_document(self, text: types.DocType, processes: List[str] = None):
-        """Data cleaning method.
-        :param text (types.DocType): The document to be cleaned.
-        :param processes (List[str]): The cleaning processes to be undertaken.
-        :return cleaned: Return the cleaned text.
+    def load_data(self) -> Tuple[types.NPData, ...]:
+        """Load the dataset and return the data.
+        :return data: Return loaded data.
         """
-        cleaned = str(text)
-        if 'lower' in self.cleaners or 'lower' in processes:
-            cleaned = cleaned.lower()
-        if 'url' in self.cleaners or 'url' in processes:
-            cleaned = re.sub(r'https?:/\/\S+', '<URL>', cleaned)
-        if 'hashtag' in self.cleaners or 'hashtag' in processes:
-            cleaned = re.sub(r'#[a-zA-Z0-9]*\b', '<HASHTAG>', cleaned)
-
-        return cleaned
-
-    def tokenize(self, document: types.DocType, processes: List[str]):
-        """Tokenize the document using SpaCy and clean it as it is processed.
-        :param document: Document to be parsed.
-        :param processes: The cleaning processes to engage in.
-        :return toks: Document that has been passed through spacy's tagger.
-        """
-        toks = [tok.text for tok in self.tagger(self.clean_document(document, processes = processes))]
-        return toks
+        if self.load_params['num_files'] == 1:
+            train = self._data(**self.load_params)
+            self.data = (train, None, None)
+        elif self.load_params['num_files'] == 2:
+            train, test = self._data(**self.load_params)
+            self.data = (train, None, test)
+        elif self.load_params['num_files'] == 3:
+            train, dev, test = self._data(**self.load_params)
+            self.data = (train, dev, test)
+        return self.data
 
     @classmethod
     def _data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
@@ -127,6 +102,34 @@ class Dataset(data.TabularDataset):
         splitted = data.TabularDataset.splits(path = path, format = format, fields = fields, train = train,
                                               validation = validation, test = test, skip_header = skip_header)
         return splitted
+
+    def clean_document(self, text: types.DocType, processes: List[str] = None):
+        """Data cleaning method.
+        :param text (types.DocType): The document to be cleaned.
+        :param processes (List[str]): The cleaning processes to be undertaken.
+        :return cleaned: Return the cleaned text.
+        """
+        cleaned = str(text)
+        if 'lower' in self.cleaners or 'lower' in processes:
+            cleaned = cleaned.lower()
+        if 'url' in self.cleaners or 'url' in processes:
+            cleaned = re.sub(r'https?:/\/\S+', '<URL>', cleaned)
+        if 'hashtag' in self.cleaners or 'hashtag' in processes:
+            cleaned = re.sub(r'#[a-zA-Z0-9]*\b', '<HASHTAG>', cleaned)
+
+        return cleaned
+
+    def tokenize(self, document: types.DocType, processes: List[str] = None):
+        """Tokenize the document using SpaCy and clean it as it is processed.
+        :param document: Document to be parsed.
+        :param processes: The cleaning processes to engage in.
+        :return toks: Document that has been passed through spacy's tagger.
+        """
+        if processes:
+            toks = [tok.text for tok in self.tagger(self.clean_document(document, processes = processes))]
+        else:
+            toks = [tok.text for tok in self.tagger(self.clean_document(document))]
+        return toks
 
     def generate_batches(self, sort_func: Callable, datasets: Tuple[types.NPData, ...] = None):
         """Create the minibatching here.
