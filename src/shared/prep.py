@@ -187,3 +187,11 @@ class Dataset(data.TabularDataset):
             raise NotImplementedError
 
         return tuple(res)
+
+    def set_field_attribute(field: types.FieldType, attribute: str, val: types.AllBuiltin):
+        """Take an initialised field and an attribute.
+        :param field (types.FieldType): The field to be modified.
+        :param attribute (str): The attribute to modify.
+        :param val (types.AllBuiltin): The new value of the attribute.
+        """
+        setattr(field, attribute, val)

@@ -4,13 +4,14 @@ import numpy as np
 from torch.nn import Module
 from torchtext.data import Field
 from sklearn.base import ClassifierMixin, TransformerMixin
-from typing import Union
+from typing import Union, Callable
 
 
 # Data types
 FieldType = Field
-NPData = Union[list, np.ndarray, torch.LongTensor]
+DataType = Union[list, np.ndarray, torch.LongTensor]
 DocType = Union[str, list, spacy.tokens.doc.Doc]
+AllBuiltin = Union[str, list, tuple, dict, int, float, bool, Callable]
 
 # Model/Vectorizer Type
 ModelType = Union[ClassifierMixin, Module]
