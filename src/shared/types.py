@@ -15,3 +15,19 @@ DocType = Union[str, list, spacy.tokens.doc.Doc]
 # Model/Vectorizer Type
 ModelType = Union[ClassifierMixin, Module]
 VectType = TransformerMixin
+
+text_label = Field(sequential = False,
+                   include_lengths = False,
+                   use_vocab = True,
+                   pad_token = None,
+                   unk_token = None)
+
+int_label = Field(sequential = False,
+                  include_lengths = False,
+                  use_vocab = True,
+                  pad_token = None,
+                  unk_token = None)
+
+text_data = Field(sequential = True,
+                  include_lengths=True,
+                  use_vocab=True)
