@@ -156,28 +156,6 @@ class Dataset(data.TabularDataset):
                                                  sort_within_batch = True, repeat = self.repeat)
         return batches
 
-    def ix_to_label(self, label_to_ix):
-        """Take label-index mapping and create map index to label.
-        :param label_to_ix: Dictionary containing label_to_index mapping.
-        :return ix_to_label: Dictionary containing index_to_label mapping.
-        """
-        ix_to_label = {v: k for k, v in label_to_ix.items()}
-        return ix_to_label
-
-    def label_to_ix(self, labels):
-        """Generate labels to generate indice dictionary.
-        :param labels: list of all labels in the dataset.
-        :return label_to_ix: Dictionary to convert labels to indices.
-        """
-        if not isinstance(labels, set):
-            labels = set(labels)
-
-        label_to_ix = {}
-        for label in labels:
-            label_to_ix[label] = len(label_to_ix)
-
-        return label_to_ix
-
     def tag(self, document: types.DocType):
         """Tag document using spacy.
         :param document: Document to be parsed.

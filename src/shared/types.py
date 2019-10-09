@@ -16,6 +16,8 @@ DocType = Union[str, list, spacy.tokens.doc.Doc]
 ModelType = Union[ClassifierMixin, Module]
 VectType = TransformerMixin
 
+
+# Set up label types for data processing
 text_label = Field(sequential = False,
                    include_lengths = False,
                    use_vocab = True,
