@@ -188,10 +188,17 @@ class Dataset(data.TabularDataset):
 
         return tuple(res)
 
-    def set_field_attribute(field: types.FieldType, attribute: str, val: types.AllBuiltin):
+    def set_field_attribute(field: Union[types.FieldType, List[types.FieldType]], attribute: Union[str, List[str]],
+                            value: Union[types.Any, List[types.Any]]):
         """Take an initialised field and an attribute.
         :param field (types.FieldType): The field to be modified.
         :param attribute (str): The attribute to modify.
-        :param val (types.AllBuiltin): The new value of the attribute.
+        :param value (types.AllBuiltin): The new value of the attribute.
         """
-        setattr(field, attribute, val)
+        if isinstance(field, list):
+            assert(len(field) == len(attribute))
+            assert(len(attribute) == len(value))
+            for f, attr, val in zip(field, attribute, value):
+                setattr(f, attr, val)
+        else:
+            setattr(field, attribute, value)
