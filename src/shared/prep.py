@@ -2,7 +2,7 @@ import re
 import spacy
 from torchtext import data
 import src.shared.types as types
-from typing import List, Tuple, Dict, Union, Callable
+from typing import List, Tuple, Dict, Union, Callable, Any
 
 
 class BatchGenerator:
@@ -71,7 +71,7 @@ class Dataset(data.TabularDataset):
     def data_params(self, params):
         self.load_params.update(params)
 
-    def load_data(self) -> Tuple[types.NPData, ...]:
+    def load_data(self) -> Tuple[types.DataType, ...]:
         """Load the dataset and return the data.
         :return data: Return loaded data.
         """
@@ -89,7 +89,7 @@ class Dataset(data.TabularDataset):
     @classmethod
     def _data(cls, path: str, format: str, fields: Union[List[Tuple[types.FieldType, ...]], Dict[str, tuple]],
               train: str, validation: str = None, test: str = None, skip_header: bool = True,
-              num_files: int = 3) -> Tuple[types.NPData, ...]:
+              num_files: int = 3) -> Tuple[types.DataType, ...]:
         """Use the loader in torchtext.
         :param path (str): Directory the data is stored in.
         :param format (str): Format of the data.
@@ -119,7 +119,7 @@ class Dataset(data.TabularDataset):
         if 'hashtag' in self.cleaners or 'hashtag' in processes:
             cleaned = re.sub(r'#[a-zA-Z0-9]*\b', '<HASHTAG>', cleaned)
         if 'username' in self.cleaners or 'username' in processes:
-            cleaned = re.sub(r'@\S+', '<USER>')
+            cleaned = re.sub(r'@\S+', '<USER>', cleaned)
 
         return cleaned
 
@@ -135,11 +135,11 @@ class Dataset(data.TabularDataset):
             toks = [tok.text for tok in self.tagger(self.clean_document(document))]
         return toks
 
-    def generate_batches(self, sort_func: Callable, datasets: Tuple[types.NPData, ...] = None):
+    def generate_batches(self, sort_func: Callable, datasets: Tuple[types.DataType, ...] = None):
         """Create the minibatching here.
-        :param train (types.NPData, optional): Provide a processed train dataset.
-        :param test (types.NPData, optional): Provide a processed test dataset.
-        :param dev (types.NPData, optional): Provide a processed test dataset.
+        :param train (types.DataType, optional): Provide a processed train dataset.
+        :param test (types.DataType, optional): Provide a processed test dataset.
+        :param dev (types.DataType, optional): Provide a processed test dataset.
         :return ret: Return the batched data.
         """
         if datasets:
@@ -188,17 +188,16 @@ class Dataset(data.TabularDataset):
 
         return tuple(res)
 
-    def set_field_attribute(field: Union[types.FieldType, List[types.FieldType]], attribute: Union[str, List[str]],
-                            value: Union[types.Any, List[types.Any]]):
+    def set_field_attribute(self, field: Union[types.FieldType, List[types.FieldType]],
+                            attribute: Union[str, List[str]],
+                            val: Union[Any, List[Any]]):
         """Take an initialised field and an attribute.
         :param field (types.FieldType): The field to be modified.
         :param attribute (str): The attribute to modify.
-        :param value (types.AllBuiltin): The new value of the attribute.
+        :param val (types.AllBuiltin): The new value of the attribute.
         """
-        if isinstance(field, list):
-            assert(len(field) == len(attribute))
-            assert(len(attribute) == len(value))
-            for f, attr, val in zip(field, attribute, value):
-                setattr(f, attr, val)
+        if isinstance(field, List):
+            for f, a, v in zip(field, attribute, val):
+                setattr(f, a, v)
         else:
-            setattr(field, attribute, value)
+            setattr(field, attribute, val)
