@@ -22,7 +22,7 @@ class CNNClassifier(nn.Module):
         :param sequence: The sequence to be predicted on.
         :return scores: The scores computed by the model.
         """
-        emb = self.embedding(sequence)
+        emb = self.embedding(sequence)  # Get embeddings for sequence
         emb = emb.unsqueeze(1)
         output = [F.relu(conv(sequence)).squeeze(3) for conv in self.conv]
         output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in sequence]
