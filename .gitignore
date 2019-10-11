@@ -105,3 +105,6 @@ venv.bak/
 
 # Ignore pytorch tutorial stuff
 src/pytorch_tutorial
+
+# Ignore mac specific things
+.DS_Store
