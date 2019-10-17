@@ -167,7 +167,7 @@ class Dataset(data.TabularDataset):
         :return ret: Return the batched data.
         """
         self.batch_sizes = batch_sizes
-        self.data = datasets
+        self.data_attr = datasets
         batches = data.BucketIterator.splits(self.data,
                                              self.batch_sizes,
                                              sort_key = sort_func,
@@ -215,8 +215,8 @@ class Dataset(data.TabularDataset):
         :param attribute (str): The attribute to modify.
         :param val (t.AllBuiltin): The new value of the attribute.
         """
-        if isinstance(field, t.List):
-            for f, a, v in zip(field, attribute, val):
-                setattr(f, a, v)
+        if isinstance(attribute, t.List):
+            for a, v in zip(attribute, val):
+                setattr(field, a, v)
         else:
             setattr(field, attribute, val)
