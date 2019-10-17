@@ -143,6 +143,20 @@ class Dataset(data.TabularDataset):
             toks = [tok.text for tok in self.tagger(self.clean_document(document))]
         return toks
 
+    @property
+    def data_attr(self):
+        """Get or set the data attribute."""
+        return self.data
+
+    @data_attr.setter
+    def data_attr(self, data: t.Tuple[t.DataType, ...]):
+        if len(data) == 1:
+            self.data = (data[0], None, None)
+        elif len(data) == 2:
+            self.data = (data[0], None, data[1])
+        elif len(data) == 3:
+            self.data = data
+
     def generate_batches(self, sort_func: t.Callable, datasets: t.Tuple[t.DataType, ...] = None,
                          batch_sizes: t.Tuple[int, ...] = (32,)):
         """Create the minibatching here.
@@ -153,18 +167,12 @@ class Dataset(data.TabularDataset):
         :return ret: Return the batched data.
         """
         self.batch_sizes = batch_sizes
-        if datasets:
-            batches = data.BucketIterator.splits(datasets,
-                                                 self.batch_sizes,
-                                                 sort_key = sort_func,
-                                                 device = self.device,
-                                                 sort_within_batch = True, repeat = self.repeat)
-        else:
-            batches = data.BucketIterator.splits(self.data,
-                                                 self.batch_sizes,
-                                                 sort_key = sort_func,
-                                                 device = self.device,
-                                                 sort_within_batch = True, repeat = self.repeat)
+        self.data = datasets
+        batches = data.BucketIterator.splits(self.data,
+                                             self.batch_sizes,
+                                             sort_key = sort_func,
+                                             device = self.device,
+                                             sort_within_batch = True, repeat = self.repeat)
         return batches
 
     def tag(self, document: t.DocType):

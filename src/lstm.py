@@ -17,8 +17,8 @@ class LSTMClassifier(nn.Module):
         self.hidden_dim = hidden_dim
 
         # Define layers of the network
-        self.embeddings = nn.Embedding(input_dim, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim)
+        self.from_input = nn.Linear(input_dim, hidden_dim)
+        self.lstm = nn.LSTM(hidden_dim, hidden_dim)
         self.to_output = nn.Linear(hidden_dim, no_classes)
 
         # Set the method for producing "probability" distribution.
@@ -30,8 +30,8 @@ class LSTMClassifier(nn.Module):
         :return scores: The "probability" distribution for the classes.
         """
 
-        emb = self.embeddings(sequence)  # Get embedding for the sequence
-        out, last_layer = self.lstm(emb.view(len(sequence), 1, -1))  # Get layers of the LSTM
+        out = self.from_input(sequence)  # Get embedding for the sequence
+        out, last_layer = self.lstm(out)  # Get layers of the LSTM
         class_scores = self.to_output(out.view(len(sequence), -1))
         prob_dist = self.softmax(class_scores)  # The probability distribution
 
