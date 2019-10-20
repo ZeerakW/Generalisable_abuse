@@ -1,10 +1,13 @@
 from tqdm import tqdm
-import src.shared.types as t
+import Generalisable_abuse.src.shared.types as t
 from src.shared.clean import Cleaner
 from src.lstm import LSTMClassifier
 import torch.nn as nn
 import torch.optim as optim
 from src.shared.train import create_batches, compute_unigram_liwc
+import sys
+
+sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/'])
 
 
 def setup_data():
