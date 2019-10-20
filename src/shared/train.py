@@ -117,12 +117,13 @@ def setup_data():
     # MFTC
     text = (t.text_data, {'attribute': ['tokenize', 'preprocess'],
                           'value': [clean.tokenize, compute_unigram_liwc]})
-    label = (t.text_label, None)
+    label = (t.int_label, None)
 
-    fields = [('tweet_id', None), ('data', text), ('label', label)]
+    fields = [('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None), ('label', label[0]),
+              ('data', text)]
 
-    data_opts = {'splits': {'train': 'MFTC_V4_text_parsed.tsv'}, 'ftype': 'tsv', 'data_field': text, 'fields': fields,
-                 'label_field': label, 'batch_sizes': (64, 64), 'shuffle': True, 'sep': '\t', 'skip_header': True,
+    data_opts = {'splits': {'train': 'davidson_offensive'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
+                 'label_field': label, 'batch_sizes': (64,), 'shuffle': True, 'sep': ',', 'skip_header': True,
                  'repeat_in_batches': False}
 
     ds = create_batches(data_dir = data_dir, device = device, **data_opts)
