@@ -2,6 +2,9 @@ from tqdm import tqdm
 import src.shared.types as t
 from src.shared.data import Dataset, BatchGenerator
 from src.shared.clean import Cleaner
+from src.lstm import LSTMClassifier
+import torch.nn as nn
+import torch.optim as optim
 
 
 def read_liwc() -> dict:
@@ -106,40 +109,4 @@ def create_batches(data_dir: str, splits: t.Dict[str, t.Union[str, None]], ftype
     test_batch = BatchGenerator(test, 'data', 'label')
 
     batches = (train_batch, dev_batch, test_batch)
-    return data, batches
-
-
-def setup_data():
-    device = 'cpu'
-    data_dir = '/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/'
-    clean = Cleaner()
-
-    # MFTC
-    text = (t.text_data, {'attribute': ['tokenize', 'preprocess'],
-                          'value': [clean.tokenize, compute_unigram_liwc]})
-    label = (t.int_label, None)
-
-    fields = [('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None), ('label', label[0]),
-              ('data', text)]
-
-    data_opts = {'splits': {'train': 'davidson_offensive'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
-                 'label_field': label, 'batch_sizes': (64,), 'shuffle': True, 'sep': ',', 'skip_header': True,
-                 'repeat_in_batches': False}
-
-    ds = create_batches(data_dir = data_dir, device = device, **data_opts)
-
-    return ds
-
-
-def train(epochs, model, loss_func, optimizer):
-
-    ds, train, dev, test = setup_data()
-
-    for epoch in tqdm(range(epochs)):
-        model.zero_grad()
-        batch = next(iter(train))
-
-        scores = model(batch)
-        loss = loss_func(scores, batch.labels)
-        loss.backward()
-        optimizer.step()
+    return data, batches, data_field.vocab
