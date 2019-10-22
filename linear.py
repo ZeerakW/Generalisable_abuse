@@ -1,9 +1,10 @@
 from collections import OrderedDict
 from typing import List, Tuple, Callable
-from src.shared.fileio import write_results, print_results
-from src.shared.metrics import select_metrics from sklearn.preprocessing import LabelEncoder
+from shared.fileio import write_results, print_results
+from shared.metrics import select_metrics
+from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction import DictVectorizer
-from src.shared.types import NPData, ModelType, VectType
+from shared.types import NPData, ModelType, VectType
 from slearn.feature_extraction.text import CountVectorizer, TfidfVectorizer, HashingVectorizer
 
 

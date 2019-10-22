@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
+import shared.types as t
 import torch.nn.Functional as F
-import src.shared.types as t
 
 
 class LSTMClassifier(nn.Module):

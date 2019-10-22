@@ -1,6 +1,6 @@
 # from torchtext.data import Field, TabularDataset, BucketIterator
-import src.shared.types as types
-from src.shared.prep import Dataset, BatchGenerator
+import shared.types as types
+from shared.prep import Dataset, BatchGenerator
 
 # Initialise the data reader
 ds = Dataset(data_dir = '~/Documents/PhD/projects/Generalisable_abuse/data',

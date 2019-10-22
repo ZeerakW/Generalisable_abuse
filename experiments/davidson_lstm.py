@@ -1,10 +1,10 @@
 from tqdm import tqdm
-import Generalisable_abuse.src.shared.types as t
-from src.shared.clean import Cleaner
-from src.lstm import LSTMClassifier
+import shared.types as t
+from shared.clean import Cleaner
 import torch.nn as nn
 import torch.optim as optim
-from src.shared.train import create_batches, compute_unigram_liwc
+from shared.train import create_batches, compute_unigram_liwc
+from neural import LSTMClassifier
 import sys
 
 sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/'])
