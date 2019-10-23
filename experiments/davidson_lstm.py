@@ -1,13 +1,13 @@
+import sys
+sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
+
 from tqdm import tqdm
-import shared.types as t
-from shared.clean import Cleaner
 import torch.nn as nn
 import torch.optim as optim
-from shared.train import create_batches, compute_unigram_liwc
-from neural import LSTMClassifier
-import sys
-
-sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/'])
+import gen.shared.types as t
+from gen.shared.clean import Cleaner
+from gen.shared.train import create_batches, compute_unigram_liwc
+from gen.neural import LSTMClassifier
 
 
 def setup_data():
@@ -16,7 +16,7 @@ def setup_data():
     clean = Cleaner()
 
     # MFTC
-    text = (t.text_data, {'attribute': ['tokenize', 'preprocess'],
+    text = (t.text_data, {'attribute': ['tokenize', 'preprocessing'],
                           'value': [clean.tokenize, compute_unigram_liwc]})
     label = (t.int_label, None)
 
@@ -24,7 +24,7 @@ def setup_data():
               ('data', text)]
 
     data_opts = {'splits': {'train': 'davidson_offensive'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
-                 'label_field': label, 'batch_sizes': (64,), 'shuffle': True, 'sep': ',', 'skip_header': True,
+                 'label_field': label, 'batch_sizes': (64,), 'shuffle': True, 'skip_header': True,
                  'repeat_in_batches': False}
 
     ds = create_batches(data_dir = data_dir, device = device, **data_opts)

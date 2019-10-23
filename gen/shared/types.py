@@ -4,7 +4,7 @@ import numpy as np
 from torch.nn import Module
 from torchtext.data import Field
 from sklearn.base import ClassifierMixin, TransformerMixin
-from typing import Union, List
+from typing import *
 
 
 # Data types

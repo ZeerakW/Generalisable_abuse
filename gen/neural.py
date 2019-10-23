@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
-import shared.types as t
-import torch.nn.Functional as F
+import gen.shared.types as t
+import torch.nn.functional as F
 
 
 class LSTMClassifier(nn.Module):
 
-    def __init(self, hidden_dim: int, input_dim: int, no_classes: int, no_layers: int):
+    def __init(self, input_dim: int, hidden_dim: int, no_classes: int, no_layers: int):
         """Initialise the LSTM.
-        :param hidden_dim: The dimensionality of the hidden dimension.
         :param input_dim: The dimensionality of the input to the embedding generation.
+        :param hidden_dim: The dimensionality of the hidden dimension.
         :param no_classes: Number of classes for to predict on.
         :param no_layers: The number of recurrent layers in the LSTM (1-3).
         """
@@ -42,14 +42,14 @@ class LSTMClassifier(nn.Module):
 
 class CNNClassifier(nn.Module):
 
-    def __init__(self, window_sizes: t.List[int], no_filters: int, max_feats: int, embedding_dim: int, no_classes: int):
+    def __init__(self, window_sizes: t.List[int], no_filters: int, max_feats: int, hidden_dim: int, no_classes: int):
         """Initialise the model.
         :param window_sizes: The size of the filters (e.g. 1: unigram, 2: bigram, etc.)
         :param no_filters: The number of filters to apply.
         :param max_feats: The maximum length of the sequence to consider.
         """
-        self.embedding = nn.Embedding(max_feats, embedding_dim)
-        self.conv = [nn.ModuleList(nn.Conv2d(1, no_filters, (w, embedding_dim)) for w in window_sizes)]
+        self.embedding = nn.Embedding(max_feats, hidden_dim)
+        self.conv = [nn.ModuleList(nn.Conv2d(1, no_filters, (w, hidden_dim)) for w in window_sizes)]
         self.linear = nn.Linear(len(window_sizes) * no_filters, no_classes)
 
     def forward(self, sequence):

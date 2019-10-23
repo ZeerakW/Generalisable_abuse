@@ -1,14 +1,9 @@
-from tqdm import tqdm
-import src.shared.types as t
-from src.shared.data import Dataset, BatchGenerator
-from src.shared.clean import Cleaner
-from src.lstm import LSTMClassifier
-import torch.nn as nn
-import torch.optim as optim
+import gen.shared.types as t
+from gen.shared.data import Dataset, BatchGenerator
 
 
 def read_liwc() -> dict:
-    with open('~/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/liwc-2015.csv', 'r') as liwc_f:
+    with open('/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/liwc-2015.csv', 'r') as liwc_f:
         liwc_dict = {}
         for line in liwc_f:
             k, v = line.strip('\n').split(',')
@@ -61,8 +56,9 @@ def store_fields(obj, data_field, label_field, **kwargs):
     :param label (t.FieldType): The field instance for the label.
     :param kwargs: Will search for any fields in this.
     """
+    import pdb; pdb.set_trace()
+    field = []
     if kwargs:
-        field = []
         for k in kwargs:
             if 'field' in k:
                 field.append(kwargs[k])
@@ -71,23 +67,22 @@ def store_fields(obj, data_field, label_field, **kwargs):
 
 
 def create_batches(data_dir: str, splits: t.Dict[str, t.Union[str, None]], ftype: str, fields: t.Union[dict, list],
-                   cleaners: t.List[str], batch_sizes: t.Tuple[int, ...], shuffle: bool, sep: str, skip_header: bool,
-                   repeat_in_batches: bool, device: t.Union[str, int],
-                   data_field: t.Tuple[t.FieldType, t.Union[t.Dict, None]],
+                   batch_sizes: t.Tuple[int, ...], shuffle: bool, skip_header: bool, repeat_in_batches: bool,
+                   device: t.Union[str, int], data_field: t.Tuple[t.FieldType, t.Union[t.Dict, None]],
                    label_field: t.Tuple[t.FieldType, t.Union[t.Dict, None]], **kwargs):
 
     # Initiate the dataset object
-    data = Dataset(data_dir = data_dir, splits = splits, ftype = ftype, fields = fields, cleaners = cleaners,
-                   shuffle = shuffle, sep = sep, skip_header = skip_header, repeat_in_batches = repeat_in_batches,
+    data = Dataset(data_dir = data_dir, splits = splits, ftype = ftype, fields = fields,
+                   shuffle = shuffle, skip_header = skip_header, repeat_in_batches = repeat_in_batches,
                    device = device)
 
     # If the fields need new attributes set: set them.
     # TODO assumes only data and field labels need modification.
     if data_field[1]:
-        data.set_field_attribute(data_field[0], data_field[1]['attribute'], data_field[1]['value'])
+        data.set_field_attribute([data_field[0]], data_field[1]['attribute'], data_field[1]['value'])
 
     if label_field[1]:
-        data.set_field_attribute(label_field[0], label_field[1]['attribute'], label_field[1]['value'])
+        data.set_field_attribute([label_field[0]], label_field[1]['attribute'], label_field[1]['value'])
 
     # Store our Field instances so we can later access them.
     store_fields(data, data_field, label_field, **kwargs)
