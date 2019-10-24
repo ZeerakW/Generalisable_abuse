@@ -1,3 +1,5 @@
+import re
+import pdb
 import gen.shared.types as t
 from gen.shared.data import Dataset, BatchGenerator
 
@@ -36,16 +38,17 @@ def compute_unigram_liwc(doc: t.DocType):
 
             num_cands = len(candidates)
             if num_cands == 0:
-                term = 'UNK'
-                continue
+                term = 'NUM' if re.findall(r'[0-9]+', w) else 'UNK'
             elif num_cands == 1:
                 term = candidates[0]
             elif num_cands > 1:
                 sorted_cands = sorted(candidates, key=len, reverse = True)
                 term = sorted_cands[0] + '*'
             liwc_doc.append(term)
-
-    assert(len(liwc_doc) == len(doc))
+    try:
+        assert(len(liwc_doc) == len(doc))
+    except AssertionError:
+        pdb.set_trace()
 
     return liwc_doc
 
@@ -56,7 +59,6 @@ def store_fields(obj, data_field, label_field, **kwargs):
     :param label (t.FieldType): The field instance for the label.
     :param kwargs: Will search for any fields in this.
     """
-    import pdb; pdb.set_trace()
     field = []
     if kwargs:
         for k in kwargs:
@@ -89,6 +91,7 @@ def create_batches(data_dir: str, splits: t.Dict[str, t.Union[str, None]], ftype
 
     data.fields = fields  # Update the fields in the class
 
+    pdb.set_trace
     loaded = data.load_data()  # Data paths exist in the class
 
     if len([v for v in splits.values() if v is not None]) == 1:  # If only one dataset is given
