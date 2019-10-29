@@ -1,12 +1,14 @@
+import pdb
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 import gen.shared.types as t
 import torch.nn.functional as F
 
 
 class LSTMClassifier(nn.Module):
 
-    def __init(self, input_dim: int, hidden_dim: int, no_classes: int, no_layers: int):
+    def __init__(self, input_dim: int, hidden_dim: int, no_classes: int, no_layers: int):
         """Initialise the LSTM.
         :param input_dim: The dimensionality of the input to the embedding generation.
         :param hidden_dim: The dimensionality of the hidden dimension.
@@ -19,8 +21,8 @@ class LSTMClassifier(nn.Module):
         self.hidden_dim = hidden_dim
 
         # Define layers of the network
-        self.from_input = nn.Linear(input_dim, hidden_dim)
-        self.lstm = nn.LSTM(hidden_dim, hidden_dim, num_layers = no_layers)
+        # self.from_input = nn.Linear(input_dim, hidden_dim)
+        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers = no_layers, batch_first = True)
         self.to_output = nn.Linear(hidden_dim, no_classes)
 
         # Set the method for producing "probability" distribution.
@@ -31,11 +33,39 @@ class LSTMClassifier(nn.Module):
         :param sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
-
-        out = self.from_input(sequence)  # Get embedding for the sequence
-        out, last_layer = self.lstm(out)  # Get layers of the LSTM
+        # out = self.from_input(sequence)  # Get embedding for the sequence
+        out, last_layer = self.lstm(sequence)  # Get layers of the LSTM
         class_scores = self.to_output(out.view(len(sequence), -1))
         prob_dist = self.softmax(class_scores)  # The probability distribution
+
+        return prob_dist
+
+
+class MLPClassifier(nn.Module):
+
+    def __init__(self, input_dim, hidden_dim, output_dim, dropout = 0.2):
+        """Initialise the model.
+        :param input_dim: The dimension of the input to the model.
+        :param hidden_dim: The dimension of the hidden layer.
+        :param output_dim: The dimension of the output layer (i.e. the number of classes).
+        """
+
+        self.input2hidden = nn.Linear(input_dim, hidden_dim)
+        self.hidden2hidden = nn.Linear(hidden_dim, hidden_dim)
+        self.hidden2output = nn.Linear(hidden_dim, output_dim)
+
+        # Set dropout and non-linearity
+        self.dropout = nn.Dropout(dropout)
+        self.tanh = nn.Tanh()
+        self.softmax = nn.LogSoftmax(dim = 1)
+
+    def forward(self, sequence, train_mode = False):
+
+        dropout = self.dropout if train_mode else lambda x: x
+        out = dropout(self.tanh(self.input2hidden(sequence)))
+        out = dropout(self.tanh(self.hidden2hidden(out)))
+        out = self.hidden2output(out)
+        prob_dist = self.softmax(out)
 
         return prob_dist
 

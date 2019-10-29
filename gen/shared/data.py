@@ -47,6 +47,9 @@ class Dataset(data.TabularDataset):
         self.repeat = repeat_in_batches
         self.device = device
 
+    def init(self):
+        super(Dataset, self).__init__(**self.load_params)
+
     @property
     def field_instances(self):
         """Set or return the instances of the fields used."""
@@ -57,11 +60,11 @@ class Dataset(data.TabularDataset):
         self.field_types = fields
 
     @property
-    def fields(self):
+    def fields_obj(self):
         return self.dfields
 
-    @fields.setter
-    def fields(self, fields):
+    @fields_obj.setter
+    def fields_obj(self, fields):
         self.dfields = fields
         self.load_params.update({'fields': fields})
 

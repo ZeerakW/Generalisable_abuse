@@ -20,6 +20,11 @@ def read_liwc() -> dict:
 global liwc_dict
 liwc_dict = read_liwc()
 
+# TODO Different ways of representing LIWC
+# First category
+# Take counts of categories, use the heighest count
+# Basically look at the if statement and see what comes out there.
+
 
 def compute_unigram_liwc(doc: t.DocType):
     """Compute LIWC for each document document.
@@ -31,7 +36,7 @@ def compute_unigram_liwc(doc: t.DocType):
 
     for w in doc:
         if w in liwc_dict:
-            liwc_doc.extend(liwc_dict[w])
+            liwc_doc.append(liwc_dict[w][0])
         else:
             # This because re.findall is slow.
             candidates = [r for r in kleene_star if r in w]  # Find all candidates
@@ -89,13 +94,15 @@ def create_batches(data_dir: str, splits: t.Dict[str, t.Union[str, None]], ftype
     # Store our Field instances so we can later access them.
     store_fields(data, data_field, label_field, **kwargs)
 
-    data.fields = fields  # Update the fields in the class
+    data.field_obj = fields  # Update the fields in the class
 
-    pdb.set_trace
+    pdb.set_trace()
     loaded = data.load_data()  # Data paths exist in the class
 
     if len([v for v in splits.values() if v is not None]) == 1:  # If only one dataset is given
-        train, test = data.split(split_ratio = kwargs['split_ratio'], stratified = True, strata_field = kwargs['label'])
+        strata_label = kwargs['label'] if 'label' in kwargs else 'label'
+        pdb.set_trace()
+        train, test = data.split(split_ratio = kwargs['split_ratio'], stratified = True, strata_field = strata_label)
         loaded = (train, None, test)
 
     data_field.build_vocab()

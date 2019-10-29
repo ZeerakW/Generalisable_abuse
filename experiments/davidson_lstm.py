@@ -1,4 +1,4 @@
-import sys
+import sys, pdb
 sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
 
 from tqdm import tqdm
@@ -13,19 +13,22 @@ from gen.neural import LSTMClassifier
 def setup_data():
     device = 'cpu'
     data_dir = '/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/'
-    clean = Cleaner()
+    cleaning = ['lower', 'url', 'hashtag', 'username']
+    clean = Cleaner(cleaning)
 
-    # MFTC
+    # Davidson
     text = (t.text_data, {'attribute': ['tokenize', 'preprocessing'],
                           'value': [clean.tokenize, compute_unigram_liwc]})
+    # text = (t.text_data, {'attribute': ['tokenize'],
+    #                       'value': [clean.tokenize]})
     label = (t.int_label, None)
 
-    fields = [('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None), ('label', label[0]),
-              ('data', text)]
+    fields = [('empty', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
+              ('label', label[0]), ('data', text[0])]
 
-    data_opts = {'splits': {'train': 'davidson_offensive'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
+    data_opts = {'splits': {'train': 'davidson_offensive.csv'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
                  'label_field': label, 'batch_sizes': (64,), 'shuffle': True, 'skip_header': True,
-                 'repeat_in_batches': False}
+                 'repeat_in_batches': False, 'split_ratio': 0.8}
 
     ds = create_batches(data_dir = data_dir, device = device, **data_opts)
 
@@ -44,10 +47,8 @@ def train(epochs, data, model, loss_func, optimizer):
         optimizer.step()
 
 
-# TODO Get input dimension (i.e. vocab)
 # TODO Implement metrics
 # TODO Get class of the predicted label
-
 ds, train_batch, dev_batch, test_batch, vocab = setup_data()
 
 HIDDEN_DIM = 300
