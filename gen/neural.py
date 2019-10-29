@@ -1,14 +1,12 @@
-import pdb
 import torch
 import torch.nn as nn
-from tqdm import tqdm
 import gen.shared.types as t
 import torch.nn.functional as F
 
 
 class LSTMClassifier(nn.Module):
 
-    def __init__(self, input_dim: int, hidden_dim: int, no_classes: int, no_layers: int):
+    def __init__(self, input_dim: int, embedding_dim: int, hidden_dim: int, no_classes: int, no_layers: int):
         """Initialise the LSTM.
         :param input_dim: The dimensionality of the input to the embedding generation.
         :param hidden_dim: The dimensionality of the hidden dimension.
@@ -17,13 +15,9 @@ class LSTMClassifier(nn.Module):
         """
         super(LSTMClassifier, self).__init__()
 
-        # Initialise the hidden dim
-        self.hidden_dim = hidden_dim
-
-        # Define layers of the network
-        # self.from_input = nn.Linear(input_dim, hidden_dim)
-        self.lstm = nn.LSTM(input_dim, hidden_dim, num_layers = no_layers, batch_first = True)
-        self.to_output = nn.Linear(hidden_dim, no_classes)
+        self.emb = nn.Embedding(input_dim, embedding_dim)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, no_layers)
+        self.out = nn.Linear(hidden_dim, no_classes)
 
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim = 1)
@@ -33,10 +27,10 @@ class LSTMClassifier(nn.Module):
         :param sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
-        # out = self.from_input(sequence)  # Get embedding for the sequence
-        out, last_layer = self.lstm(sequence)  # Get layers of the LSTM
-        class_scores = self.to_output(out.view(len(sequence), -1))
-        prob_dist = self.softmax(class_scores)  # The probability distribution
+        out = self.emb(sequence)  # Get embedding for the sequence
+        out, last_layer = self.lstm(out)  # Get layers of the LSTM
+        out = self.out(out)
+        prob_dist = self.softmax(out)  # The probability distribution
 
         return prob_dist
 
@@ -49,6 +43,7 @@ class MLPClassifier(nn.Module):
         :param hidden_dim: The dimension of the hidden layer.
         :param output_dim: The dimension of the output layer (i.e. the number of classes).
         """
+        super(MLPClassifier, self).__init__()
 
         self.input2hidden = nn.Linear(input_dim, hidden_dim)
         self.hidden2hidden = nn.Linear(hidden_dim, hidden_dim)
