@@ -55,7 +55,7 @@ def compute_unigram_liwc(doc: t.DocType):
     except AssertionError:
         pdb.set_trace()
 
-    return liwc_doc
+    return " ".join(liwc_doc)
 
 
 def store_fields(obj, data_field, label_field, **kwargs):
@@ -94,7 +94,7 @@ def create_batches(data_dir: str, splits: t.Dict[str, t.Union[str, None]], ftype
     # Store our Field instances so we can later access them.
     store_fields(data, data_field, label_field, **kwargs)
 
-    data.field_obj = fields  # Update the fields in the class
+    data.fields_obj = fields  # Update the fields in the class
 
     pdb.set_trace()
     loaded = data.load_data()  # Data paths exist in the class
