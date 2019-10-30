@@ -23,6 +23,8 @@ def setup_data():
     #                       'value': [clean.tokenize]})
     label = (t.int_label, None)
 
+    # dict_fields = {'': None, kk}
+
     fields = [('empty', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
               ('label', label[0]), ('data', text[0])]
 
