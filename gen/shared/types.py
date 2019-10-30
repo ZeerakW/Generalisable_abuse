@@ -18,11 +18,11 @@ VectType = TransformerMixin
 
 
 # Set up label types for data processing
-text_label = Field(sequential = False,
+text_label = Field(sequential = True,
                    include_lengths = False,
                    use_vocab = True,
-                   pad_token = None,
-                   unk_token = None)
+                   pad_token = "<PAD>",
+                   unk_token = "<UNK>")
 
 int_label = Field(sequential = False,
                   include_lengths = False,

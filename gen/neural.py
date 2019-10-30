@@ -29,10 +29,10 @@ class LSTMClassifier(nn.Module):
         """
         out = self.emb(sequence)  # Get embedding for the sequence
         out, last_layer = self.lstm(out)  # Get layers of the LSTM
-        out = self.out(out)
+        out = self.out(last_layer[0])
         prob_dist = self.softmax(out)  # The probability distribution
 
-        return prob_dist
+        return prob_dist.squeeze(0)
 
 
 class MLPClassifier(nn.Module):
