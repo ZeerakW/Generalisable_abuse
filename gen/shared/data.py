@@ -1,5 +1,9 @@
+import os
 import re
+import csv
 import spacy
+import torch
+from collections import defaultdict
 from torchtext import data
 import gen.shared.types as t
 
@@ -7,17 +11,62 @@ import gen.shared.types as t
 class BatchGenerator:
     """A class to get the information from the batches."""
 
-    def __init__(self, dataloader, datafield, labelfield):
+    def __init__(self, dataloader, datafield, labelfield, vocab_size):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
+        self.VOCAB_SIZE = vocab_size
 
     def __len__(self):
         return len(self.data)
 
     def __iter__(self):
         for batch in self.data:
-            X = getattr(batch, self.df)
+            X = torch.nn.functional.one_hot(getattr(batch, self.df), self.VOCAB_SIZE)
             y = getattr(batch, self.lf)
             yield (X, y)
+
+
+# class FileReader(torch.utils.data.Dataset):
+#
+#     def __init__(self, dir: str, splits: t.Dict[str, str], sep: str = '\t', fields: t.List[str], shuffle: bool = True,
+#                  skip_header: bool = True, **kwargs):
+#         """Initialise data class.
+#         :param dir (str): Directory containing dataset.
+#         :param splits (str): t.Dictionary containing filenames type of data.
+#         :param sep: Separator to be used.
+#         :param fields: The data fields in the file.
+#         :param shuffle (bool, default: True): Shuffle the data between each epoch.
+#         :param skip_header (bool, default: True): Skip the first line.
+#         """
+#         self.dir = dir
+#         self.splits = splits
+#         self.ftype = ftype
+#         self.sep = sep
+#         self.fields = fields
+#         self.shuffle = shuffle
+#         self.skip_header = skip_header
+#         self.tagger = spacy.load('en', disable = ['parser', 'tagger', 'ner', 'textcat'])
+#         self.ftoi = {item: i for i, item in enumerate(fields)}
+#
+#     def read_files(one_hot: bool = True):
+#         data = defaultdict(defaultdict(list))
+#         for dataf, fh in self.splits.items():
+#             if not fh:
+#                 data[dataf] = None
+#                 continue
+#
+#             with open(os.path.abspath(os.path.join(self.dir, fh)))) as fin:
+#                 reader = csv.reader(fin, delimiter = self.sep)
+#                 if self.skip_header:
+#                     header = next(reader)
+#
+#                 for line in reader:
+#                     for f, i in self.ftoi.items():
+#                         data[datatype][f].append(line[i])
+#
+#         self.data = data['train'], data['dev'], data['test']
+#
+#
+#     def _read_file(split, fh, t one_hot: bool = True):
 
 
 class Dataset(data.TabularDataset):
