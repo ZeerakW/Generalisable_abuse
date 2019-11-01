@@ -15,7 +15,7 @@ class LSTMClassifier(nn.Module):
         """
         super(LSTMClassifier, self).__init__()
 
-        self.emb = nn.Embedding(input_dim, embedding_dim)
+        self.emb = nn.Linear(input_dim, embedding_dim)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, no_layers)
         self.out = nn.Linear(hidden_dim, no_classes)
 
@@ -62,7 +62,7 @@ class MLPClassifier(nn.Module):
         out = self.hidden2output(out)
         prob_dist = self.softmax(out)
 
-        return prob_dist
+        return prob_dist.squeeze(1)
 
 
 class CNNClassifier(nn.Module):
