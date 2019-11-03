@@ -1,3 +1,4 @@
+import pdb
 import torch
 import torch.nn as nn
 import gen.shared.types as t
@@ -15,9 +16,9 @@ class LSTMClassifier(nn.Module):
         """
         super(LSTMClassifier, self).__init__()
 
-        self.emb = nn.Linear(input_dim, embedding_dim)
+        self.itoh = nn.Linear(input_dim, embedding_dim)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, no_layers)
-        self.out = nn.Linear(hidden_dim, no_classes)
+        self.htoo = nn.Linear(hidden_dim, no_classes)
 
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim = 1)
@@ -27,9 +28,9 @@ class LSTMClassifier(nn.Module):
         :param sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
-        out = self.emb(sequence)  # Get embedding for the sequence
+        out = self.itoh(sequence)  # Get embedding for the sequence
         out, last_layer = self.lstm(out)  # Get layers of the LSTM
-        out = self.out(last_layer[0])
+        out = self.htoo(last_layer[0])
         prob_dist = self.softmax(out)  # The probability distribution
 
         return prob_dist.squeeze(0)
@@ -56,6 +57,7 @@ class MLPClassifier(nn.Module):
 
     def forward(self, sequence, train_mode = False):
 
+        sequence = sequence[0]  # TODO talk to George about this
         dropout = self.dropout if train_mode else lambda x: x
         out = dropout(self.tanh(self.input2hidden(sequence)))
         out = dropout(self.tanh(self.hidden2hidden(out)))
@@ -73,8 +75,10 @@ class CNNClassifier(nn.Module):
         :param no_filters: The number of filters to apply.
         :param max_feats: The maximum length of the sequence to consider.
         """
-        self.embedding = nn.Embedding(max_feats, hidden_dim)
-        self.conv = [nn.ModuleList(nn.Conv2d(1, no_filters, (w, hidden_dim)) for w in window_sizes)]
+        super(CNNClassifier, self).__init__()
+
+        self.embedding = nn.Linear(max_feats, hidden_dim)
+        self.conv = nn.ModuleList([nn.Conv2d(1, no_filters, (w, hidden_dim)) for w in window_sizes])
         self.linear = nn.Linear(len(window_sizes) * no_filters, no_classes)
 
     def forward(self, sequence):
@@ -82,10 +86,11 @@ class CNNClassifier(nn.Module):
         :param sequence: The sequence to be predicted on.
         :return scores: The scores computed by the model.
         """
+        pdb.set_trace()
         emb = self.embedding(sequence)  # Get embeddings for sequence
-        emb = emb.unsqueeze(1)
-        output = [F.relu(conv(sequence)).squeeze(3) for conv in self.conv]
-        output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in sequence]
+        # emb = emb.unsqueeze(1)
+        output = [F.relu(conv(emb)).squeeze(3) for conv in self.conv]
+        output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in output]
         output = torch.cat(output, 1)
         scores = self.linear(output)
 
@@ -112,12 +117,18 @@ class RNNClassifier(nn.Module):
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, inputs, hidden):
+    def forward(self, inputs, hidden = []):
         """The forward step in the network.
         :param inputs: The inputs to pass through network.
         :param hidden: The hidden representation at the previous timestep.
         :return softmax, hidden: Return the "probability" distribution and the new hidden representation.
         """
+
+        pdb.set_trace()
+        # TODO Need to look at this
+        inputs = inputs[0]
+        if isinstance(hidden, list):
+            hidden = self.init_hidden(inputs.shape)
         concat_input = torch.cat((inputs, hidden), dim = 1)  # Concatenate input with prev hidden layer
         hidden = self.input2hidden(concat_input)  # Map from input to hidden representation
         output = self.hidden2output(hidden)  # Map from hidden representation to output
@@ -125,5 +136,6 @@ class RNNClassifier(nn.Module):
 
         return softmax, hidden
 
-    def init_hidden(self):
-        return torch.zeros(1, self.hidden_dim)
+    def init_hidden(self, shape):
+        # return torch.zeros(shape[0], shape[1], self.hidden_dim)
+        return torch.zeros(shape[0], self.hidden_dim)
