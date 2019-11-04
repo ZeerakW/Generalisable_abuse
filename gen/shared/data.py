@@ -2,7 +2,7 @@ import re
 import spacy
 import torch
 from torchtext import data
-import gen.shared.types as t
+import src.shared.types as t
 
 
 class OnehotBatchGenerator:
@@ -25,9 +25,8 @@ class OnehotBatchGenerator:
 class BatchGenerator:
     """A class to get the information from the batches."""
 
-    def __init__(self, dataloader, datafield, labelfield, vocab_size):
+    def __init__(self, dataloader, datafield, labelfield):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
-        self.VOCAB_SIZE = vocab_size
 
     def __len__(self):
         return len(self.data)
@@ -42,7 +41,7 @@ class BatchGenerator:
 class Dataset(data.TabularDataset):
 
     def __init__(self, data_dir: str, splits: t.Dict[str, str], ftype: str,
-                 fields: t.List[t.Tuple[t.FieldType, ...]] = None, shuffle: bool = True,
+                 fields: t.List[t.Tuple[t.FieldType, ...]] = None, shuffle: bool = True, sep: str = 'tab',
                  skip_header: bool = True, repeat_in_batches = False, device: str = 'cpu'):
         """Initialise data class.
         :param data_dir (str): Directory containing dataset.
@@ -50,6 +49,7 @@ class Dataset(data.TabularDataset):
         :param splits (str): t.Dictionary containing filenames type of data.
         :param ftype: File type of the data file.
         :param shuffle (bool, default: True): Shuffle the data between each epoch.
+        :param sep (str): Seperator (if csv/tsv file).
         :param repeat_in_batches (bool, default: False): Repeat data within batches
         :param device (str, default: 'cpu'): Device to process on
         """
@@ -66,9 +66,6 @@ class Dataset(data.TabularDataset):
         self.repeat = repeat_in_batches
         self.device = device
 
-    def init(self):
-        super(Dataset, self).__init__(**self.load_params)
-
     @property
     def field_instances(self):
         """Set or return the instances of the fields used."""
@@ -79,11 +76,11 @@ class Dataset(data.TabularDataset):
         self.field_types = fields
 
     @property
-    def fields_obj(self):
+    def fields(self):
         return self.dfields
 
-    @fields_obj.setter
-    def fields_obj(self, fields):
+    @fields.setter
+    def fields(self, fields):
         self.dfields = fields
         self.load_params.update({'fields': fields})
 
@@ -230,12 +227,8 @@ class Dataset(data.TabularDataset):
         :param attribute (str): The attribute to modify.
         :param val (t.AllBuiltin): The new value of the attribute.
         """
-        if isinstance(field, t.List) or isinstance(attribute, t.List):
-            if len(field) == 1 and len(attribute) > 1:
-                for a, v in zip(attribute, val):
-                    setattr(field[0], a, v)
-            else:
-                for f, a, v in zip(field, attribute, val):
-                    setattr(f, a, v)
+        if isinstance(field, t.List):
+            for f, a, v in zip(field, attribute, val):
+                setattr(f, a, v)
         else:
             setattr(field, attribute, val)
