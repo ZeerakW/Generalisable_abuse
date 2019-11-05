@@ -2,7 +2,7 @@ import re
 import spacy
 import torch
 from torchtext import data
-import src.shared.types as t
+import gen.shared.types as t
 
 
 class OnehotBatchGenerator:
