@@ -1,5 +1,6 @@
 import re
 import pdb
+from string import punctuation
 import gen.shared.types as t
 from gen.shared.data import Dataset, BatchGenerator
 
@@ -33,6 +34,9 @@ def compute_unigram_liwc(doc: t.DocType):
     """
     liwc_doc = []
     kleene_star = [k[:-1] for k in liwc_dict if k[-1] == '*']
+
+    if isinstance(doc, str):
+        doc = [w if w[0] not in punctuation and w[-1] not in punctuation else w.strip(punctuation) for w in doc.split()]
 
     for w in doc:
         if w in liwc_dict:
@@ -96,7 +100,6 @@ def create_batches(data_dir: str, splits: t.Dict[str, t.Union[str, None]], ftype
 
     data.fields_obj = fields  # Update the fields in the class
 
-    pdb.set_trace()
     loaded = data.load_data()  # Data paths exist in the class
 
     if len([v for v in splits.values() if v is not None]) == 1:  # If only one dataset is given
