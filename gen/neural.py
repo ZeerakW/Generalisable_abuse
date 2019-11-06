@@ -111,26 +111,23 @@ class RNNClassifier(nn.Module):
         self.hidden_dim = hidden_dim
 
         # Define layers of the network
-        self.input2hidden = nn.Linear(input_dim + hidden_dim, hidden_dim)
+        self.input2hidden = nn.Linear(input_dim, hidden_dim)
+        self.rnn = nn.RNN(hidden_dim, hidden_dim)
         self.hidden2output = nn.Linear(hidden_dim, output_dim)
 
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, inputs, hidden = []):
+    def forward(self, inputs):
         """The forward step in the network.
         :param inputs: The inputs to pass through network.
         :param hidden: The hidden representation at the previous timestep.
         :return softmax, hidden: Return the "probability" distribution and the new hidden representation.
         """
         inputs = inputs.float()
-        concat_input = torch.cat((inputs.view(1, -1), hidden), dim = 1)  # Concat input with prev hidden layer
-        hidden = self.input2hidden(concat_input)  # Map from input to hidden representation
-        output = self.hidden2output(hidden)  # Map from hidden representation to output
+        hidden = self.input2hidden(inputs)  # Map from input to hidden representation
+        hidden, last_h = self.rnn(hidden)
+        output = self.hidden2output(last_h)  # Map from hidden representation to output
         softmax = self.softmax(output)  # Generate probability distribution of output
 
-        return softmax, hidden
-
-    def init_hidden(self, shape):
-        # return torch.zeros(shape[0], shape[1], self.hidden_dim)
-        return torch.zeros(shape[0], self.hidden_dim)
+        return softmax.squeeze(0)

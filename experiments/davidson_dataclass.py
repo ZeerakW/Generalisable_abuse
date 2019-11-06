@@ -26,9 +26,9 @@ def setup_data():
     # dict_fields = {'': None, kk}
 
     fields = [('empty', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
-              ('label', label[0]), ('data', text[0])]
+              ('label', label[0]), ('text', text[0])]
 
-    data_opts = {'splits': {'train': 'davidson_offensive.csv'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
+    data_opts = {'splits': {'train': 'davidson_test.csv'}, 'ftype': 'csv', 'data_field': text, 'fields': fields,
                  'label_field': label, 'batch_sizes': (64,), 'shuffle': True, 'skip_header': True,
                  'repeat_in_batches': False, 'split_ratio': 0.8}
 
