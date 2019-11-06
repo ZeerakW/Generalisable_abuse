@@ -27,8 +27,7 @@ int_label = Field(sequential = False,
 
 device = 'cpu'
 data_dir = '/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/'
-# data_file = 'davidson_offensive.csv'
-data_file = 'davidson_test.csv'
+data_file = 'davidson_offensive.csv'
 path = os.path.join(data_dir, data_file)
 file_format = 'csv'
 cleaners = ['lower', 'url', 'hashtag', 'username']
@@ -39,8 +38,8 @@ text_field = text_label
 label_field = int_label
 
 # Update training field
-# setattr(text_field, 'tokenize', clean.tokenize)
-# setattr(text_field, 'preprocessing', compute_unigram_liwc)
+setattr(text_field, 'tokenize', clean.tokenize)
+setattr(text_field, 'preprocessing', compute_unigram_liwc)
 fields = [('', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
           ('label', label_field), ('text', text_field)]
 
