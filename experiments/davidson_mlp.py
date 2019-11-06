@@ -51,7 +51,7 @@ VOCAB_SIZE = len(text_field.vocab)
 
 print("Vocab Size", len(text_field.vocab))
 
-batch_sizes = (1, 32)
+batch_sizes = (32, 32)
 tmp_train, tmp_test = BucketIterator.splits(loaded, batch_sizes = batch_sizes, sort_key = lambda x: len(x.text),
                                             device = device, shuffle = True, repeat = False)
 train_batches = OnehotBatchGenerator(tmp_train, 'text', 'label', VOCAB_SIZE)

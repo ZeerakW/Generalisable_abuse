@@ -62,7 +62,7 @@ class MLPClassifier(nn.Module):
         out = dropout(self.tanh(self.input2hidden(sequence)))
         out = dropout(self.tanh(self.hidden2hidden(out)))
         out = self.hidden2output(out)
-        prob_dist = self.softmax(out.view(1, -1))  # Re-shape to only address the last model.
+        prob_dist = self.softmax(out.view(out.shape[1], -1))  # Re-shape to fit batch size.
 
         return prob_dist.squeeze(1)
 
@@ -123,7 +123,8 @@ class RNNClassifier(nn.Module):
         :param hidden: The hidden representation at the previous timestep.
         :return softmax, hidden: Return the "probability" distribution and the new hidden representation.
         """
-        concat_input = torch.cat((inputs.view(1, -1).float(), hidden), dim = 1)  # Concatenate input with prev hidden layer
+        inputs = inputs.float()
+        concat_input = torch.cat((inputs.view(1, -1), hidden), dim = 1)  # Concat input with prev hidden layer
         hidden = self.input2hidden(concat_input)  # Map from input to hidden representation
         output = self.hidden2output(hidden)  # Map from hidden representation to output
         softmax = self.softmax(output)  # Generate probability distribution of output
