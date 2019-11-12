@@ -1,4 +1,3 @@
-import pdb
 import torch
 import torch.nn as nn
 import gen.shared.types as t
@@ -23,11 +22,12 @@ class LSTMClassifier(nn.Module):
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim = 1)
 
-    def forward(self, sequence):
+    def forward(self, sequence, train_mode = False):
         """The forward step in the classifier.
         :param sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
+        sequence = sequence.float()
         out = self.itoh(sequence)  # Get embedding for the sequence
         out, last_layer = self.lstm(out)  # Get layers of the LSTM
         out = self.htoo(last_layer[0])
@@ -46,9 +46,9 @@ class MLPClassifier(nn.Module):
         """
         super(MLPClassifier, self).__init__()
 
-        self.input2hidden = nn.Linear(input_dim, hidden_dim)
-        self.hidden2hidden = nn.Linear(hidden_dim, hidden_dim)
-        self.hidden2output = nn.Linear(hidden_dim, output_dim)
+        self.itoh = nn.Linear(input_dim, hidden_dim)
+        self.htoh = nn.Linear(hidden_dim, hidden_dim)
+        self.htoo = nn.Linear(hidden_dim, output_dim)
 
         # Set dropout and non-linearity
         self.dropout = nn.Dropout(dropout)
@@ -59,9 +59,9 @@ class MLPClassifier(nn.Module):
 
         sequence = sequence.float()
         dropout = self.dropout if train_mode else lambda x: x
-        out = dropout(self.tanh(self.input2hidden(sequence)))
-        out = dropout(self.tanh(self.hidden2hidden(out)))
-        out = self.hidden2output(out)
+        out = dropout(self.tanh(self.itoh(sequence)))
+        out = dropout(self.tanh(self.htoh(out)))
+        out = self.htoo(out)
         prob_dist = self.softmax(out.view(out.shape[1], -1))  # Re-shape to fit batch size.
 
         return prob_dist.squeeze(1)
@@ -79,11 +79,11 @@ class CNNClassifier(nn.Module):
         super(CNNClassifier, self).__init__()
         self.batch_first = batch_first
 
-        self.input2hidden = nn.Linear(max_feats, hidden_dim)  # Works
+        self.itoh = nn.Linear(max_feats, hidden_dim)  # Works
         self.conv = nn.ModuleList([nn.Conv2d(1, num_filters, (w, hidden_dim)) for w in window_sizes])
         self.linear = nn.Linear(len(window_sizes) * num_filters, no_classes)
 
-    def forward(self, sequence):
+    def forward(self, sequence, train_mode = False):
         """The forward step of the model.
         :param sequence: The sequence to be predicted on.
         :return scores: The scores computed by the model.
@@ -93,7 +93,7 @@ class CNNClassifier(nn.Module):
         if not self.batch_first:
             sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
         sequence = sequence.float()
-        emb = self.input2hidden(sequence)  # Get embeddings for sequence
+        emb = self.itoh(sequence)  # Get embeddings for sequence
         output = [F.relu(conv(emb.unsqueeze(1))).squeeze(3) for conv in self.conv]
         output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in output]
         output = torch.cat(output, 1)
@@ -116,23 +116,23 @@ class RNNClassifier(nn.Module):
         self.hidden_dim = hidden_dim
 
         # Define layers of the network
-        self.input2hidden = nn.Linear(input_dim, hidden_dim)
+        self.itoh = nn.Linear(input_dim, hidden_dim)
         self.rnn = nn.RNN(hidden_dim, hidden_dim)
-        self.hidden2output = nn.Linear(hidden_dim, output_dim)
+        self.htoo = nn.Linear(hidden_dim, output_dim)
 
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim=1)
 
-    def forward(self, inputs):
+    def forward(self, sequence, train_mode = False):
         """The forward step in the network.
         :param inputs: The inputs to pass through network.
         :param hidden: The hidden representation at the previous timestep.
         :return softmax, hidden: Return the "probability" distribution and the new hidden representation.
         """
-        inputs = inputs.float()
-        hidden = self.input2hidden(inputs)  # Map from input to hidden representation
+        sequence = sequence.float()
+        hidden = self.itoh(sequence)  # Map from input to hidden representation
         hidden, last_h = self.rnn(hidden)
-        output = self.hidden2output(last_h)  # Map from hidden representation to output
+        output = self.htoo(last_h)  # Map from hidden representation to output
         softmax = self.softmax(output)  # Generate probability distribution of output
 
         return softmax.squeeze(0)
