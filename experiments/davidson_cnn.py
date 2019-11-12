@@ -1,9 +1,6 @@
 import os
 import sys
-import pdb
-import numpy as np
 import torch.nn as nn
-from tqdm import tqdm
 import torch.optim as optim
 from torchtext.data import TabularDataset, BucketIterator, Field
 sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
@@ -11,7 +8,7 @@ sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
 from gen.shared.data import OnehotBatchGenerator
 from gen.neural import CNNClassifier
 from gen.shared.clean import Cleaner
-from gen.shared.train import compute_unigram_liwc
+from gen.shared.train import compute_unigram_liwc, train
 
 text_label = Field(sequential = True,
                    include_lengths = False,
@@ -27,8 +24,7 @@ int_label = Field(sequential = False,
 
 device = 'cpu'
 data_dir = '/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/'
-# data_file = 'davidson_offensive.csv'
-data_file = 'davidson_test.csv'
+data_file = 'davidson_offensive.csv'
 path = os.path.join(data_dir, data_file)
 file_format = 'csv'
 cleaners = ['lower', 'url', 'hashtag', 'username']
@@ -45,9 +41,9 @@ fields = [('', None), ('CF_count', None), ('hate_speech', None), ('offensive', N
           ('label', label_field), ('text', text_field)]
 
 data = TabularDataset(path, format = file_format, fields = fields, skip_header = True)
-train, test = data.split(split_ratio = 0.8, stratified = True)
-loaded = (train, test)
-text_field.build_vocab(train)
+train_data, test = data.split(split_ratio = 0.8, stratified = True)
+loaded = (train_data, test)
+text_field.build_vocab(train_data)
 VOCAB_SIZE = len(text_field.vocab)
 
 print("Vocab Size", len(text_field.vocab))
@@ -62,23 +58,5 @@ model = CNNClassifier(window_sizes = [2, 3, 4], num_filters = 3, max_feats = VOC
                       no_classes = 3)
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
 loss = nn.NLLLoss()
-
-
-def train(model, epochs, batches, loss_func, optimizer, text_field):
-    losses = []
-    for epoch in tqdm(range(epochs)):
-        epoch_loss = []
-        model.zero_grad()
-        for X, y in batches:
-            scores = model(X)
-            loss = loss_func(scores, y)
-            loss.backward()
-            optimizer.step()
-            epoch_loss.append(float(loss))
-        losses.append(np.mean(epoch_loss))
-
-    print("Max loss: {0};Index: {1}\nMin loss: {2}; Index: {3}".format(np.max(losses), np.argmax(losses),
-                                                                       np.min(losses), np.argmin(losses)))
-
 
 train(model, 5, train_batches, loss, optimizer, text_field)

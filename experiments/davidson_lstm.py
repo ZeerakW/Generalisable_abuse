@@ -1,8 +1,6 @@
 import os
 import sys
-import numpy as np
 import torch.nn as nn
-from tqdm import tqdm
 import torch.optim as optim
 from torchtext.data import TabularDataset, BucketIterator, Field
 sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
@@ -10,7 +8,7 @@ sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
 from gen.shared.data import OnehotBatchGenerator
 from gen.neural import LSTMClassifier
 from gen.shared.clean import Cleaner
-# from gen.shared.train import compute_unigram_liwc
+from gen.shared.train import compute_unigram_liwc, train
 
 text_label = Field(sequential = True,
                    include_lengths = False,
@@ -39,15 +37,15 @@ label_field = int_label
 
 # Update training field
 setattr(text_field, 'tokenize', clean.tokenize)
-# setattr(text_field, 'preprocessing', compute_unigram_liwc)
+setattr(text_field, 'preprocessing', compute_unigram_liwc)
 fields = [('', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
           ('label', label_field), ('text', text_field)]
 
 data = TabularDataset(path, format = file_format, fields = fields, skip_header = True)
-train, test = data.split(split_ratio = 0.8, stratified = True)
-text_field.build_vocab(train)
+train_data, test = data.split(split_ratio = 0.8, stratified = True)
+text_field.build_vocab(train_data)
 VOCAB_SIZE = len(text_field.vocab)
-loaded = (train, test)
+loaded = (train_data, test)
 
 print("Vocab Size", len(text_field.vocab))
 
@@ -60,24 +58,5 @@ test_batches = OnehotBatchGenerator(tmp_test, 'text', 'label', VOCAB_SIZE)
 model = LSTMClassifier(len(text_field.vocab), embedding_dim = 128, hidden_dim = 128, no_classes = 3, no_layers = 1)
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
 loss = nn.NLLLoss()
-
-
-def train(model, epochs, batches, loss_func, optimizer):
-    losses = []
-    for epoch in tqdm(range(epochs)):
-        epoch_loss = []
-        model.zero_grad()
-        for X, y in batches:
-            X = X.float()
-            scores = model(X)
-            loss = loss_func(scores, y)
-            loss.backward()
-            optimizer.step()
-            epoch_loss.append(float(loss))
-        losses.append(np.mean(epoch_loss))
-
-    print("Max loss: {0};Index: {1}\nMin loss: {2}; Index: {3}".format(np.max(losses), np.argmax(losses),
-                                                                       np.min(losses), np.argmin(losses)))
-
 
 train(model, 5, train_batches, loss, optimizer)
