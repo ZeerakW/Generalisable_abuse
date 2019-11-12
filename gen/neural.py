@@ -69,27 +69,32 @@ class MLPClassifier(nn.Module):
 
 class CNNClassifier(nn.Module):
 
-    def __init__(self, window_sizes: t.List[int], no_filters: int, max_feats: int, hidden_dim: int, no_classes: int):
+    def __init__(self, window_sizes: t.List[int], num_filters: int, max_feats: int, hidden_dim: int, no_classes: int,
+                 batch_first = False):
         """Initialise the model.
         :param window_sizes: The size of the filters (e.g. 1: unigram, 2: bigram, etc.)
         :param no_filters: The number of filters to apply.
         :param max_feats: The maximum length of the sequence to consider.
         """
         super(CNNClassifier, self).__init__()
+        self.batch_first = batch_first
 
-        self.embedding = nn.Linear(max_feats, hidden_dim)
-        self.conv = nn.ModuleList([nn.Conv2d(1, no_filters, (w, hidden_dim)) for w in window_sizes])
-        self.linear = nn.Linear(len(window_sizes) * no_filters, no_classes)
+        self.input2hidden = nn.Linear(max_feats, hidden_dim)  # Works
+        self.conv = nn.ModuleList([nn.Conv2d(1, num_filters, (w, hidden_dim)) for w in window_sizes])
+        self.linear = nn.Linear(len(window_sizes) * num_filters, no_classes)
 
     def forward(self, sequence):
         """The forward step of the model.
         :param sequence: The sequence to be predicted on.
         :return scores: The scores computed by the model.
         """
-        pdb.set_trace()
-        emb = self.embedding(sequence)  # Get embeddings for sequence
-        # emb = emb.unsqueeze(1)
-        output = [F.relu(conv(emb)).squeeze(3) for conv in self.conv]
+
+        # CNNs expect batch first so let's try that
+        if not self.batch_first:
+            sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
+        sequence = sequence.float()
+        emb = self.input2hidden(sequence)  # Get embeddings for sequence
+        output = [F.relu(conv(emb.unsqueeze(1))).squeeze(3) for conv in self.conv]
         output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in output]
         output = torch.cat(output, 1)
         scores = self.linear(output)
