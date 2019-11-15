@@ -30,6 +30,7 @@ class Cleaner:
             cleaned = re.sub(r'#[a-zA-Z0-9]*\b', 'HASHTAG', cleaned)
         if 'username' in self.cleaners or 'username' in cleaners:
             cleaned = re.sub(r'@\S+', 'AT_USER', cleaned)
+        cleaned = re.sub("'", ' ', cleaned)
 
         return cleaned
 
