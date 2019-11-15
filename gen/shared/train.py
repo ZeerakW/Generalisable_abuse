@@ -1,5 +1,6 @@
 import re
 import pdb
+import torch
 import numpy as np
 from tqdm import tqdm
 import gen.shared.types as t
@@ -41,16 +42,26 @@ def compute_unigram_liwc(doc: t.DocType):
         else:
             # This because re.findall is slow.
             candidates = [r for r in kleene_star if r in w]  # Find all candidates
-
             num_cands = len(candidates)
-            if num_cands == 0:
-                term = 'NUM' if re.findall(r'[0-9]+', w) else 'UNK'
-            elif num_cands == 1:
-                term = candidates[0]
-            elif num_cands > 1:
-                sorted_cands = sorted(candidates, key=len, reverse = True)  # Longest first
-                term = sorted_cands[0] + '*'
-            liwc_doc.append(term)
+            try:
+                if num_cands == 0:
+                    term = 'NUM' if re.findall(r'[0-9]+', w) else 'UNK'
+                elif num_cands == 1:
+                    term = candidates[0] + '*'
+                elif num_cands > 1:
+                    sorted_cands = sorted(candidates, key=len, reverse = True)  # Longest first
+                    term = sorted_cands[0] + '*'
+                if term == 'UNK':
+                    liwc_doc.append(term)
+                else:
+                    liwc_term = liwc_dict[term]
+                    if isinstance(liwc_term, list):
+                        term = "_".join(liwc_term)
+                    else:
+                        term = liwc_term
+                    liwc_doc.append(term)
+            except Exception as e:
+                pdb.set_trace()
     try:
         assert(len(liwc_doc) == len(doc))
     except AssertionError:
@@ -65,6 +76,7 @@ def train(model, epochs, batches, loss_func, optimizer, text_field):
         epoch_loss = []
         model.zero_grad()
         for X, y in batches:
+            # print(y.shape)
             scores = model(X)
             loss = loss_func(scores, y)
             loss.backward()
@@ -74,3 +86,20 @@ def train(model, epochs, batches, loss_func, optimizer, text_field):
 
     print("Max loss: {0};Index: {1}\nMin loss: {2}; Index: {3}".format(np.max(losses), np.argmax(losses),
                                                                        np.min(losses), np.argmin(losses)))
+
+
+def evaluate(model, iterator, loss_func, metric_func, metric_str):
+
+    epoch_loss = []
+    epoch_eval = []
+
+    with torch.no_grad():
+        for X, y in iterator:
+            scores = model(X)
+            loss = loss_func(scores, y)
+            scores = torch.argmax(scores, 1)
+            m = metric_func(scores, y)
+
+            epoch_loss.append(loss.item())
+            epoch_eval.append(m)
+    return sum(epoch_eval) / len(epoch_eval),
