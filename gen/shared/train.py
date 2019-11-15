@@ -70,13 +70,12 @@ def compute_unigram_liwc(doc: t.DocType):
     return " ".join(liwc_doc)
 
 
-def train(model, epochs, batches, loss_func, optimizer, text_field):
+def train_model(model, epochs, batches, loss_func, optimizer, text_field):
     losses = []
     for epoch in tqdm(range(epochs)):
         epoch_loss = []
         model.zero_grad()
         for X, y in batches:
-            # print(y.shape)
             scores = model(X)
             loss = loss_func(scores, y)
             loss.backward()
@@ -88,7 +87,7 @@ def train(model, epochs, batches, loss_func, optimizer, text_field):
                                                                        np.min(losses), np.argmin(losses)))
 
 
-def evaluate(model, iterator, loss_func, metric_func, metric_str):
+def evaluate_model(model, iterator, loss_func, metric_func, metric_str):
 
     epoch_loss = []
     epoch_eval = []
@@ -102,4 +101,4 @@ def evaluate(model, iterator, loss_func, metric_func, metric_str):
 
             epoch_loss.append(loss.item())
             epoch_eval.append(m)
-    return sum(epoch_eval) / len(epoch_eval),
+    return sum(epoch_eval) / len(epoch_eval), sum(epoch_loss) / len(epoch_loss)
