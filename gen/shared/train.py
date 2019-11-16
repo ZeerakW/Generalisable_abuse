@@ -43,25 +43,22 @@ def compute_unigram_liwc(doc: t.DocType):
             # This because re.findall is slow.
             candidates = [r for r in kleene_star if r in w]  # Find all candidates
             num_cands = len(candidates)
-            try:
-                if num_cands == 0:
-                    term = 'NUM' if re.findall(r'[0-9]+', w) else 'UNK'
-                elif num_cands == 1:
-                    term = candidates[0] + '*'
-                elif num_cands > 1:
-                    sorted_cands = sorted(candidates, key=len, reverse = True)  # Longest first
-                    term = sorted_cands[0] + '*'
-                if term == 'UNK':
-                    liwc_doc.append(term)
+            if num_cands == 0:
+                term = 'NUM' if re.findall(r'[0-9]+', w) else 'UNK'
+            elif num_cands == 1:
+                term = candidates[0] + '*'
+            elif num_cands > 1:
+                sorted_cands = sorted(candidates, key=len, reverse = True)  # Longest first
+                term = sorted_cands[0] + '*'
+            if term == 'UNK' or 'NUM':
+                liwc_doc.append(term)
+            else:
+                liwc_term = liwc_dict[term]
+                if isinstance(liwc_term, list):
+                    term = "_".join(liwc_term)
                 else:
-                    liwc_term = liwc_dict[term]
-                    if isinstance(liwc_term, list):
-                        term = "_".join(liwc_term)
-                    else:
-                        term = liwc_term
-                    liwc_doc.append(term)
-            except Exception as e:
-                pdb.set_trace()
+                    term = liwc_term
+                liwc_doc.append(term)
     try:
         assert(len(liwc_doc) == len(doc))
     except AssertionError:
