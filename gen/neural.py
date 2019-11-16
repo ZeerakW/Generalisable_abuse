@@ -1,3 +1,4 @@
+import pdb
 import torch
 import torch.nn as nn
 import gen.shared.types as t
@@ -58,6 +59,7 @@ class MLPClassifier(nn.Module):
     def forward(self, sequence, train_mode = False):
 
         sequence = sequence.float()
+        pdb.set_trace()
         dropout = self.dropout if train_mode else lambda x: x
         out = dropout(self.tanh(self.itoh(sequence)))
         out = dropout(self.tanh(self.htoh(out)))
@@ -82,6 +84,7 @@ class CNNClassifier(nn.Module):
         self.itoh = nn.Linear(max_feats, hidden_dim)  # Works
         self.conv = nn.ModuleList([nn.Conv2d(1, num_filters, (w, hidden_dim)) for w in window_sizes])
         self.linear = nn.Linear(len(window_sizes) * num_filters, no_classes)
+        self.softmax = nn.LogSoftmax(dim = 1)
 
     def forward(self, sequence, train_mode = False):
         """The forward step of the model.
@@ -97,7 +100,7 @@ class CNNClassifier(nn.Module):
         output = [F.relu(conv(emb.unsqueeze(1))).squeeze(3) for conv in self.conv]
         output = [F.max_pool1d(i, i.size(2)).squeeze(2) for i in output]
         output = torch.cat(output, 1)
-        scores = self.linear(output)
+        scores = self.softmax(self.linear(output))
 
         return scores
 
