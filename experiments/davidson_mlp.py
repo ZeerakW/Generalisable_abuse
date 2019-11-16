@@ -8,7 +8,9 @@ sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
 from gen.shared.data import OnehotBatchGenerator
 from gen.neural import MLPClassifier
 from gen.shared.clean import Cleaner
-from gen.shared.train import compute_unigram_liwc, train
+from gen.shared.representations import compute_unigram_liwc
+from gen.shared.train import train_model, evaluate_model
+from sklearn.metrics import accuracy_score
 
 text_label = Field(sequential = True,
                    include_lengths = False,
@@ -59,4 +61,5 @@ model = MLPClassifier(len(text_field.vocab), hidden_dim = 128, output_dim = 3)
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
 loss = nn.NLLLoss()
 
-train(model, 30, train_batches, loss, optimizer, text_field)
+train_model(model, 30, train_batches, loss, optimizer, text_field)
+evaluate_model(model, test_batches, loss, accuracy_score, "accuracy")

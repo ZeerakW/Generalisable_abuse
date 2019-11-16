@@ -8,7 +8,8 @@ sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
 from gen.shared.data import OnehotBatchGenerator
 from gen.neural import RNNClassifier
 from gen.shared.clean import Cleaner
-from gen.shared.train import compute_unigram_liwc, train_model, evaluate_model
+from gen.shared.representations import compute_unigram_liwc
+from gen.shared.train import train_model, evaluate_model
 from sklearn.metrics import accuracy_score
 
 text_label = Field(sequential = True,

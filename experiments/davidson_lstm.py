@@ -8,7 +8,9 @@ sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
 from gen.shared.data import OnehotBatchGenerator
 from gen.neural import LSTMClassifier
 from gen.shared.clean import Cleaner
-from gen.shared.train import compute_unigram_liwc, train
+from gen.shared.representations import compute_unigram_liwc
+from gen.shared.train import train_model, evaluate_model
+from sklearn.metrics import accuracy_score
 
 text_label = Field(sequential = True,
                    include_lengths = False,
@@ -59,4 +61,5 @@ model = LSTMClassifier(len(text_field.vocab), embedding_dim = 128, hidden_dim = 
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
 loss = nn.NLLLoss()
 
-train(model, 5, train_batches, loss, optimizer)
+train_model(model, 5, train_batches, loss, optimizer)
+evaluate_model(model, test_batches, loss, accuracy_score, "accuracy")
