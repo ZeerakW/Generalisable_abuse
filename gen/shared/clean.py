@@ -5,7 +5,7 @@ import gen.shared.types as t
 from string import punctuation
 
 
-class Cleaner:
+class Cleaner(object):
     """A class for methods for cleaning."""
 
     def __init__(self, cleaners: t.List[str] = None):
@@ -105,8 +105,7 @@ class Cleaner:
                     term = "_".join(liwc_term)
                 else:
                     term = liwc_term
-
-            return term
+        return term
 
     def compute_unigram_liwc(self, doc: t.DocType):
         """Compute LIWC for each document document.
