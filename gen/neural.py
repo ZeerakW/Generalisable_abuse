@@ -1,4 +1,3 @@
-import pdb
 import torch
 import torch.nn as nn
 import gen.shared.types as t
@@ -59,14 +58,14 @@ class MLPClassifier(nn.Module):
     def forward(self, sequence, train_mode = False):
 
         sequence = sequence.float()
-        pdb.set_trace()
         dropout = self.dropout if train_mode else lambda x: x
         out = dropout(self.tanh(self.itoh(sequence)))
         out = dropout(self.tanh(self.htoh(out)))
+        out = out.mean(0)
         out = self.htoo(out)
-        prob_dist = self.softmax(out.view(out.shape[1], -1))  # Re-shape to fit batch size.
+        prob_dist = self.softmax(out)  # Re-shape to fit batch size.
 
-        return prob_dist.squeeze(1)
+        return prob_dist
 
 
 class CNNClassifier(nn.Module):
