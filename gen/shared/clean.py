@@ -18,7 +18,7 @@ class Cleaner(object):
         self.liwc_dict = None
 
     def read_liwc(self) -> dict:
-        with open('/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/liwc-2015.csv', 'r') as liwc_f:
+        with open('/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse/data/liwc-2015.csv', 'r') as liwc_f:
             liwc_dict = {}
             for line in liwc_f:
                 k, v = line.strip('\n').split(',')
@@ -69,7 +69,7 @@ class Cleaner(object):
         """
         self.processes = processes if processes else self.processes
         toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
-        return toks
+        return " ".join(toks)
 
     def sentiment_tokenize(self, document: t.DocType, processes: t.List[str] = None):
         """Tokenize the document using SpaCy, get sentiment and clean it as it is processed.
@@ -77,13 +77,15 @@ class Cleaner(object):
         :param processes: The cleaning processes to engage in.
         :return toks: Document that has been passed through spacy's tagger.
         """
-        self.processes = processes if processes else self.processes
-        toks = [tok.sentiment for tok in self.tagger(self.clean_document(document))]
-        return toks
+        raise NotImplementedError
+        # self.processes = processes if processes else self.processes
+        # toks = [tok.sentiment for tok in self.tagger(self.clean_document(document))]
+        # pdb.set_trace()
+        # return toks
 
     def _compute_liwc_token(self, tok, kleene_star):
         if tok in self.liwc_dict:
-            return self.liwc_dict[tok]
+            term = self.liwc_dict[tok]
         else:
             liwc_cands = [r for r in kleene_star if r in tok]
             num_cands = len(liwc_cands)
@@ -105,6 +107,9 @@ class Cleaner(object):
                     term = "_".join(liwc_term)
                 else:
                     term = liwc_term
+        if isinstance(term, list):
+            term = "_".join(term)
+
         return term
 
     def compute_unigram_liwc(self, doc: t.DocType):
@@ -129,4 +134,4 @@ class Cleaner(object):
         except AssertionError:
             pdb.set_trace()
 
-        return liwc_doc
+        return " ".join(liwc_doc)
