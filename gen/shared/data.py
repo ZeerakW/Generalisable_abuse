@@ -1,8 +1,12 @@
+import os
 import re
+import csv
+import pdb
 import spacy
 import torch
 from torchtext import data
 import gen.shared.types as t
+from torch.utils.data import IterableDataset, DataLoader
 
 
 class OnehotBatchGenerator:
@@ -36,6 +40,150 @@ class BatchGenerator:
             X = getattr(batch, self.df)
             y = getattr(batch, self.lf)
             yield (X, y)
+
+
+class GeneralDataset(IterableDataset):
+    """A general dataset class, which loads a dataset, creates a vocabulary, pads, tensorizes, etc."""
+    def __init__(self, data_dir: str, format: str, fields: t.List[t.Tuple[str, ...]],
+                 batch_sizes: t.Union[int, t.Tuple[int]],
+                 train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
+                 test_labels: str = None, tokenizer: t.Union[t.Callable, str] = 'spacy', lower: bool = True,
+                 preprocessor: t.Callable = None, transformations: t.Callable = None):
+        """Initialize the variables required for the dataset loading.
+        :param data_dir (str): Path of the directory containing the files.
+        :param format (str): Format of the file ([C|T]SV and JSON accepted)
+        :param fields (t.List[t.Tuple[str, ...]]): The names of the fields in the same order as they appear (in csv).
+        :param batch_sizes (t.Union[int, t.Tuple[int]]): Single int or tuple of ints for batch sizes.
+        :param train (str): Path to training file.
+        :param dev (str, default None): Path to dev file, if dev file exists.
+        :param test (str, default = None): Path to test file, if test file exists.
+        :param train_labels (str, default = None): Path to file containing labels for training data.
+        :param dev_labels (str, default = None): Path to file containing labels for dev data.
+        :param test_labels (str, default = None): Path to file containing labels for test data.
+        :param tokenizer (t.Callable or str, default = 'spacy'): Tokenizer to apply.
+        :param lower (bool, default = True): Lowercase the document before tokenization.
+        :param preprocessor (t.Callable, default = None): Preprocessing step to apply.
+        :param transformations (t.Callable, default = None): Method changing from one representation to another.
+        """
+        try:
+            assert format.upper() in ['JSON', 'CSV', 'TSV']
+            self.format = format
+        except AssertionError as e:
+            raise AssertionError("Input the correct file format: CSV/TSV or JSON")
+
+        assert('label' in fields or train_labels)
+
+        self.data_dir = os.path.abspath(data_dir)
+        self.fields = fields
+        self.fields_dict = dict(fields)
+        self.batch_size = batch_sizes
+        self.data_files = {key: os.path.join(self.data_dir, f) for f, key in zip([train, dev, test],
+                                                                                 ['train', 'dev', 'test']) if f}
+        self.label_files = {key: os.path.join(self.data_dir, f) for f, key in
+                            zip([train_labels, dev_labels, test_labels], ['train', 'dev', 'test']) if f}
+
+        self.tokenizer = tokenizer
+        self.preprocessor = preprocessor
+        self.data_dir = data_dir
+        self.repr_transform = transformations
+
+    def load(self, skip_header = True):
+        """Load the dataset."""
+
+        if self.format.upper() in ['CSV', 'TSV']:
+            reader = csv.reader()
+            # TODO
+            # Setup reader
+            # Skip line
+            # Read line
+            # Tokenize
+            # Vectorize
+
+        else:
+            reader = self.json_reader()
+
+        raise NotImplementedError
+
+    def load_external(self, skip_header = True):
+        """Load another dataset without influencing the vocabulary."""
+        raise NotImplementedError
+
+    def build_vocab(self, data: t.DataType = None):
+        """Build vocab over dataset."""
+        self.itos = {ix: tok for doc in data for ix, tok in enumerate(doc)}
+        self.stoi = {tok: ix for ix, tok in self.itos.items()}
+
+    def vocab_size(self):
+        """Get the size of the vocabulary."""
+        return len(self.itos)
+
+    def vocab_lookup(self, tok: str):
+        """Lookup a single token in the vocabulary.
+        :param tok (str): Token to look up.
+        :return ix: Return the index of the vocabulary item.
+        """
+        try:
+            ix = self.stoi[tok]
+        except IndexError as e:
+            ix = self.stoi['<UNK>']
+
+        return ix
+
+    def index_lookup(self, ix: int):
+        """Lookup a single index in the vocabulary.
+        :param ix (int): Index to look up.
+        :return tok: Returns token
+        """
+        return self.itos[ix]
+
+    def pad(self, data: t.DataType, length: int = None):
+        """Pad each document in the datasets in the dataset."""
+        raise NotImplementedError
+
+    def preprocess(self, doc: t.DocType):
+        if isinstance(doc, list):
+            doc = " ".join(doc)
+
+        if self.lower:
+            doc = doc.lower()
+
+        doc = self.tokenizer(doc.replace("\n", " "))
+
+        if self.preprocessor is not None:
+            doc = self.preprocessor(doc)
+
+        return doc
+
+    def __getitem__(self, i):
+        return self.examples[i]
+
+    def __len__(self):
+        try:
+            return len(self.examples)
+        except TypeError:
+            return 2**32
+
+    def __iter__(self):
+        for x in self.examples:
+            yield x
+
+    def __getattr__(self, attr):
+        if attr in self.fields:
+            for x in self.examples:
+                yield getattr(x, attr)
+
+    def stratify(self, data, strata_field):
+        # TODO Rewrite this code to make sense with this implementation.
+        # Taken from torchtext.data
+        unique_strata = set(getattr(doc, strata_field) for doc in data)
+        strata_maps = {s: [] for s in unique_strata}
+
+        for doc in data:
+            strata_maps[getattr(doc, strata_field)].append(doc)
+        return list(strata_maps.values())
+
+    def split(self, splits: t.Union[int, t.List[int]], data: t.DataType = None):
+        raise NotImplementedError
 
 
 class Dataset(data.TabularDataset):
