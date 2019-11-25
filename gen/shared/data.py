@@ -2,10 +2,12 @@ import os
 import re
 import csv
 import pdb
+import json
 import spacy
 import torch
 from torchtext import data
 import gen.shared.types as t
+from collections import defaultdict, Counter
 from torch.utils.data import IterableDataset, DataLoader
 
 
@@ -42,17 +44,40 @@ class BatchGenerator:
             yield (X, y)
 
 
+class Field(object):
+    """A class to set different properties of the individual fields."""
+    def __init__(self, name: str, train: bool, label: bool, ignore: bool = True, ix: int = None, cname: str = None):
+        """Initialize the field object. Each individual field is to hold information about that field only.
+        :param name (str): Name of the field.
+        :param train (bool): Use for training.
+        :param label (bool): Indicate if it is a label field.
+        :param ignore (bool): Indicate whether to ignore the information in this field.
+        :param ix (int, default = None): Index of the field in the splitted file. Only set this for [C|T]SV files.
+        :param cname (str, default = None): Name of the column (/field) in the file. Only set this for JSON objects.
+        Example Use:
+            train_field = Field('text', train = True, label = False, ignore = False, ix = 0)
+        """
+        self.name = name
+        self.cname = cname
+        self.label = label
+        self.ignore = ignore
+        self.index = ix
+
+
 class GeneralDataset(IterableDataset):
     """A general dataset class, which loads a dataset, creates a vocabulary, pads, tensorizes, etc."""
-    def __init__(self, data_dir: str, format: str, fields: t.List[t.Tuple[str, ...]],
+    def __init__(self, data_dir: str, ftype: str, sep: str, fields: t.List[Field],
                  batch_sizes: t.Union[int, t.Tuple[int]],
                  train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
                  test_labels: str = None, tokenizer: t.Union[t.Callable, str] = 'spacy', lower: bool = True,
-                 preprocessor: t.Callable = None, transformations: t.Callable = None):
+                 preprocessor: t.Callable = None, transformations: t.Callable = None,
+                 label_processor: t.Callable = None):
         """Initialize the variables required for the dataset loading.
         :param data_dir (str): Path of the directory containing the files.
-        :param format (str): Format of the file ([C|T]SV and JSON accepted)
+        :param ftype (str): ftype of the file ([C|T]SV and JSON accepted)
+        :param sep (str): Separator token.
         :param fields (t.List[t.Tuple[str, ...]]): The names of the fields in the same order as they appear (in csv).
+                    Example: ('data', None)
         :param batch_sizes (t.Union[int, t.Tuple[int]]): Single int or tuple of ints for batch sizes.
         :param train (str): Path to training file.
         :param dev (str, default None): Path to dev file, if dev file exists.
@@ -64,53 +89,101 @@ class GeneralDataset(IterableDataset):
         :param lower (bool, default = True): Lowercase the document before tokenization.
         :param preprocessor (t.Callable, default = None): Preprocessing step to apply.
         :param transformations (t.Callable, default = None): Method changing from one representation to another.
+        :param label_processor(t.Callable, default = None): Function to process labels with.
         """
+        self.data_dir = os.path.abspath(data_dir)
         try:
-            assert format.upper() in ['JSON', 'CSV', 'TSV']
-            self.format = format
+            ftype = ftype.upper()
+            assert ftype in ['JSON', 'CSV', 'TSV']
+            self.ftype = ftype
         except AssertionError as e:
-            raise AssertionError("Input the correct file format: CSV/TSV or JSON")
+            raise AssertionError("Input the correct file ftype: CSV/TSV or JSON")
 
         assert('label' in fields or train_labels)
 
-        self.data_dir = os.path.abspath(data_dir)
+        self.sep = sep
         self.fields = fields
         self.fields_dict = dict(fields)
         self.batch_size = batch_sizes
         self.data_files = {key: os.path.join(self.data_dir, f) for f, key in zip([train, dev, test],
-                                                                                 ['train', 'dev', 'test']) if f}
+                                                                                 ['train', 'dev', 'test'])
+                                                                                 if f is not None}
         self.label_files = {key: os.path.join(self.data_dir, f) for f, key in
-                            zip([train_labels, dev_labels, test_labels], ['train', 'dev', 'test']) if f}
+                            zip([train_labels, dev_labels, test_labels], ['train', 'dev', 'test']) if f is not None}
 
         self.tokenizer = tokenizer
         self.preprocessor = preprocessor
         self.data_dir = data_dir
         self.repr_transform = transformations
+        self.label_processor = label_processor if label_processor else self.label_processing
 
     def load(self, skip_header = True):
         """Load the dataset."""
+        for f in self.data_files:
+            fp = open(f)
+            if self.skip_header:
+                next(fp)
+            with self.reader(fp) as reader:
+                data = defaultdict(list)
+                for line in reader:
+                    for field in self.fields:
+                        if not any([field.ignore, field.label]):
+                            if self.ftype in ['CSV', 'TSV']:
+                                data[field.name].append(self.preprocess(line[field.ix].rstrip()))
+                            else:
+                                data[field.name].append(self.preprocess(line[field.cname].rstrip()))
+                        elif field.label:
+                            if self.ftype in ['CSV', 'TSV']:
+                                data[field.name].append(self.process_label(line[field.ix]).rstrip())
+                            else:
+                                data[field.name].append(self.process_label(line[field.cname]).rstrip())
 
-        if self.format.upper() in ['CSV', 'TSV']:
-            reader = csv.reader()
-            # TODO
-            # Setup reader
-            # Skip line
-            # Read line
-            # Tokenize
-            # Vectorize
+    def load_labels(self, label_path, ftype: str = None, sep: str = None,
+                    skip_header: bool = True, label_processor: t.Callable = None, label_ix: t.Union[int, str] = None):
+        """Load labels.
+        :param path (str): Path to data files.
+        :param label_file (str): Filename of data file.
+        :param ftype (str, default = 'CSV'): Filetype of the file.
+        :param sep (str, optional): Separator to be used with T/CSV files.
+        :param skip_header (bool): Skip the header.
+        :param label_processor: Function to process labels.
+        :param label_ix (int, str): Index or name of column containing labels.
+        :return labels: Returns the loaded data.
+        """
+        path = label_path if label_path is not None else self.path
+        ftype = ftype if ftype is not None else self.ftype
+        sep = sep if sep is not None else self.sep
 
+        labels = []
+        fp = open(path)
+        for line in self.reader(fp, ftype, sep):
+            if ftype in ['CSV', 'TSV']:
+                labels.append(line[label_ix.rstrip()])
+
+    def reader(self, fp, ftype: str = None, sep: str = None):
+        """Instatiate the reader to be used.
+        :param fp: Opened file.
+        :param ftype (str, default = None): Filetype if loading external data.
+        :param sep (str, default = None): Separator to be used.
+        :return reader: Iterable object.
+        """
+        ftype = ftype if ftype is not None else self.ftype
+        if ftype in ['CSV', 'TSV']:
+            sep = sep if sep else self.sep
+            reader = csv.reader(fp, sep = sep)
         else:
-            reader = self.json_reader()
+            reader = self.json_reader(fp)
+        return reader
 
-        raise NotImplementedError
-
-    def load_external(self, skip_header = True):
-        """Load another dataset without influencing the vocabulary."""
-        raise NotImplementedError
+    def json_reader(self, fp: str):
+        """Create a JSON reading object"""
+        for line in fp:
+            yield json.loads(line)
 
     def build_vocab(self, data: t.DataType = None):
         """Build vocab over dataset."""
-        self.itos = {ix: tok for doc in data for ix, tok in enumerate(doc)}
+        self.token_counts = Counter([tok for doc in data for tok in doc])
+        self.itos = {ix: tok for doc in data for ix, tok in enumerate(self.token_counts.keys())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def vocab_size(self):
@@ -126,19 +199,33 @@ class GeneralDataset(IterableDataset):
             ix = self.stoi[tok]
         except IndexError as e:
             ix = self.stoi['<UNK>']
-
         return ix
 
-    def index_lookup(self, ix: int):
+    def ix_lookup(self, ix: int):
         """Lookup a single index in the vocabulary.
         :param ix (int): Index to look up.
         :return tok: Returns token
         """
         return self.itos[ix]
 
-    def pad(self, data: t.DataType, length: int = None):
-        """Pad each document in the datasets in the dataset."""
-        raise NotImplementedError
+    def build_label_vocab(self, labels):
+        self.itol = {ix: l for ix, l in enumerate(labels)}
+        self.ltoi = {l: ix for ix, l in self.itol.items()}
+
+    def label_lookup(self, label):
+        """Look up label index from label."""
+        return self.ltoi[label]
+
+    def label_ix_lookup(self, label):
+        """Look up label index from label."""
+        return self.ltoi[label]
+
+    def process_label(self, label, processor: t.Callable = None):
+        """Modify label using external function to process it.
+        :param label: Label to process.
+        :param processor: Function to process the label."""
+        processor = processor if processor is not None else self.label_processor
+        return processor(label) if processor is not None else self.label_lookup[label]
 
     def preprocess(self, doc: t.DocType):
         if isinstance(doc, list):
@@ -153,6 +240,10 @@ class GeneralDataset(IterableDataset):
             doc = self.preprocessor(doc)
 
         return doc
+
+    def pad(self, data: t.DataType, length: int = None):
+        """Pad each document in the datasets in the dataset."""
+        raise NotImplementedError
 
     def __getitem__(self, i):
         return self.examples[i]
