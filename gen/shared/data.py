@@ -1,14 +1,13 @@
 import os
 import re
 import csv
-import pdb
 import json
 import spacy
 import torch
 from torchtext import data
 import gen.shared.types as t
-from collections import defaultdict, Counter
-from torch.utils.data import IterableDataset, DataLoader
+from collections import Counter
+from torch.utils.data import IterableDataset
 
 
 class OnehotBatchGenerator:
@@ -58,10 +57,16 @@ class Field(object):
             train_field = Field('text', train = True, label = False, ignore = False, ix = 0)
         """
         self.name = name
+        self.train = train
         self.cname = cname
         self.label = label
         self.ignore = ignore
         self.index = ix
+
+
+class Datapoint(object):
+    """A class for each datapoint to instantiated as an object, which can allow for getting and setting attributes."""
+    pass
 
 
 class GeneralDataset(IterableDataset):
@@ -116,27 +121,37 @@ class GeneralDataset(IterableDataset):
         self.data_dir = data_dir
         self.repr_transform = transformations
         self.label_processor = label_processor if label_processor else self.label_processing
+        self.length = 0
 
-    def load(self, skip_header = True):
-        """Load the dataset."""
-        for f in self.data_files:
-            fp = open(f)
-            if self.skip_header:
-                next(fp)
-            with self.reader(fp) as reader:
-                data = defaultdict(list)
-                for line in reader:
-                    for field in self.fields:
-                        if not any([field.ignore, field.label]):
-                            if self.ftype in ['CSV', 'TSV']:
-                                data[field.name].append(self.preprocess(line[field.ix].rstrip()))
-                            else:
-                                data[field.name].append(self.preprocess(line[field.cname].rstrip()))
-                        elif field.label:
-                            if self.ftype in ['CSV', 'TSV']:
-                                data[field.name].append(self.process_label(line[field.ix]).rstrip())
-                            else:
-                                data[field.name].append(self.process_label(line[field.cname]).rstrip())
+    def load(self, dataset: str = 'train', skip_header = True):
+        """Load the dataset.
+        :param skip_header (bool, default = True): Skip the header.
+        :param dataset (str, default = 'train'): Dataset to load. Must exist as key in self.data_files.
+        """
+        fp = open(self.data_files[dataset])
+        if self.skip_header or skip_header:
+            next(fp)
+
+        with self.reader(fp) as reader:
+            self.data = []
+            for line in reader:
+                datapoint = {}  # TODO Look at moving all of this to the datapoint class.
+                dp = Datapoint()
+                for field in self.fields:
+                    if not any([field.ignore, field.label]):
+                        if self.ftype in ['CSV', 'TSV']:
+                            datapoint[field.name] = self.preprocess(line[field.ix].rstrip())
+                        else:
+                            datapoint[field.name] = self.preprocess(line[field.cname].rstrip())
+                    elif field.label:
+                        if self.ftype in ['CSV', 'TSV']:
+                            datapoint[field.name] = self.process_label(line[field.ix].rstrip())
+                        else:
+                            datapoint[field.name] = self.process_label(line[field.cname].rstrip())
+
+                for key, val in datapoint.items():
+                    setattr(dp, key, val)
+                self.data.append(dp)
 
     def load_labels(self, label_path, ftype: str = None, sep: str = None,
                     skip_header: bool = True, label_processor: t.Callable = None, label_ix: t.Union[int, str] = None):
@@ -183,7 +198,7 @@ class GeneralDataset(IterableDataset):
     def build_vocab(self, data: t.DataType = None):
         """Build vocab over dataset."""
         self.token_counts = Counter([tok for doc in data for tok in doc])
-        self.itos = {ix: tok for doc in data for ix, tok in enumerate(self.token_counts.keys())}
+        self.itos = {ix: tok for doc in data for ix, (tok, _) in enumerate(self.token_counts.most_common())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def vocab_size(self):
@@ -239,33 +254,47 @@ class GeneralDataset(IterableDataset):
         if self.preprocessor is not None:
             doc = self.preprocessor(doc)
 
+        if len(doc) > self.length:
+            self.length = len(doc)
+
         return doc
 
     def pad(self, data: t.DataType, length: int = None):
-        """Pad each document in the datasets in the dataset."""
-        raise NotImplementedError
+        """Pad each document in the datasets in the dataset or trim document."""
+        if not self.length and length is not None:
+            self.length = length
+
+        length = length if length is not None else self.length
+
+        for doc in data:
+            delta = len(doc) - length
+            if delta < 0:
+                yield doc[:delta]
+            elif delta > 0:
+                yield ['<pad>'] * delta + doc
 
     def __getitem__(self, i):
-        return self.examples[i]
+        return self.data[i]
 
     def __len__(self):
         try:
-            return len(self.examples)
+            return len(self.data)
         except TypeError:
             return 2**32
 
     def __iter__(self):
-        for x in self.examples:
+        for x in self.data:
             yield x
 
     def __getattr__(self, attr):
         if attr in self.fields:
-            for x in self.examples:
+            for x in self.data:
                 yield getattr(x, attr)
 
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.
         # Taken from torchtext.data
+        raise NotImplementedError
         unique_strata = set(getattr(doc, strata_field) for doc in data)
         strata_maps = {s: [] for s in unique_strata}
 
