@@ -6,7 +6,7 @@ import spacy
 import torch
 from torchtext import data
 import gen.shared.types as t
-from collections import Counter
+from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
 
@@ -143,6 +143,7 @@ class GeneralDataset(IterableDataset):
                             datapoint[field.name] = self.preprocess(line[field.ix].rstrip())
                         else:
                             datapoint[field.name] = self.preprocess(line[field.cname].rstrip())
+
                     elif field.label:
                         if self.ftype in ['CSV', 'TSV']:
                             datapoint[field.name] = self.process_label(line[field.ix].rstrip())
@@ -254,6 +255,9 @@ class GeneralDataset(IterableDataset):
         if self.preprocessor is not None:
             doc = self.preprocessor(doc)
 
+        if self.repr_transform is not None:
+            doc = self.repr_transform(doc)
+
         if len(doc) > self.length:
             self.length = len(doc)
 
@@ -273,6 +277,14 @@ class GeneralDataset(IterableDataset):
             elif delta > 0:
                 yield ['<pad>'] * delta + doc
 
+    def onehot_encode(self, data):
+        """Onehot encode a document."""
+        self.onehot = []
+        for doc in data:
+            oc = [1 if tok in doc else 0 for tok in self.stoi]
+            self.onehot.append(oc)
+        return self.onehot
+
     def __getitem__(self, i):
         return self.data[i]
 
@@ -287,16 +299,15 @@ class GeneralDataset(IterableDataset):
             yield x
 
     def __getattr__(self, attr):
-        if attr in self.fields:
+        if attr in self.fields_dict:
             for x in self.data:
                 yield getattr(x, attr)
 
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.
         # Taken from torchtext.data
-        raise NotImplementedError
-        unique_strata = set(getattr(doc, strata_field) for doc in data)
-        strata_maps = {s: [] for s in unique_strata}
+        # unique_strata = set(getattr(doc, strata_field) for doc in data)
+        strata_maps = defaultdict(list)
 
         for doc in data:
             strata_maps[getattr(doc, strata_field)].append(doc)
