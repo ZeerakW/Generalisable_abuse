@@ -196,10 +196,17 @@ class GeneralDataset(IterableDataset):
         for line in fp:
             yield json.loads(line)
 
-    def build_vocab(self, data: t.DataType = None):
+    def build_vocab(self, data: t.DataType):
         """Build vocab over dataset."""
         self.token_counts = Counter([tok for doc in data for tok in doc])
         self.itos = {ix: tok for doc in data for ix, (tok, _) in enumerate(self.token_counts.most_common())}
+        self.stoi = {tok: ix for ix, tok in self.itos.items()}
+
+    def extend_vocab(self, data: t.DataType):
+        """Extend the vocabulary."""
+        self.token_counts.update(Counter([tok for doc in data for tok in doc]))
+        start_ix = len(self.itos)
+        self.itos.update({start_ix + ix: tok for doc in data for ix, tok in enumerate(doc)})
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def vocab_size(self):
