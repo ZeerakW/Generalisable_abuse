@@ -279,11 +279,23 @@ class GeneralDataset(IterableDataset):
 
     def onehot_encode(self, data):
         """Onehot encode a document."""
-        self.onehot = []
+        self.encoded = []
         for doc in data:
-            oc = [1 if tok in doc else 0 for tok in self.stoi]
-            self.onehot.append(oc)
-        return self.onehot
+            self.encoded.append([1 if tok in doc else 0 for tok in self.stoi])
+        return self.encoded
+
+    def encode(self, data):
+        self.encoded = []
+        for doc in data:
+            encode_doc = []
+            for w in doc:
+                try:
+                    ix = self.stoi[w]
+                except IndexError as e:
+                    ix = self.stoi['<unk>']
+                encode_doc.append(ix)
+            self.encoded.append(encode_doc)
+        return self.encoded
 
     def __getitem__(self, i):
         return self.data[i]
