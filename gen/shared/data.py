@@ -321,13 +321,35 @@ class GeneralDataset(IterableDataset):
 
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.
-        # Taken from torchtext.data
-        # unique_strata = set(getattr(doc, strata_field) for doc in data)
         strata_maps = defaultdict(list)
-
         for doc in data:
             strata_maps[getattr(doc, strata_field)].append(doc)
         return list(strata_maps.values())
 
     def split(self, splits: t.Union[int, t.List[int]], data: t.DataType = None):
         raise NotImplementedError
+
+
+class Batch(object):
+    """Create batches."""
+
+    def __init__(self, data_attr, label_attr, batch_size, data):
+        self.data_attr = data_attr
+        self.label_attr = label_attr
+        self.batch_size = batch_size
+        self.data = data
+
+    def create_batches(self):
+        """Go over the data and create batches."""
+        self.batches = []
+        batch = []
+        for doc in self.data:
+            if len(batch) == self.batch_size:
+                self.batches.apend(batch)
+                batch = []
+            else:
+                batch.append(doc)
+
+    def __iter__(self):
+        for batch in self.batches:
+            yield batch
