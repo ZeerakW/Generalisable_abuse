@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import torch
+from math import floor
 import gen.shared.types as t
 from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
@@ -321,13 +322,36 @@ class GeneralDataset(IterableDataset):
 
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.
+        # TODO This doesn't make sense to me.
         strata_maps = defaultdict(list)
         for doc in data:
             strata_maps[getattr(doc, strata_field)].append(doc)
         return list(strata_maps.values())
 
-    def split(self, splits: t.Union[int, t.List[int]], data: t.DataType = None):
-        raise NotImplementedError
+    def split(self, data: t.DataType, splits: t.Union[int, t.List[int]], stratify: str = None):
+        """Split the dataset.
+        :param data (t.DataType): Dataset to split.
+        :param splits (int | t.List[int]]): Real valued splits.
+        :param stratify (str): The field to stratify the data along.
+        :return data: Return splitted data.
+        """
+
+        if stratify is not None:
+            data = self.stratify(data, )
+
+        if isinstance(splits, int):
+            splits = [splits]
+
+        num_splits = len(list)
+        num_datapoints = len(data)
+        splits = list(map(lambda x: floor(num_datapoints * x), splits))
+
+        if num_splits == 1:
+            return data[:splits[0]], data[splits[0]:]
+        elif num_splits == 2:
+            return data[:splits[0]], data[-splits[1]:]
+        elif num_splits == 3:
+            return data[:splits[0]], data[splits[0]:splits[1]], data[-splits[2]:]
 
 
 class Batch(object):
