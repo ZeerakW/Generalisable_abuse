@@ -220,9 +220,10 @@ class GeneralDataset(IterableDataset):
 
     def build_vocab(self, data: t.DataType):
         """Build vocab over dataset."""
-        tokens = set(getattr(doc, f)[:] for doc in data for f in self.train_fields)
+        self.token_counts = Counter([getattr(doc, f)[:] for doc in data for f in self.train_fields])
+        self.token_counts.update({'<unk>': np.mean(self.token_counts.values())})
+        self.token_counts.update({'<pad>': 0})
 
-        self.token_counts = Counter([doc[:] for doc in tokens])
         self.itos = {ix: tok for doc in data for ix, (tok, _) in enumerate(self.token_counts.most_common())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
@@ -314,26 +315,30 @@ class GeneralDataset(IterableDataset):
 
     def onehot_encode(self, data):
         """Onehot encode a document."""
-        self.encoded = np.zeros((1, len(self.stoi)))
+        encoded = np.zeros((1, len(self.stoi)))
         for doc in data:
             for f in self.train_fields:
                 text = getattr(doc, f)
                 for tok in self.stoi:
-                    self.encoded[self.stoi[tok]] = 1 if tok in text else 0
+                    encoded[self.stoi[tok]] = 1 if tok in text else 0
+        self.encoded = encoded.tolist()
         return self.encoded
 
     def encode(self, data):
         self.encoded = []
         data = self.pad(data)
+
+        # TODO Talk to George about padding and making sure models ignore padding tokens.
+
         for doc in data:
-            encode_doc = []
-            for w in doc:
+            encoded_doc = np.zeros(len(doc))
+            for i, w in enumerate(doc):
                 try:
-                    ix = self.stoi[w]
+                    encoded_doc[i] = self.stoi[w]
                 except IndexError as e:
-                    ix = self.stoi['<unk>']
-                encode_doc.append(ix)
-            self.encoded.append(encode_doc)
+                    encoded_doc[i] = self.stoi['<unk>']
+            self.encoded.append(encoded_doc.tolist())
+
         return self.encoded
 
     def stratify(self, data, strata_field):
