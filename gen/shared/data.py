@@ -68,9 +68,11 @@ class Batch(object):
 
 class Field(object):
     """A class to set different properties of the individual fields."""
-    def __init__(self, name: str, train: bool, label: bool, ignore: bool = True, ix: int = None, cname: str = None):
+    def __init__(self, name: str, sequential: bool, train: bool, label: bool, ignore: bool = True, ix: int = None,
+                 cname: str = None):
         """Initialize the field object. Each individual field is to hold information about that field only.
         :param name (str): Name of the field.
+        :param seq (bool): Use text to train/test model.
         :param train (bool): Use for training.
         :param label (bool): Indicate if it is a label field.
         :param ignore (bool): Indicate whether to ignore the information in this field.
@@ -80,6 +82,7 @@ class Field(object):
             train_field = Field('text', train = True, label = False, ignore = False, ix = 0)
         """
         self.name = name
+        self.sequential = seq
         self.train = train
         self.cname = cname
         self.label = label
@@ -130,6 +133,8 @@ class GeneralDataset(IterableDataset):
         self.sep = sep
         self.fields = fields
         self.fields_dict = dict(fields)
+        self.train_fields = [f for f in self.fields if f.train]
+        self.label_fields = [f for f in self.fields if f.label]
         self.data_files = {key: os.path.join(self.data_dir, f) for f, key in zip([train, dev, test],
                                                                                  ['train', 'dev', 'test'])
                                                                                  if f is not None}
@@ -158,15 +163,13 @@ class GeneralDataset(IterableDataset):
             for line in reader:
                 data, datapoint = {}, Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
-                for field in self.fields:
-
+                for field in self.train_fields:
                     idx = field.ix if self.ftype in ['CSV', 'TSV'] else field.cname
+                    data[field.name] = self.process_doc(line[idx].rstrip())
 
-                    if not any([field.ignore, field.label]):
-                        data[field.name] = self.process_doc(line[idx].rstrip())
-
-                    elif field.label:
-                        data[field.name] = line[idx].rstrip()
+                for field in self.label_fields:
+                    idx = field.ix if self.ftype in ['CSV', 'TSV'] else field.cname
+                    data[field.name] = line[idx].rstrip()
 
                 for key, val in data.items():
                     setattr(datapoint, key, val)
@@ -218,7 +221,7 @@ class GeneralDataset(IterableDataset):
 
     def build_vocab(self, data: t.DataType):
         """Build vocab over dataset."""
-        tokens = set(getattr(doc, f)[:] for doc in data for f in self.fields if f.train)
+        tokens = set(getattr(doc, f)[:] for doc in data for f in self.train_fields)
 
         self.token_counts = Counter([doc[:] for doc in tokens])
         self.itos = {ix: tok for doc in data for ix, (tok, _) in enumerate(self.token_counts.most_common())}
@@ -254,7 +257,7 @@ class GeneralDataset(IterableDataset):
         return self.itos[ix]
 
     def build_label_vocab(self, labels):
-        labels = set(getattr(l, f) for l in labels for f in self.fields if f.label)
+        labels = set(getattr(l, f) for l in labels for f in self.label_fields)
         self.itol = {ix: l for ix, l in enumerate(labels)}
         self.ltoi = {l: ix for ix, l in self.itol.items()}
 
@@ -305,17 +308,16 @@ class GeneralDataset(IterableDataset):
         length = length if length is not None else self.length
 
         for doc in data:
-            delta = len(doc.text) - length
-            if delta < 0:
-                yield doc.text[:delta]
-            elif delta > 0:
-                yield ['<pad>'] * delta + doc.text
+            for field in self.train_fields:
+                text = getattr(doc, field)
+                delta = text - length
+                yield text[:delta] if delta < 0 else ['<pad>'] * delta + text
 
     def onehot_encode(self, data):
         """Onehot encode a document."""
         self.encoded = []
         for doc in data:
-            self.encoded.append([1 if tok in doc else 0 for tok in self.stoi])
+            self.encoded.append([1 if tok in getattr(doc, f) else 0 for tok in self.stoi for f in self.train_fields])
         return self.encoded
 
     def encode(self, data):
