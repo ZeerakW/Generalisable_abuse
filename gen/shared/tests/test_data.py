@@ -176,4 +176,34 @@ class TestDataSet(unittest.TestCase):
 
     def test_onehot_encoding(self):
         """Test the onehot encoding."""
+        train = self.csv_dataset.load('train')
+        self.csv_dataset.build_label_vocab(train)
 
+        test = ["Give it to me".split()]
+        expected = [0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1]
+        output = self.csv_dataset.onehot_encode(test)
+        self.assertListEqual(output, expected, msg = "Onehot encoding failed.")
+
+    def test_encoding(self):
+        """Test the encoding."""
+        train = self.csv_dataset.load('train')
+        self.csv_dataset.build_label_vocab(train)
+        test = ["Give it to me".split()]
+        expected = [2, 4, 5, 1]
+        output = self.csv_dataset.encode(test)
+        self.assertListEqual(output, expected)
+
+    def test_split(self):
+        """Test splitting functionality."""
+        train = self.csv_dataset.load('train')
+        one_split = [4, 1]  # Lengths of the respective splits
+        train, test = self.csv_dataset.split(train, 0.8)
+        self.assertListEqual(one_split, [len(train), len(test)], msg = 'Splitting with just int failed.')
+
+        two_split = [4, 1]
+        train, test = self.csv_dataset.split(train, 0.8)
+        self.assertListEqual(two_split, [len(train), len(test)], msg = 'Two split values in list failed.')
+
+        three_split = [3, 1, 1]
+        train, dev, test = self.csv_dataset.split(train, 0.8)
+        self.assertListEqual(three_split, [len(train), len(dev), len(test)], msg = 'Three split values in list failed.')
