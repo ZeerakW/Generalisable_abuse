@@ -173,3 +173,7 @@ class TestDataSet(unittest.TestCase):
         expected_pad = inputs.split()
         output_pad = list(self.csv_dataset.pad(train, length = len(expected_pad)))
         self.assertListEqual(output_pad, expected_pad, msg = 'Zero padding failed.')
+
+    def test_onehot_encoding(self):
+        """Test the onehot encoding."""
+

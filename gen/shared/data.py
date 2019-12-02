@@ -72,7 +72,6 @@ class Field(object):
                  cname: str = None):
         """Initialize the field object. Each individual field is to hold information about that field only.
         :param name (str): Name of the field.
-        :param seq (bool): Use text to train/test model.
         :param train (bool): Use for training.
         :param label (bool): Indicate if it is a label field.
         :param ignore (bool): Indicate whether to ignore the information in this field.
@@ -82,7 +81,6 @@ class Field(object):
             train_field = Field('text', train = True, label = False, ignore = False, ix = 0)
         """
         self.name = name
-        self.sequential = seq
         self.train = train
         self.cname = cname
         self.label = label
