@@ -161,4 +161,15 @@ class TestDataSet(unittest.TestCase):
     def test_pad(self):
         """Test padding of document."""
         train = self.csv_dataset.load('train')
-        train = self.csv_dataset.pad(train, length = 10)
+        inputs = "me gusta comer en la cafeteria"
+        expected_pad = 4 * ['<pad>'] + inputs.split()
+        output_pad = list(self.csv_dataset.pad(train, length = 10))
+        self.assertListEqual(output_pad, expected_pad, msg = 'Padding doc failed.')
+
+        expected_pad = inputs.split()[:5]
+        output_pad = list(self.csv_dataset.pad(train, length = 5))
+        self.assertListEqual(output_pad, expected_pad, msg = 'Trimming doc failed.')
+
+        expected_pad = inputs.split()
+        output_pad = list(self.csv_dataset.pad(train, length = len(expected_pad)))
+        self.assertListEqual(output_pad, expected_pad, msg = 'Zero padding failed.')
