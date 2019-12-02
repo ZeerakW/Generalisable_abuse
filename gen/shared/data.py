@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import torch
+import numpy as np
 from math import floor
 import gen.shared.types as t
 from collections import Counter, defaultdict
@@ -313,9 +314,12 @@ class GeneralDataset(IterableDataset):
 
     def onehot_encode(self, data):
         """Onehot encode a document."""
-        self.encoded = []
+        self.encoded = np.zeros((1, len(self.stoi)))
         for doc in data:
-            self.encoded.append([1 if tok in getattr(doc, f) else 0 for tok in self.stoi for f in self.train_fields])
+            for f in self.train_fields:
+                text = getattr(doc, f)
+                for tok in self.stoi:
+                    self.encoded[self.stoi[tok]] = 1 if tok in text else 0
         return self.encoded
 
     def encode(self, data):
