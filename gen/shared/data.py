@@ -1,10 +1,11 @@
 import os
 import csv
+import pdb
 import json
 import torch
 import numpy as np
 from math import floor
-import gen.shared.types as t
+import gen.shared.custom_types as t
 from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
@@ -69,7 +70,7 @@ class Batch(object):
 
 class Field(object):
     """A class to set different properties of the individual fields."""
-    def __init__(self, name: str, sequential: bool, train: bool, label: bool, ignore: bool = True, ix: int = None,
+    def __init__(self, name: str, train: bool, label: bool, ignore: bool = True, ix: int = None,
                  cname: str = None):
         """Initialize the field object. Each individual field is to hold information about that field only.
         :param name (str): Name of the field.
@@ -119,7 +120,8 @@ class GeneralDataset(IterableDataset):
         :param transformations (t.Callable, default = None): Method changing from one representation to another.
         :param label_processor(t.Callable, default = None): Function to process labels with.
         """
-        self.data_dir = os.path.abspath(data_dir)
+        self.data_dir = os.path.abspath(data_dir) if '~' not in data_dir else os.path.expanduser(data_dir)
+
         try:
             ftype = ftype.upper()
             assert ftype in ['JSON', 'CSV', 'TSV']
@@ -127,11 +129,16 @@ class GeneralDataset(IterableDataset):
         except AssertionError as e:
             raise AssertionError("Input the correct file ftype: CSV/TSV or JSON")
 
-        assert('label' in fields or train_labels)
+        assert([getattr(f, 'label') is not None for f in fields])
 
         self.sep = sep
         self.fields = fields
-        self.fields_dict = dict(fields)
+        self.fields_dict = defaultdict(list)
+
+        for field in self.fields:
+            for key in field.__dict__:
+                self.fields_dict[key].append(getattr(field, key))
+
         self.train_fields = [f for f in self.fields if f.train]
         self.label_fields = [f for f in self.fields if f.label]
         self.data_files = {key: os.path.join(self.data_dir, f) for f, key in zip([train, dev, test],
@@ -154,25 +161,24 @@ class GeneralDataset(IterableDataset):
         :param dataset (str, default = 'train'): Dataset to load. Must exist as key in self.data_files.
         """
         fp = open(self.data_files[dataset])
-        if self.skip_header or skip_header:
+        if skip_header:
             next(fp)
 
-        with self.reader(fp) as reader:
-            self.data = []
-            for line in reader:
-                data, datapoint = {}, Datapoint()  # TODO Look at moving all of this to the datapoint class.
+        self.data = []
+        for line in self.reader(fp):
+            data, datapoint = {}, Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
-                for field in self.train_fields:
-                    idx = field.ix if self.ftype in ['CSV', 'TSV'] else field.cname
-                    data[field.name] = self.process_doc(line[idx].rstrip())
+            for field in self.train_fields:
+                idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
+                data[field.name] = self.process_doc(line[idx].rstrip())
 
-                for field in self.label_fields:
-                    idx = field.ix if self.ftype in ['CSV', 'TSV'] else field.cname
-                    data[field.name] = line[idx].rstrip()
+            for field in self.label_fields:
+                idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
+                data[field.name] = line[idx].rstrip()
 
-                for key, val in data.items():
-                    setattr(datapoint, key, val)
-                self.data.append(datapoint)
+            for key, val in data.items():
+                setattr(datapoint, key, val)
+            self.data.append(datapoint)
 
         self.build_label_vocab(self.data)
 
@@ -194,6 +200,9 @@ class GeneralDataset(IterableDataset):
 
         labels = []
         fp = open(path)
+        if skip_header:
+            next(fp)
+
         for line in self.reader(fp, ftype, sep):
             if ftype in ['CSV', 'TSV']:
                 labels.append(line[label_ix.rstrip()])
@@ -208,7 +217,7 @@ class GeneralDataset(IterableDataset):
         ftype = ftype if ftype is not None else self.ftype
         if ftype in ['CSV', 'TSV']:
             sep = sep if sep else self.sep
-            reader = csv.reader(fp, sep = sep)
+            reader = csv.reader(fp, delimiter = sep)
         else:
             reader = self.json_reader(fp)
         return reader
@@ -220,7 +229,7 @@ class GeneralDataset(IterableDataset):
 
     def build_vocab(self, data: t.DataType):
         """Build vocab over dataset."""
-        self.token_counts = Counter([getattr(doc, f)[:] for doc in data for f in self.train_fields])
+        self.token_counts = Counter([getattr(doc, getattr(f, 'name'))[:] for doc in data for f in self.train_fields])
         self.token_counts.update({'<unk>': np.mean(self.token_counts.values())})
         self.token_counts.update({'<pad>': 0})
 
@@ -257,7 +266,7 @@ class GeneralDataset(IterableDataset):
         return self.itos[ix]
 
     def build_label_vocab(self, labels):
-        labels = set(getattr(l, f) for l in labels for f in self.label_fields)
+        labels = set(getattr(l, getattr(f, 'name')) for l in labels for f in self.label_fields)
         self.itol = {ix: l for ix, l in enumerate(labels)}
         self.ltoi = {l: ix for ix, l in self.itol.items()}
 
@@ -309,7 +318,7 @@ class GeneralDataset(IterableDataset):
 
         for doc in data:
             for field in self.train_fields:
-                text = getattr(doc, field)
+                text = getattr(doc, getattr(field, 'name'))
                 delta = text - length
                 yield text[:delta] if delta < 0 else ['<pad>'] * delta + text
 
@@ -318,7 +327,7 @@ class GeneralDataset(IterableDataset):
         encoded = np.zeros((1, len(self.stoi)))
         for doc in data:
             for f in self.train_fields:
-                text = getattr(doc, f)
+                text = getattr(doc, getattr(f, 'name'))
                 for tok in self.stoi:
                     encoded[self.stoi[tok]] = 1 if tok in text else 0
         self.encoded = encoded.tolist()
