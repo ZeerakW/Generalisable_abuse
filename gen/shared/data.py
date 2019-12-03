@@ -227,10 +227,14 @@ class GeneralDataset(IterableDataset):
         for line in fp:
             yield json.loads(line)
 
-    def build_vocab(self, data: t.DataType):
+    def build_token_vocab(self, data: t.DataType):
         """Build vocab over dataset."""
-        self.token_counts = Counter([getattr(doc, getattr(f, 'name'))[:] for doc in data for f in self.train_fields])
-        self.token_counts.update({'<unk>': np.mean(self.token_counts.values())})
+        train_fields = self.train_fields
+        self.token_counts = Counter()
+        for doc in data:
+            for f in train_fields:
+                self.token_counts.update(getattr(doc, getattr(f, 'name')))
+        self.token_counts.update({'<unk>': np.mean(list(self.token_counts.values()))})
         self.token_counts.update({'<pad>': 0})
 
         self.itos = {ix: tok for doc in data for ix, (tok, _) in enumerate(self.token_counts.most_common())}
