@@ -24,6 +24,12 @@ class TestDataSet(unittest.TestCase):
                                           lower = True, preprocessor = None, transformations = None,
                                           label_processor = None, sep = ',')
 
+    @classmethod
+    def tearDownClass(cls):
+        """Take down class."""
+        cls.csv_dataset = 0
+        cls.json_dataset = 0
+
     def test_load(self):
         """Test dataset loading."""
         expected = [("me gusta comer en la cafeteria".lower().split(), "SPANISH"),
@@ -250,3 +256,35 @@ class TestDataSet(unittest.TestCase):
         train, dev, test = self.csv_dataset.split(self.train, [0.6, 0.2, 0.1])
         output = [len(train), len(dev), len(test)]
         self.assertListEqual(expected, output, msg = 'Three split values in list failed.')
+
+
+class TestDataPoint(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up class with data as well."""
+        fields = [Field('text', train = True, label = False, ignore = False, ix = 0, cname = 'text'),
+                  Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 1)]
+
+        cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/gen/shared/tests/',
+                                         ftype = 'csv', fields = fields, train = 'train.csv', dev = None,
+                                         test = 'test.csv', train_labels = None, tokenizer = lambda x: x.split(),
+                                         lower = True, preprocessor = None, transformations = None,
+                                         label_processor = None, sep = ',')
+        cls.dataset.load('train')
+        cls.train = cls.dataset.data
+
+    def test_datapoint_creation(self):
+        """Test that datapoints are created consistently."""
+        expected = [{'text': 'me gusta comer en la cafeteria'.lower().split(), 'label': 'SPANISH'},
+                    {'text': 'Give it to me'.lower().split(), 'label': 'ENGLISH'},
+                    {'text': 'No creo que sea una buena idea'.lower().split(), 'label': 'SPANISH'},
+                    {'text': 'No it is not a good idea to get lost at sea'.lower().split(), 'label': 'ENGLISH'}
+                    ]
+        for exp, out in zip(expected, self.train):
+            self.assertDictEqual(exp, out.__dict__, msg = "A dictionary is not created right.")
+            self.assertIsInstance(out, Datapoint)
+
+    def test_datapoint_counts(self):
+        """Test the correct number of datapoints are created."""
+        self.assertEqual(4, len(self.train))
