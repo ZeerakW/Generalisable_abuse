@@ -61,6 +61,14 @@ class TestDataSet(unittest.TestCase):
         output = list(self.csv_dataset.stoi.keys())
         self.assertListEqual(sorted(output), sorted(expected), msg = 'Vocab Extension Failed.')
 
+    def test_load_test_from_different_file(self):
+        """Test loading a secondary dataset (test/dev set) from a different file."""
+        self.csv_dataset.load('test')
+        test = self.csv_dataset.test
+        expected  = ["Yo creo que si".lower().split(), "it is lost on me".lower().split()]
+        self.assertListEqual(test[0].text, expected[0])
+        self.assertListEqual(test[1].text, expected[1])
+
     def test_vocab_token_lookup(self):
         '''Test looking up in vocab.'''
         self.csv_dataset.build_label_vocab(self.train)
