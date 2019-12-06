@@ -152,7 +152,7 @@ class GeneralDataset(IterableDataset):
         self.preprocessor = preprocessor
         self.data_dir = data_dir
         self.repr_transform = transformations
-        self.label_processor = label_processor if label_processor else self.label_processing
+        self.label_processor = label_processor if label_processor else self.label_name_lookup
         self.length = 0
 
     def load(self, dataset: str = 'train', skip_header = True):
@@ -164,23 +164,33 @@ class GeneralDataset(IterableDataset):
         if skip_header:
             next(fp)
 
-        self.data = []
+        data = []
         for line in self.reader(fp):
-            data, datapoint = {}, Datapoint()  # TODO Look at moving all of this to the datapoint class.
+            data_line, datapoint = {}, Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
-                data[field.name] = self.process_doc(line[idx].rstrip())
+                data_line[field.name] = self.process_doc(line[idx].rstrip())
 
             for field in self.label_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
-                data[field.name] = line[idx].rstrip()
+                data_line[field.name] = line[idx].rstrip()
 
-            for key, val in data.items():
+            for key, val in data_line.items():
                 setattr(datapoint, key, val)
-            self.data.append(datapoint)
+            data.append(datapoint)
 
-        self.build_label_vocab(self.data)
+        # TODO Think about this some more. Fine to run this when extending the dataset (but maybe not extend labels?)
+        # TODO but not when loading dev or test because then the model will see the data before it's allowed to.
+        # TODO Potentially just allow one class per file / dataset.
+        if dataset == 'train':
+            self.data = data
+        elif dataset == 'dev':
+            self.dev = data
+        elif dataset == 'test':
+            self.test = data
+
+        fp.close()
 
     def load_labels(self, label_path, ftype: str = None, sep: str = None,
                     skip_header: bool = True, label_processor: t.Callable = None, label_ix: t.Union[int, str] = None):
@@ -242,9 +252,13 @@ class GeneralDataset(IterableDataset):
 
     def extend_vocab(self, data: t.DataType):
         """Extend the vocabulary."""
-        self.token_counts.update(Counter([tok for doc in data for tok in doc]))
-        start_ix = len(self.itos)
-        self.itos.update({start_ix + ix: tok for doc in data for ix, tok in enumerate(doc)})
+        for doc in data:
+            start_ix = len(self.itos)
+            for f in self.train_fields:
+                tokens = getattr(doc, getattr(f, 'name'))
+                self.token_counts.update(tokens)
+                self.itos.update({start_ix + ix: tok for ix, tok in enumerate(tokens)})
+
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def vocab_size(self):
@@ -271,7 +285,7 @@ class GeneralDataset(IterableDataset):
 
     def build_label_vocab(self, labels):
         labels = set(getattr(l, getattr(f, 'name')) for l in labels for f in self.label_fields)
-        self.itol = {ix: l for ix, l in enumerate(labels)}
+        self.itol = {ix: l for ix, l in enumerate(sorted(labels))}
         self.ltoi = {l: ix for ix, l in self.itol.items()}
 
     def label_name_lookup(self, label):
@@ -280,7 +294,7 @@ class GeneralDataset(IterableDataset):
 
     def label_ix_lookup(self, label):
         """Look up label index from label."""
-        return self.ltoi[label]
+        return self.itol[label]
 
     def label_count(self):
         """Get the number of the labels."""
@@ -291,7 +305,7 @@ class GeneralDataset(IterableDataset):
         :param label: Label to process.
         :param processor: Function to process the label."""
         processor = processor if processor is not None else self.label_processor
-        return processor(label) if processor is not None else self.label_lookup[label]
+        return processor(label) if processor is not None else self.label_name_lookup[label]
 
     def process_doc(self, doc: t.DocType):
         if isinstance(doc, list):
@@ -323,34 +337,35 @@ class GeneralDataset(IterableDataset):
         for doc in data:
             for field in self.train_fields:
                 text = getattr(doc, getattr(field, 'name'))
-                delta = text - length
+                delta = length - len(text)
                 yield text[:delta] if delta < 0 else ['<pad>'] * delta + text
 
     def onehot_encode(self, data):
         """Onehot encode a document."""
-        encoded = np.zeros((1, len(self.stoi)))
+        encoded = [0] * len(self.stoi)
         for doc in data:
             for f in self.train_fields:
                 text = getattr(doc, getattr(f, 'name'))
                 for tok in self.stoi:
                     encoded[self.stoi[tok]] = 1 if tok in text else 0
-        self.encoded = encoded.tolist()
+        self.encoded = encoded
         return self.encoded
 
     def encode(self, data):
         self.encoded = []
-        data = self.pad(data)
 
         # TODO Talk to George about padding and making sure models ignore padding tokens.
 
         for doc in data:
-            encoded_doc = np.zeros(len(doc))
-            for i, w in enumerate(doc):
-                try:
-                    encoded_doc[i] = self.stoi[w]
-                except IndexError as e:
-                    encoded_doc[i] = self.stoi['<unk>']
-            self.encoded.append(encoded_doc.tolist())
+            for f in self.train_fields:
+                text = getattr(doc, getattr(f, 'name'))
+                encoded_doc = [0] * len(text)
+                for i, w in enumerate(text):
+                    try:
+                        encoded_doc[i] = self.stoi[w]
+                    except KeyError as e:
+                        encoded_doc[i] = self.stoi['<unk>']
+                self.encoded.append(encoded_doc)
 
         return self.encoded
 
@@ -373,12 +388,19 @@ class GeneralDataset(IterableDataset):
         if stratify is not None:
             data = self.stratify(data, )
 
-        if isinstance(splits, int):
+        if isinstance(splits, float):
             splits = [splits]
 
-        num_splits = len(list)
+        num_splits = len(splits)
         num_datapoints = len(data)
         splits = list(map(lambda x: floor(num_datapoints * x), splits))
+
+        for ix, split in enumerate(splits):
+            if split == 0:
+                if 1 < splits[ix - 1] and ix + 1 != len(splits):
+                    splits[ix] = splits[ix - 1] + 1
+                else:
+                    splits[ix] = 1
 
         if num_splits == 1:
             return data[:splits[0]], data[splits[0]:]
