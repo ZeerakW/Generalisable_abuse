@@ -290,7 +290,7 @@ class TestDataPoint(unittest.TestCase):
         self.assertEqual(4, len(self.train))
 
 
-class TestBatching(unittest.TestCase):
+class TestBatch(unittest.TestCase):
     """Test the Batch class."""
 
     @classmethod

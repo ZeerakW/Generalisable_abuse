@@ -9,23 +9,6 @@ from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
 
-class OnehotBatchGenerator:
-    """A class to get the information from the batches."""
-
-    def __init__(self, dataloader, datafield, labelfield, vocab_size):
-        self.data, self.df, self.lf = dataloader, datafield, labelfield
-        self.VOCAB_SIZE = vocab_size
-
-    def __len__(self):
-        return len(self.data)
-
-    def __iter__(self):
-        for batch in self.data:
-            X = torch.nn.functional.one_hot(getattr(batch, self.df), self.VOCAB_SIZE)
-            y = getattr(batch, self.lf)
-            yield (X, y)
-
-
 class BatchGenerator:
     """A class to get the information from the batches."""
 
