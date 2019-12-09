@@ -234,7 +234,7 @@ class TestDataSet(unittest.TestCase):
 
     def test_encoding(self):
         """Test the encoding."""
-        self.csv_dataset.build_label_vocab(self.train)
+        self.csv_dataset.build_token_vocab(self.train)
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
         expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]

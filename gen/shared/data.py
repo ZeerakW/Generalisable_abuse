@@ -346,21 +346,21 @@ class GeneralDataset(IterableDataset):
 
     def onehot_encode(self, data):
         """Onehot encode a document."""
-        encoded = [0] * len(self.stoi)
+        self.encoded = [0] * len(data)
         for ix, doc in enumerate(data):
+            encoded_doc = [0] * len(self.stoi)
             for f in self.train_fields:
                 text = getattr(doc, getattr(f, 'name'))
                 for tok in self.stoi:
-                    encoded[self.stoi[tok]] = 1 if tok in text else 0
-            self.encoded[ix] = torch.LongTensor(encoded)
+                    encoded_doc[self.stoi[tok]] = 1 if tok in text else 0
+                encoded_doc = torch.LongTensor(encoded_doc)
+            setattr(doc, 'encoded', encoded_doc)
+            self.encoded[ix] = encoded_doc
         return self.encoded
 
     def encode(self, data):
-        self.encoded = []
-
-        # TODO Talk to George about padding and making sure models ignore padding tokens.
-
-        for doc in data:
+        self.encoded = [0] * len(data)
+        for ix, doc in enumerate(data):
             for f in self.train_fields:
                 text = getattr(doc, getattr(f, 'name'))
                 encoded_doc = [0] * len(text)
@@ -369,8 +369,8 @@ class GeneralDataset(IterableDataset):
                         encoded_doc[i] = self.stoi[w]
                     except KeyError as e:
                         encoded_doc[i] = self.stoi['<unk>']
-                self.encoded.append(torch.LongTensor(encoded_doc))
-
+            setattr(doc, 'encoded', torch.LongTensor(encoded_doc))
+            self.encoded[ix] = torch.LongTensor(encoded_doc)
         return self.encoded
 
     def stratify(self, data, strata_field):
