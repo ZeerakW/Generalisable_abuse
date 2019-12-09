@@ -227,9 +227,10 @@ class TestDataSet(unittest.TestCase):
         self.csv_dataset.build_token_vocab(self.train)
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
-        expected = [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0]
-        output = self.csv_dataset.onehot_encode(test)
-        self.assertListEqual(output, expected, msg = 'Onehot encoding failed.')
+        expected = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0]]
+        output = [tensor.tolist() for tensor in self.csv_dataset.onehot_encode(test)]
+        self.assertEqual(output, expected, msg = 'Onehot encoding failed.')
 
     def test_encoding(self):
         """Test the encoding."""
@@ -237,8 +238,8 @@ class TestDataSet(unittest.TestCase):
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
         expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]
-        output = self.csv_dataset.encode(test)
-        self.assertListEqual(output, expected, msg = 'Encoding failed.')
+        output = [tensor.tolist() for tensor in self.csv_dataset.encode(test)]
+        self.assertEqual(output, expected, msg = 'Encoding failed.')
 
     def test_split(self):
         """Test splitting functionality."""

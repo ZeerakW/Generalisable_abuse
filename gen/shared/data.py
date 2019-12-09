@@ -1,6 +1,5 @@
 import os
 import csv
-import pdb
 import json
 import torch
 import numpy as np
@@ -56,16 +55,21 @@ class Batch(object):
         """Go over the data and create batches."""
         self.batches = []
         batch = []
-        for doc in self.data:
-            if len(batch) == self.batch_size:
-                self.batches.apend(batch)
-                batch = []
-            else:
-                batch.append(doc)
+        start_ix, end_ix = 0, self.batch_size
+        for i in range(0, len(self.data), self.batch_size):
+            batch = self.data[start_ix:end_ix]
+            start_ix, end_ix = start_ix + self.batch_size, end_ix + self.batch_size
+            self.batches.append(batch)
 
     def __iter__(self):
         for batch in self.batches:
             yield batch
+
+    def __len__(self):
+        return len(self.batches)
+
+    def __getitem__(self, i):
+        return self.batches[i]
 
 
 class Field(object):
@@ -343,12 +347,12 @@ class GeneralDataset(IterableDataset):
     def onehot_encode(self, data):
         """Onehot encode a document."""
         encoded = [0] * len(self.stoi)
-        for doc in data:
+        for ix, doc in enumerate(data):
             for f in self.train_fields:
                 text = getattr(doc, getattr(f, 'name'))
                 for tok in self.stoi:
                     encoded[self.stoi[tok]] = 1 if tok in text else 0
-        self.encoded = encoded
+            self.encoded[ix] = torch.LongTensor(encoded)
         return self.encoded
 
     def encode(self, data):
@@ -365,7 +369,7 @@ class GeneralDataset(IterableDataset):
                         encoded_doc[i] = self.stoi[w]
                     except KeyError as e:
                         encoded_doc[i] = self.stoi['<unk>']
-                self.encoded.append(encoded_doc)
+                self.encoded.append(torch.LongTensor(encoded_doc))
 
         return self.encoded
 
