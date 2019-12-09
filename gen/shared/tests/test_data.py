@@ -1,6 +1,5 @@
 import unittest
-from gen.shared.data import Field, GeneralDataset, Datapoint
-import pdb
+from gen.shared.data import Field, GeneralDataset, Datapoint, Batch
 
 
 class TestDataSet(unittest.TestCase):
@@ -289,3 +288,82 @@ class TestDataPoint(unittest.TestCase):
     def test_datapoint_counts(self):
         """Test the correct number of datapoints are created."""
         self.assertEqual(4, len(self.train))
+
+
+class TestBatching(unittest.TestCase):
+    """Test the Batch class."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up necessary class variables."""
+        text_field = Field('text', train = True, label = False, ignore = False, ix = 6, cname = 'text')
+        label_field = Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 5)
+        ignore_field = Field('ignore', train = False, label = False, cname = 'ignore', ignore = True)
+
+        fields = [ignore_field, ignore_field, ignore_field, ignore_field, ignore_field, label_field, text_field]
+
+        cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/data/',
+                                     ftype = 'csv', fields = fields, train = 'davidson_test.csv', dev = None,
+                                     test = None, train_labels = None, tokenizer = lambda x: x.split(),
+                                     lower = True, preprocessor = None, transformations = None,
+                                     label_processor = None, sep = ',')
+        cls.dataset.load('train')
+        cls.train = cls.dataset.data
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down class between each test."""
+        cls.dataset = 0
+
+    def test_batch_sizes(self):
+        """Test that the entire dataset has been batched."""
+        batches = Batch('text', 'label', 32, self.train)
+        batches.create_batches()
+        self.assertIsNotNone(batches)
+        counts = sum(len(b) for b in batches)
+        self.assertEqual(counts, len(self.train))
+
+    def test_batch_count(self):
+        """Test that each batch contains datapoints."""
+        b = Batch('text', 'label', 32, self.train)
+        b.create_batches()
+        expected = 30
+        self.assertEqual(len(b), expected, msg = "The number of batches is wrong.")
+
+    def test_batch_contents(self):
+        """Test that each batch contains datapoints."""
+        b = Batch('text', 'label', 32, self.train)
+        b.create_batches()
+        expected = [True for batch in b]
+        output = [all(isinstance(batch_item, Datapoint) for batch_item in batch) for batch in b]
+        self.assertEqual(output, expected, msg = "Not all items are datapoints.")
+
+    def test_onehot_encoded_batches(self):
+        """Test creation of onehot encoded batches."""
+        self.dataset.build_token_vocab(self.train)
+        self.dataset.onehot_encode(self.train)
+        b = Batch('encoded', 'label', 32, self.train)
+        b.create_batches()
+
+        expected = [True for batch in b]
+        output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
+        self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
+
+        expected = [len(self.dataset.stoi) for batch in b for batch_item in batch]
+        output = [len(getattr(batch_item, 'encoded')) for batch in b for batch_item in batch]
+        self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
+
+    def test_encoded_batches(self):
+        """Test creation of encoded batches."""
+        self.dataset.build_token_vocab(self.train)
+        self.dataset.encode(self.train)
+        b = Batch('encoded', 'label', 32, self.train)
+        b.create_batches()
+
+        expected = [True for batch in b]
+        output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
+        self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
+
+        expected = [len(batch_item.text) for batch in b for batch_item in batch]
+        output = [len(getattr(batch_item, 'encoded')) for batch in b for batch_item in batch]
+        self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
