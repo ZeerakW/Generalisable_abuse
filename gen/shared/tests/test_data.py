@@ -1,3 +1,4 @@
+import pdb
 import unittest
 import torchtestcase
 import torch
@@ -130,16 +131,16 @@ class TestDataSet(torchtestcase.TorchTestCase):
     def test_process_label(self):
         """Test label processing."""
         self.csv_dataset.build_label_vocab(self.train)
-        expected = 1
-        output = self.csv_dataset.process_label('SPANISH')
+        expected = [1]
+        output = self.csv_dataset._process_label('SPANISH')
         self.assertEqual(output, expected, msg = 'Labelprocessor failed without custom processor')
 
         def processor(label):
             labels = {'SPANISH': 1, 'ENGLISH': 0}
             return labels[label]
 
-        expected = 1
-        output = self.csv_dataset.process_label('SPANISH', processor = processor)
+        expected = [1]
+        output = self.csv_dataset._process_label('SPANISH', processor = processor)
         self.assertEqual(output, expected, msg = 'Labelprocessor failed with custom processor')
 
     def test_no_preprocessing(self):
@@ -434,8 +435,11 @@ class TestBatchGenerator(unittest.TestCase):
         cls.dataset.load('train')
         cls.train = cls.dataset.data
         cls.dataset.build_token_vocab(cls.train)
+        cls.dataset.build_label_vocab(cls.train)
+        cls.dataset.process_labels(cls.train)
         cls.dataset.encode(cls.train, True)
-        batches = Batch(32, cls.train)
+        cls.batch_size = 64
+        batches = Batch(cls.batch_size, cls.train)
         batches.create_batches()
         cls.batches = batches
 
@@ -447,8 +451,19 @@ class TestBatchGenerator(unittest.TestCase):
     def test_batch_generation(self):
         """Test the batchgenerator can access the variables."""
         batches = BatchExtractor('encoded', 'label', self.batches)
-        next(iter(batches))
 
-    # def test_tensorisation(self):
-    #     """Test that the batches are all tensorized."""
-    #     self.assertTrue(False)
+        for batch in batches:
+            self.assertEqual(batch[0].size(0), batch[1].size(0))
+
+    def test_tensorisation(self):
+        """Test that the batches are all tensorized."""
+        batches = BatchExtractor('encoded', 'label', self.batches)
+
+        for batch in batches:
+            self.assertIsInstance(batch[0], torch.Tensor, msg = "The type of the data element is incorrect.")
+            self.assertIsInstance(batch[1], torch.Tensor, msg = "The type of the label element is incorrect.")
+
+    def test_batch_sizes(self):
+        """Test the __len__ function of a BatchExtractor."""
+        batches = BatchExtractor('encoded', 'label', self.batches)
+        self.assertEqual(len(batches), 15, msg = "The len operation on BatchExtractor is incorrect.")

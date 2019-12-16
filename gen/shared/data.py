@@ -38,9 +38,8 @@ class BatchExtractor:
 
     def __iter__(self):
         for batch in self.data:
-            X = [getattr(doc, self.df) for doc in batch]
-            seq_len = max(map(len, X))
-            y = [getattr(doc, self.lf) for doc in batch]
+            X = torch.cat([getattr(doc, self.df) for doc in batch], dim = 0)
+            y = torch.tensor([getattr(doc, self.lf) for doc in batch]).flatten()
             yield (X, y)
 
 
@@ -362,12 +361,23 @@ class GeneralDataset(IterableDataset):
         """Get the number of the labels."""
         return len(self.itol)
 
-    def process_label(self, label, processor: t.Callable = None) -> int:
+    def process_labels(self, data: t.DataType, processor: t.Callable = None):
+        """Take a dataset of labels and process them.
+        :param data (t.DataType): Dataset of datapoints to process.
+        :param processor (t.Callable, optional): Custom processor to use.
+        """
+        for doc in data:
+            label = self._process_label([getattr(doc, getattr(f, 'name')) for f in self.label_fields], processor)
+            setattr(doc, 'label', label)
+
+    def _process_label(self, label, processor: t.Callable = None) -> int:
         """Modify label using external function to process it.
         :param label: Label to process.
         :param processor: Function to process the label."""
+        if not isinstance(label, list):
+            label = [label]
         processor = processor if processor is not None else self.label_processor
-        return processor(label) if processor is not None else self.label_name_lookup[label]
+        return [processor(l) for l in label]
 
     def process_doc(self, doc: t.DocType) -> list:
         """Process a single document.
