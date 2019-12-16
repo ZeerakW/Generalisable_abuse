@@ -1,9 +1,11 @@
-import unittest
-from gen.shared.data import Field, GeneralDataset, Datapoint
 import pdb
+import unittest
+import torchtestcase
+import torch
+from gen.shared.data import Field, GeneralDataset, Datapoint, Batch, BatchExtractor
 
 
-class TestDataSet(unittest.TestCase):
+class TestDataSet(torchtestcase.TorchTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -24,12 +26,19 @@ class TestDataSet(unittest.TestCase):
                                           lower = True, preprocessor = None, transformations = None,
                                           label_processor = None, sep = ',')
 
+    @classmethod
+    def tearDownClass(cls):
+        """Take down class."""
+        cls.csv_dataset = 0
+        cls.json_dataset = 0
+
     def test_load(self):
         """Test dataset loading."""
-        expected = [("me gusta comer en la cafeteria".lower().split(), "SPANISH"),
-                    ("Give it to me".lower().split(), "ENGLISH"),
-                    ("No creo que sea una buena idea".lower().split(), "SPANISH"),
+        expected = [("me gusta comer en la cafeteria".lower().split() + ['<pad>'] * 6, "SPANISH"),
+                    ("Give it to me".lower().split() + ['<pad>'] * 8, "ENGLISH"),
+                    ("No creo que sea una buena idea".lower().split() + ['<pad>'] * 5, "SPANISH"),
                     ("No it is not a good idea to get lost at sea".lower().split(), "ENGLISH")]
+
         csv_train = self.train
         output = [(doc.text, doc.label) for doc in csv_train]
         self.assertListEqual(output, expected, msg = 'Data Loading failed.')
@@ -65,7 +74,8 @@ class TestDataSet(unittest.TestCase):
         """Test loading a secondary dataset (test/dev set) from a different file."""
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
-        expected  = ["Yo creo que si".lower().split(), "it is lost on me".lower().split()]
+        expected  = ["Yo creo que si".lower().split() + 8 * ['<pad>'],
+                     "it is lost on me".lower().split() + ['<pad>'] * 7]
         self.assertListEqual(test[0].text, expected[0])
         self.assertListEqual(test[1].text, expected[1])
 
@@ -121,16 +131,16 @@ class TestDataSet(unittest.TestCase):
     def test_process_label(self):
         """Test label processing."""
         self.csv_dataset.build_label_vocab(self.train)
-        expected = 1
-        output = self.csv_dataset.process_label('SPANISH')
+        expected = [1]
+        output = self.csv_dataset._process_label('SPANISH')
         self.assertEqual(output, expected, msg = 'Labelprocessor failed without custom processor')
 
         def processor(label):
             labels = {'SPANISH': 1, 'ENGLISH': 0}
             return labels[label]
 
-        expected = 1
-        output = self.csv_dataset.process_label('SPANISH', processor = processor)
+        expected = [1]
+        output = self.csv_dataset._process_label('SPANISH', processor = processor)
         self.assertEqual(output, expected, msg = 'Labelprocessor failed with custom processor')
 
     def test_no_preprocessing(self):
@@ -202,37 +212,61 @@ class TestDataSet(unittest.TestCase):
 
     def test_pad(self):
         """Test padding of document."""
-        expected = [4 * ['<pad>'] + "me gusta comer en la cafeteria".split()]
-        expected.append(6 * ['<pad>'] + ['give', 'it', 'to', 'me'])
-        expected.append(3 * ['<pad>'] + ['no', 'creo', 'que', 'sea', 'una', 'buena', 'idea'])
-        expected.append(0 * ['<pad>'] + ['no', 'it', 'is', 'not', 'a', 'good', 'idea', 'to', 'get', 'lost'])
-        output = list(self.csv_dataset.pad(self.train, length = 10))
-        self.assertListEqual(output, expected, msg = 'Padding doc failed.')
+        exp = ["me gusta comer en la cafeteria".split() + 6 * ['<pad>']]
+        exp.append(['give', 'it', 'to', 'me'] + 8 * ['<pad>'])
+        exp.append(['no', 'creo', 'que', 'sea', 'una', 'buena', 'idea'] + 5 * ['<pad>'])
+        exp.append(['no', 'it', 'is', 'not', 'a', 'good', 'idea', 'to', 'get', 'lost', 'at', 'sea'] + 0 * ['<pad>'])
+        output = [dp.text for dp in self.csv_dataset.pad(self.train, length = 12)]
+        self.assertListEqual(output, exp, msg = 'Padding doc failed.')
 
     def test_trim(self):
         """Test that trimming of the document works."""
         expected = 0 * ['<pad>'] + ['no', 'it', 'is', 'not', 'a', 'good', 'idea', 'to', 'get', 'lost'][:5]
-
         output = list(self.csv_dataset.pad(self.train, length = 5))[-1]
-        self.assertListEqual(output, expected, msg = 'Zero padding failed.')
+        self.assertListEqual(output.text, expected, msg = 'Zero padding failed.')
 
     def test_onehot_encoding(self):
         """Test the onehot encoding."""
         self.csv_dataset.build_token_vocab(self.train)
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
-        expected = [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0]
-        output = self.csv_dataset.onehot_encode(test)
-        self.assertListEqual(output, expected, msg = 'Onehot encoding failed.')
+        expected = torch.zeros(2, 12, 25)
+        expected[0][0][6] = 1
+        expected[0][1][13] = 1
+        expected[0][2][14] = 1
+        expected[0][3][6] = 1
+        expected[0][4][24] = 1
+        expected[0][5][24] = 1
+        expected[0][6][24] = 1
+        expected[0][7][24] = 1
+        expected[0][8][24] = 1
+        expected[0][9][24] = 1
+        expected[0][10][24] = 1
+        expected[0][11][24] = 1
+        expected[1][0][1] = 1
+        expected[1][1][17] = 1
+        expected[1][2][22] = 1
+        expected[1][3][6] = 1
+        expected[1][4][0] = 1
+        expected[1][5][24] = 1
+        expected[1][6][24] = 1
+        expected[1][7][24] = 1
+        expected[1][8][24] = 1
+        expected[1][9][24] = 1
+        expected[1][10][24] = 1
+        expected[1][11][24] = 1
 
-    def test_encoding(self):
-        """Test the encoding."""
-        self.csv_dataset.build_label_vocab(self.train)
-        self.csv_dataset.load('test')
-        test = self.csv_dataset.test
-        expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]
-        output = self.csv_dataset.encode(test)
-        self.assertListEqual(output, expected, msg = 'Encoding failed.')
+        output = self.csv_dataset.encode(test, True)
+        self.assertEqual(output, expected, msg = 'Onehot encoding failed.')
+
+    # def test_encoding(self):
+    #     """Test the encoding."""
+    #     self.csv_dataset.build_token_vocab(self.train)
+    #     self.csv_dataset.load('test')
+    #     test = self.csv_dataset.test
+    #     expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]
+    #     output = [tensor for tensor in self.csv_dataset.encode(test, False)]
+    #     self.assertEqual(output, expected, msg = 'Encoding failed.')
 
     def test_split(self):
         """Test splitting functionality."""
@@ -250,3 +284,186 @@ class TestDataSet(unittest.TestCase):
         train, dev, test = self.csv_dataset.split(self.train, [0.6, 0.2, 0.1])
         output = [len(train), len(dev), len(test)]
         self.assertListEqual(expected, output, msg = 'Three split values in list failed.')
+
+
+class TestDataPoint(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up class with data as well."""
+        fields = [Field('text', train = True, label = False, ignore = False, ix = 0, cname = 'text'),
+                  Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 1)]
+
+        cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/gen/shared/tests/',
+                                         ftype = 'csv', fields = fields, train = 'train.csv', dev = None,
+                                         test = 'test.csv', train_labels = None, tokenizer = lambda x: x.split(),
+                                         lower = True, preprocessor = None, transformations = None,
+                                         label_processor = None, sep = ',')
+        cls.dataset.load('train')
+        cls.train = cls.dataset.data
+
+    def test_datapoint_creation(self):
+        """Test that datapoints are created consistently."""
+        expected = [{'text': 'me gusta comer en la cafeteria'.lower().split() + ['<pad>'] * 6,
+                     'label': 'SPANISH',
+                     'original': 'me gusta comer en la cafeteria'.lower().split()},
+                    {'text': 'Give it to me'.lower().split() + ['<pad>'] * 8,
+                     'label': 'ENGLISH',
+                     'original': 'Give it to me'.lower().split()},
+                    {'text': 'No creo que sea una buena idea'.lower().split() + ['<pad>'] * 5,
+                     'label': 'SPANISH',
+                     'original': 'No creo que sea una buena idea'.lower().split()},
+                    {'text': 'No it is not a good idea to get lost at sea'.lower().split(),
+                     'label': 'ENGLISH',
+                     'original': 'No it is not a good idea to get lost at sea'.lower().split()}
+                    ]
+        for exp, out in zip(expected, self.train):
+            self.assertDictEqual(exp, out.__dict__, msg = "A dictionary is not created right.")
+            self.assertIsInstance(out, Datapoint)
+
+    def test_datapoint_counts(self):
+        """Test the correct number of datapoints are created."""
+        self.assertEqual(4, len(self.train))
+
+
+class TestBatch(unittest.TestCase):
+    """Test the Batch class."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up necessary class variables."""
+        text_field = Field('text', train = True, label = False, ignore = False, ix = 6, cname = 'text')
+        label_field = Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 5)
+        ignore_field = Field('ignore', train = False, label = False, cname = 'ignore', ignore = True)
+
+        fields = [ignore_field, ignore_field, ignore_field, ignore_field, ignore_field, label_field, text_field]
+
+        cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/data/',
+                                     ftype = 'csv', fields = fields, train = 'davidson_test.csv', dev = None,
+                                     test = None, train_labels = None, tokenizer = lambda x: x.split(),
+                                     lower = True, preprocessor = None, transformations = None,
+                                     label_processor = None, sep = ',')
+        cls.dataset.load('train')
+        cls.train = cls.dataset.data
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down class between each test."""
+        cls.dataset = 0
+
+    def test_batch_sizes(self):
+        """Test that the entire dataset has been batched."""
+        batches = Batch(32, self.train)
+        batches.create_batches()
+        self.assertIsNotNone(batches)
+        counts = sum(len(b) for b in batches)
+        self.assertEqual(counts, len(self.train))
+
+    def test_batch_count(self):
+        """Test that each batch contains datapoints."""
+        b = Batch(32, self.train)
+        b.create_batches()
+        expected = 30
+        self.assertEqual(len(b), expected, msg = "The number of batches is wrong.")
+
+    def test_batch_contents(self):
+        """Test that each batch contains datapoints."""
+        b = Batch(32, self.train)
+        b.create_batches()
+        expected = [True for batch in b]
+        output = [all(isinstance(batch_item, Datapoint) for batch_item in batch) for batch in b]
+        self.assertEqual(output, expected, msg = "Not all items are datapoints.")
+
+    def test_onehot_encoded_batches(self):
+        """Test creation of onehot encoded batches."""
+        self.dataset.build_token_vocab(self.train)
+        self.dataset.encode(self.train, True)
+        b = Batch(32, self.train)
+        b.create_batches()
+
+        expected = [True for batch in b]
+        output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
+        self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
+
+        expected = [len(self.dataset.stoi) for batch in b for batch_item in batch]
+        output = [getattr(batch_item, 'encoded').size(2) for batch in b for batch_item in batch]
+        self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
+
+    def test_encoded_batches(self):
+        """Test creation of encoded batches."""
+        self.dataset.build_token_vocab(self.train)
+        self.dataset.encode(self.train, True)
+        b = Batch(32, self.train)
+        b.create_batches()
+
+        expected = [True for batch in b]
+        output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
+        self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
+
+        expected = [len(batch_item.text) for batch in b for batch_item in batch]
+        output = [batch_item.encoded.size(1) for batch in b for batch_item in batch]
+        self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
+
+        # self.dataset.encode(self.train, False)
+        # expected = [True for batch in b]
+        # output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
+        # self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
+        #
+        # expected = [len(batch_item.text) for batch in b for batch_item in batch]
+        # output = [len(batch_item.encoded) for batch in b for batch_item in batch]
+        # pdb.set_trace()
+        # self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
+
+
+class TestBatchGenerator(unittest.TestCase):
+    """Test the batchgenerator class."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up necessary class variables."""
+        text_field = Field('text', train = True, label = False, ignore = False, ix = 6, cname = 'text')
+        label_field = Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 5)
+        ignore_field = Field('ignore', train = False, label = False, cname = 'ignore', ignore = True)
+
+        fields = [ignore_field, ignore_field, ignore_field, ignore_field, ignore_field, label_field, text_field]
+
+        cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/data/',
+                                     ftype = 'csv', fields = fields, train = 'davidson_test.csv', dev = None,
+                                     test = None, train_labels = None, tokenizer = lambda x: x.split(),
+                                     lower = True, preprocessor = None, transformations = None,
+                                     label_processor = None, sep = ',')
+        cls.dataset.load('train')
+        cls.train = cls.dataset.data
+        cls.dataset.build_token_vocab(cls.train)
+        cls.dataset.build_label_vocab(cls.train)
+        cls.dataset.process_labels(cls.train)
+        cls.dataset.encode(cls.train, True)
+        cls.batch_size = 64
+        batches = Batch(cls.batch_size, cls.train)
+        batches.create_batches()
+        cls.batches = batches
+
+    @classmethod
+    def tearDownClass(cls):
+        """Tear down class between each test."""
+        cls.dataset = 0
+
+    def test_batch_generation(self):
+        """Test the batchgenerator can access the variables."""
+        batches = BatchExtractor('encoded', 'label', self.batches)
+
+        for batch in batches:
+            self.assertEqual(batch[0].size(0), batch[1].size(0))
+
+    def test_tensorisation(self):
+        """Test that the batches are all tensorized."""
+        batches = BatchExtractor('encoded', 'label', self.batches)
+
+        for batch in batches:
+            self.assertIsInstance(batch[0], torch.Tensor, msg = "The type of the data element is incorrect.")
+            self.assertIsInstance(batch[1], torch.Tensor, msg = "The type of the label element is incorrect.")
+
+    def test_batch_sizes(self):
+        """Test the __len__ function of a BatchExtractor."""
+        batches = BatchExtractor('encoded', 'label', self.batches)
+        self.assertEqual(len(batches), 15, msg = "The len operation on BatchExtractor is incorrect.")
