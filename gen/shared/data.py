@@ -1,5 +1,6 @@
 import os
 import csv
+import pdb
 import json
 import torch
 import numpy as np
@@ -9,10 +10,43 @@ from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
 
-class BatchGenerator:
+class OnehotBatchGenerator:
     """A class to get the information from the batches."""
 
-    def __init__(self, dataloader, datafield, labelfield):
+    def __init__(self, dataloader, datafield, labelfield, vocab_size):
+        self.data, self.df, self.lf = dataloader, datafield, labelfield
+        self.VOCAB_SIZE = vocab_size
+
+    def __len__(self):
+        return len(self.data)
+
+    def __iter__(self):
+        for batch in self.data:
+            X = torch.nn.functional.one_hot(getattr(batch, self.df), self.VOCAB_SIZE)
+            y = getattr(batch, self.lf)
+            yield (X, y)
+
+
+class BatchExtractor:
+    """A class to get the information from the batches."""
+
+    def __init__(self, datafield, labelfield, dataloader):
+        self.data, self.df, self.lf = dataloader, datafield, labelfield
+
+    def __len__(self):
+        return len(self.data)
+
+    def __iter__(self):
+        for batch in self.data:
+            X = [getattr(doc, self.df) for doc in batch]
+            seq_len = max(map(len, X))
+            y = [getattr(doc, self.lf) for doc in batch]
+            yield (X, y)
+
+
+class DefaultExtractor:
+
+    def __init__(self, datafield, labelfield, dataloader):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
 
     def __len__(self):
@@ -52,6 +86,10 @@ class Batch(object):
     def __getitem__(self, i):
         return self.batches[i]
 
+    def __getattr__(self, item, attr):
+        for doc in item:
+            yield doc[attr]
+
 
 class Field(object):
     """A class to set different properties of the individual fields."""
@@ -86,7 +124,7 @@ class GeneralDataset(IterableDataset):
                  train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
                  test_labels: str = None, tokenizer: t.Union[t.Callable, str] = 'spacy', lower: bool = True,
                  preprocessor: t.Callable = None, transformations: t.Callable = None,
-                 label_processor: t.Callable = None):
+                 label_processor: t.Callable = None, length: int = None) -> None:
         """Initialize the variables required for the dataset loading.
         :param data_dir (str): Path of the directory containing the files.
         :param ftype (str): ftype of the file ([C|T]SV and JSON accepted)
@@ -138,9 +176,9 @@ class GeneralDataset(IterableDataset):
         self.data_dir = data_dir
         self.repr_transform = transformations
         self.label_processor = label_processor if label_processor else self.label_name_lookup
-        self.length = 0
+        self.length = length
 
-    def load(self, dataset: str = 'train', skip_header = True):
+    def load(self, dataset: str = 'train', skip_header = True) -> None:
         """Load the dataset.
         :param skip_header (bool, default = True): Skip the header.
         :param dataset (str, default = 'train'): Dataset to load. Must exist as key in self.data_files.
@@ -156,6 +194,7 @@ class GeneralDataset(IterableDataset):
             for field in self.train_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
                 data_line[field.name] = self.process_doc(line[idx].rstrip())
+                data_line['original'] = self.process_doc(line[idx].rstrip())
 
             for field in self.label_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
@@ -164,6 +203,17 @@ class GeneralDataset(IterableDataset):
             for key, val in data_line.items():
                 setattr(datapoint, key, val)
             data.append(datapoint)
+        fp.close()
+
+        if self.length is None:
+            # Get the max length
+            lens = []
+            for doc in data:
+                for f in self.train_fields:
+                    lens.append(len([tok for tok in getattr(doc, getattr(f, 'name'))]))
+            self.length = max(lens)
+
+        data = self.pad(data, self.length)
 
         # TODO Think about this some more. Fine to run this when extending the dataset (but maybe not extend labels?)
         # TODO but not when loading dev or test because then the model will see the data before it's allowed to.
@@ -175,19 +225,19 @@ class GeneralDataset(IterableDataset):
         elif dataset == 'test':
             self.test = data
 
-        fp.close()
-
-    def load_labels(self, label_path, ftype: str = None, sep: str = None,
-                    skip_header: bool = True, label_processor: t.Callable = None, label_ix: t.Union[int, str] = None):
-        """Load labels.
+    def load_labels(self, dataset: str, label_name: str, label_path: str = None, ftype: str = None, sep: str = None,
+                    skip_header: bool = True, label_processor: t.Callable = None,
+                    label_ix: t.Union[int, str] = None) -> None:
+        """Load labels from external file.
         :param path (str): Path to data files.
+        :param dataset (str): dataset labels belong to.
         :param label_file (str): Filename of data file.
         :param ftype (str, default = 'CSV'): Filetype of the file.
         :param sep (str, optional): Separator to be used with T/CSV files.
         :param skip_header (bool): Skip the header.
         :param label_processor: Function to process labels.
         :param label_ix (int, str): Index or name of column containing labels.
-        :return labels: Returns the loaded data.
+        :param label_name (str): Name of the label column/field.
         """
         path = label_path if label_path is not None else self.path
         ftype = ftype if ftype is not None else self.ftype
@@ -198,9 +248,17 @@ class GeneralDataset(IterableDataset):
         if skip_header:
             next(fp)
 
-        for line in self.reader(fp, ftype, sep):
-            if ftype in ['CSV', 'TSV']:
-                labels.append(line[label_ix.rstrip()])
+        if dataset == 'train':
+            data = self.data
+        elif dataset == 'dev':
+            data = self.dev
+        elif dataset == 'test':
+            data = self.test
+
+        labels = [line[label_ix.rstrip()] for line in self.reader(fp, ftype, sep)]
+
+        for l, doc in zip(labels, data):
+            setattr(doc, label_name, l)
 
     def reader(self, fp, ftype: str = None, sep: str = None):
         """Instatiate the reader to be used.
@@ -217,18 +275,28 @@ class GeneralDataset(IterableDataset):
             reader = self.json_reader(fp)
         return reader
 
-    def json_reader(self, fp: str):
-        """Create a JSON reading object"""
+    def json_reader(self, fp: str) -> t.Generator:
+        """Create a JSON reading object.
+        :param fp (str): Opened file object.
+        :return: """
         for line in fp:
             yield json.loads(line)
 
-    def build_token_vocab(self, data: t.DataType):
-        """Build vocab over dataset."""
+    def build_token_vocab(self, data: t.DataType, original: bool = True):
+        """Build vocab over dataset.
+        :param data (t.DataType): List of datapoints to process.
+        :param original (bool): Use the original document to generate vocab.
+        """
         train_fields = self.train_fields
         self.token_counts = Counter()
+
         for doc in data:
-            for f in train_fields:
-                self.token_counts.update(getattr(doc, getattr(f, 'name')))
+            if original:
+                self.token_counts.update(doc.original)
+            else:
+                for f in train_fields:
+                    self.token_counts.update(getattr(doc, getattr(f, 'name')))
+
         self.token_counts.update({'<unk>': np.mean(list(self.token_counts.values()))})
         self.token_counts.update({'<pad>': 0})
 
@@ -236,7 +304,9 @@ class GeneralDataset(IterableDataset):
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def extend_vocab(self, data: t.DataType):
-        """Extend the vocabulary."""
+        """Extend the vocabulary.
+        :param data (t.DataType): List of datapoints to process.
+        """
         for doc in data:
             start_ix = len(self.itos)
             for f in self.train_fields:
@@ -246,14 +316,14 @@ class GeneralDataset(IterableDataset):
 
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
-    def vocab_size(self):
+    def vocab_size(self) -> int:
         """Get the size of the vocabulary."""
         return len(self.itos)
 
-    def vocab_token_lookup(self, tok: str):
+    def vocab_token_lookup(self, tok: str) -> int:
         """Lookup a single token in the vocabulary.
         :param tok (str): Token to look up.
-        :return ix: Return the index of the vocabulary item.
+        :return ix (int): Return the index of the vocabulary item.
         """
         try:
             ix = self.stoi[tok]
@@ -261,38 +331,48 @@ class GeneralDataset(IterableDataset):
             ix = self.stoi['<unk>']
         return ix
 
-    def vocab_ix_lookup(self, ix: int):
+    def vocab_ix_lookup(self, ix: int) -> str:
         """Lookup a single index in the vocabulary.
         :param ix (int): Index to look up.
-        :return tok: Returns token
+        :return tok (str): Returns token
         """
         return self.itos[ix]
 
-    def build_label_vocab(self, labels):
+    def build_label_vocab(self, labels: t.DataType) -> None:
+        """Build label vocabulary.
+        :param labels (t.DataType): List of datapoints to process.
+        """
         labels = set(getattr(l, getattr(f, 'name')) for l in labels for f in self.label_fields)
         self.itol = {ix: l for ix, l in enumerate(sorted(labels))}
         self.ltoi = {l: ix for ix, l in self.itol.items()}
 
-    def label_name_lookup(self, label):
-        """Look up label index from label."""
+    def label_name_lookup(self, label: str) -> int:
+        """Look up label index from label.
+        :param label (str): Label to process.
+        :returns (int): Return index value of label."""
         return self.ltoi[label]
 
-    def label_ix_lookup(self, label):
-        """Look up label index from label."""
+    def label_ix_lookup(self, label: int) -> str:
+        """Look up label index from label.
+        :param label (int): Label index to process.
+        :returns (str): Return label."""
         return self.itol[label]
 
-    def label_count(self):
+    def label_count(self) -> int:
         """Get the number of the labels."""
         return len(self.itol)
 
-    def process_label(self, label, processor: t.Callable = None):
+    def process_label(self, label, processor: t.Callable = None) -> int:
         """Modify label using external function to process it.
         :param label: Label to process.
         :param processor: Function to process the label."""
         processor = processor if processor is not None else self.label_processor
         return processor(label) if processor is not None else self.label_name_lookup[label]
 
-    def process_doc(self, doc: t.DocType):
+    def process_doc(self, doc: t.DocType) -> list:
+        """Process a single document.
+        :param doc (t.DocType): Document to be processed.
+        :return doc (list): Return processed doc in tokenized list format."""
         if isinstance(doc, list):
             doc = " ".join(doc)
 
@@ -307,52 +387,99 @@ class GeneralDataset(IterableDataset):
         if self.repr_transform is not None:
             doc = self.repr_transform(doc)
 
-        if len(doc) > self.length:
-            self.length = len(doc)
-
         return doc
 
-    def pad(self, data: t.DataType, length: int = None):
-        """Pad each document in the datasets in the dataset or trim document."""
+    def pad(self, data: t.DataType, length: int = None) -> list:
+        """Pad each document in the datasets in the dataset or trim document.
+        :param data (t.DataType): List of datapoints to process.
+        :param length (int, optional): The sequence length to be applied.
+        :return doc: Return list of padded datapoints."""
+
         if not self.length and length is not None:
             self.length = length
+        elif not self.length and length is None:
+            raise AttributeError("A length must be given to pad tokens.")
 
-        length = length if length is not None else self.length
-
+        padded = []
         for doc in data:
             for field in self.train_fields:
                 text = getattr(doc, getattr(field, 'name'))
-                delta = length - len(text)
-                yield text[:delta] if delta < 0 else ['<pad>'] * delta + text
+                setattr(doc, getattr(field, 'name'), self._pad_doc(text, length))
+                padded.append(doc)
+        return padded
 
-    def onehot_encode(self, data):
-        """Onehot encode a document."""
-        self.encoded = [0] * len(data)
-        for ix, doc in enumerate(data):
-            encoded_doc = [0] * len(self.stoi)
-            for f in self.train_fields:
-                text = getattr(doc, getattr(f, 'name'))
-                for tok in self.stoi:
-                    encoded_doc[self.stoi[tok]] = 1 if tok in text else 0
-                encoded_doc = torch.LongTensor(encoded_doc)
-            setattr(doc, 'encoded', encoded_doc)
-            self.encoded[ix] = encoded_doc
+    def _pad_doc(self, text, length):
+        """Do the actual padding.
+        :param text: The extracted text to be padded or trimmed.
+        :param length: The length of the sequence length to be applied.
+        :return padded: Return padded document as a list.
+        """
+        delta = length - len(text)
+        padded = text[:delta] if delta < 0 else text + ['<pad>'] * delta
+        return padded
+
+    def encode(self, data: t.DataType, onehot: bool = True):
+        """Encode a document.
+        :param data (t.DataType): List of datapoints to be encoded.
+        :param onehot (bool, default = True): Set to true to onehot encode the document.
+        """
+
+        # Have a single encoding method which just generates indices.
+        #
+        # IN BATCHING:
+        # For onehot: Generate onehot based on indices in each document.
+        # For non-onehot: Pad each document to sequence length
+        #
+        # QUESTIONS:
+        # If a tensor is sequence x batch x doc-length (verify)/vocab-size: Then what is contained in seq and doc?
+        # in doc length/vocab size: the actual document
+        # ANSWER:
+        # Each word in the sentence is represented as a onehot encoding up until the sequence length.
+
+        names = [getattr(f, 'name') for f in self.train_fields]
+        encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
+        self.encoded = torch.cat([encoding_func(doc, names) for doc in data], dim = 0)
+
         return self.encoded
 
-    def encode(self, data):
-        self.encoded = [0] * len(data)
-        for ix, doc in enumerate(data):
-            for f in self.train_fields:
-                text = getattr(doc, getattr(f, 'name'))
-                encoded_doc = [0] * len(text)
-                for i, w in enumerate(text):
-                    try:
-                        encoded_doc[i] = self.stoi[w]
-                    except KeyError as e:
-                        encoded_doc[i] = self.stoi['<unk>']
-            setattr(doc, 'encoded', torch.LongTensor(encoded_doc))
-            self.encoded[ix] = torch.LongTensor(encoded_doc)
-        return self.encoded
+    def onehot_encode_doc(self, doc, names):
+        """Onehot encode a single document."""
+
+        # If we have an index encoded document including padding and unks
+        # then create a
+        text = [tok for name in names for tok in getattr(doc, name)]
+        encoded_doc = torch.zeros(1, self.length, len(self.stoi))
+
+        for ix in range(self.length):
+            tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
+            encoded_doc[0][ix][tok_ix] = 1
+        setattr(doc, 'encoded', encoded_doc)
+
+        return encoded_doc
+
+    def encode_doc(self, doc, names):
+        """Encode documents using just the index of the tokens that are present in the document."""
+
+        raise NotImplementedError
+        text = [tok for name in names for tok in getattr(doc, name)]
+        length = sum(len(getattr(doc, name)) for name in names)
+        encoded_doc = torch.LongTensor(1, self.length, length)  # batch, seq, doc length
+
+        # ISSUE
+        # We need to create a tensor containing a onehot tensor of each word.
+        # CURRENT STATUS
+        # A single elmeent containing the index of the current token.
+        # GOAL
+        # For each position, ensure it's the token for that posit
+
+        # Here we only have a tensor of a single token in the sentence. What we want is a onehot tensor
+
+        for ix in range(self.length):
+            tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
+            encoded_doc[0][ix][ix] = tok_ix
+
+        setattr(doc, 'encoded', encoded_doc)
+        return encoded_doc
 
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.
