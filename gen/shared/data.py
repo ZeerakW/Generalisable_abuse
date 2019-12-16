@@ -28,9 +28,7 @@ class BatchGenerator:
 class Batch(object):
     """Create batches."""
 
-    def __init__(self, data_attr, label_attr, batch_size, data):
-        self.data_attr = data_attr
-        self.label_attr = label_attr
+    def __init__(self, batch_size, data):
         self.batch_size = batch_size
         self.data = data
 
