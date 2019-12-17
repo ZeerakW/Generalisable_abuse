@@ -1,6 +1,5 @@
 import os
 import csv
-import pdb
 import json
 import torch
 import numpy as np
@@ -480,10 +479,9 @@ class GeneralDataset(IterableDataset):
         # CURRENT STATUS
         # A single elmeent containing the index of the current token.
         # GOAL
-        # For each position, ensure it's the token for that posit
+        # For each position, ensure it's the token for that position
 
         # Here we only have a tensor of a single token in the sentence. What we want is a onehot tensor
-
         for ix in range(self.length):
             tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
             encoded_doc[0][ix][ix] = tok_ix
@@ -506,7 +504,6 @@ class GeneralDataset(IterableDataset):
         :param stratify (str): The field to stratify the data along.
         :return data: Return splitted data.
         """
-
         if stratify is not None:
             data = self.stratify(data, )
 

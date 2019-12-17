@@ -1,6 +1,6 @@
 import re
 from nltk import ngrams
-import gen.shared.types as t
+import gen.shared.custom_types as t
 from collections import Counter
 
 

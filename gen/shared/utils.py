@@ -1,4 +1,4 @@
-import gen.shared.types as t
+import gen.shared.custom_types as t
 import pdb
 from gen.shared.data import Dataset, BatchGenerator
 

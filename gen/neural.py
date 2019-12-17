@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import gen.shared.types as t
+import gen.shared.custom_types as t
 import torch.nn.functional as F
 
 

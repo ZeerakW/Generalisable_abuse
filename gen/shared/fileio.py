@@ -1,10 +1,10 @@
 import sys
 import ast
 import json
-from typing import Tuple
+import gen.shared.custom_types as t
 
 
-def read_json(fh: str, enc, doc_key: str, label_key: str, **kwargs) -> Tuple[str, str, ...]:
+def read_json(fh: str, enc, doc_key: str, label_key: str, **kwargs) -> t.Tuple[str, str, ...]:
     """Read JSON file containing entire document and label.
     To access keys in nested dictionaries, use the syntax <outer_key>.<inner_key>. Max depth 4.
     :param fh: Filename

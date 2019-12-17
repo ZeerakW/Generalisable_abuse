@@ -1,7 +1,7 @@
 import re
 import pdb
 import spacy
-import gen.shared.types as t
+import gen.shared.custom_types as t
 from string import punctuation
 
 
