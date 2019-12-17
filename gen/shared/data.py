@@ -3,6 +3,7 @@ import csv
 import json
 import torch
 import numpy as np
+from tqdm import tqdm
 from math import floor
 import gen.shared.custom_types as t
 from collections import Counter, defaultdict
@@ -289,18 +290,21 @@ class GeneralDataset(IterableDataset):
         train_fields = self.train_fields
         self.token_counts = Counter()
 
-        for doc in data:
+        for doc in tqdm(data, desc = "Get token counts for the dataset."):
             if original:
                 self.token_counts.update(doc.original)
             else:
                 for f in train_fields:
                     self.token_counts.update(getattr(doc, getattr(f, 'name')))
 
-        self.token_counts.update({'<unk>': np.mean(list(self.token_counts.values()))})
+        self.token_counts.update({'<unk>': int(np.mean(list(self.token_counts.values())))})
         self.token_counts.update({'<pad>': 0})
 
-        self.itos = {ix: tok for doc in data for ix, (tok, _) in enumerate(self.token_counts.most_common())}
-        self.stoi = {tok: ix for ix, tok in self.itos.items()}
+        self.itos, self.stoi = {}, {}
+
+        for ix, (tok, _) in tqdm(enumerate(self.token_counts.most_common()), desc = "Building vocabulary"):
+            self.itos[ix] = tok
+            self.stoi[tok] = ix
 
     def extend_vocab(self, data: t.DataType):
         """Extend the vocabulary.
@@ -311,7 +315,7 @@ class GeneralDataset(IterableDataset):
             for f in self.train_fields:
                 tokens = getattr(doc, getattr(f, 'name'))
                 self.token_counts.update(tokens)
-                self.itos.update({start_ix + ix: tok for ix, tok in enumerate(tokens)})
+                self.itos.update({start_ix + ix: tok for ix, tok in enumerate(tokens) if tok not in self.stoi.values()})
 
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
@@ -498,7 +502,7 @@ class GeneralDataset(IterableDataset):
             strata_maps[getattr(doc, strata_field)].append(doc)
         return list(strata_maps.values())
 
-    def split(self, data: t.DataType, splits: t.Union[int, t.List[int]], stratify: str = None):
+    def split(self, data: t.DataType, splits: t.Union[int, t.List[int]], stratify: str = None) -> t.Tuple[t.DataType]:
         """Split the dataset.
         :param data (t.DataType): Dataset to split.
         :param splits (int | t.List[int]]): Real valued splits.
@@ -523,11 +527,19 @@ class GeneralDataset(IterableDataset):
                     splits[ix] = 1
 
         if num_splits == 1:
-            return data[:splits[0]], data[splits[0]:]
+            self.data = data[:splits[0]]
+            self.test = data[splits[0]:]
+            out = (self.data, self.test)
         elif num_splits == 2:
-            return data[:splits[0]], data[-splits[1]:]
+            self.data = data[:splits[0]]
+            self.test = data[-splits[1]:]
+            out = (self.data, self.test)
         elif num_splits == 3:
-            return data[:splits[0]], data[splits[0]:splits[1]], data[-splits[2]:]
+            self.data = data[:splits[0]]
+            self.dev = data[splits[0]:splits[1]]
+            self.test = data[-splits[2]:]
+            out = (self.data, self.dev, self.test)
+        return out
 
     def __getitem__(self, i):
         return self.data[i]
