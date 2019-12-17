@@ -142,6 +142,7 @@ class GeneralDataset(IterableDataset):
         :param label_processor(t.Callable, default = None): Function to process labels with.
         """
         self.data_dir = os.path.abspath(data_dir) if '~' not in data_dir else os.path.expanduser(data_dir)
+        super(GeneralDataset, self).__init__()
 
         try:
             ftype = ftype.upper()
