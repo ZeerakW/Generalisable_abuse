@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
 
-class OnehotBatchGenerator:
+class TorchTextOnehotBatchGenerator:
     """A class to get the information from the batches."""
 
     def __init__(self, dataloader, datafield, labelfield, vocab_size):
@@ -22,6 +22,21 @@ class OnehotBatchGenerator:
     def __iter__(self):
         for batch in self.data:
             X = torch.nn.functional.one_hot(getattr(batch, self.df), self.VOCAB_SIZE)
+            y = getattr(batch, self.lf)
+            yield (X, y)
+
+
+class TorchTextDefaultExtractor:
+
+    def __init__(self, datafield, labelfield, dataloader):
+        self.data, self.df, self.lf = dataloader, datafield, labelfield
+
+    def __len__(self):
+        return len(self.data)
+
+    def __iter__(self):
+        for batch in self.data:
+            X = getattr(batch, self.df)
             y = getattr(batch, self.lf)
             yield (X, y)
 
@@ -39,21 +54,6 @@ class BatchExtractor:
         for batch in self.data:
             X = torch.cat([getattr(doc, self.df) for doc in batch], dim = 0)
             y = torch.tensor([getattr(doc, self.lf) for doc in batch]).flatten()
-            yield (X, y)
-
-
-class DefaultExtractor:
-
-    def __init__(self, datafield, labelfield, dataloader):
-        self.data, self.df, self.lf = dataloader, datafield, labelfield
-
-    def __len__(self):
-        return len(self.data)
-
-    def __iter__(self):
-        for batch in self.data:
-            X = getattr(batch, self.df)
-            y = getattr(batch, self.lf)
             yield (X, y)
 
 
