@@ -108,3 +108,6 @@ src/pytorch_tutorial
 
 # Ignore mac specific things
 .DS_Store
+
+# Ignore icloud files
+.*.icloud
