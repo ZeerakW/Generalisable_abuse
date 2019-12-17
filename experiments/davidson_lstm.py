@@ -3,12 +3,12 @@ import sys
 import torch.nn as nn
 import torch.optim as optim
 from torchtext.data import TabularDataset, BucketIterator, Field
-sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
+sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse'])
 
-from gen.shared.data import OnehotBatchGenerator
+from gen.shared.data import BatchExtractor
 from gen.neural import LSTMClassifier
 from gen.shared.clean import Cleaner
-from gen.shared.representations import compute_unigram_liwc
+# from gen.shared.representations import compute_unigram_liwc
 from gen.shared.train import train_model, evaluate_model
 from sklearn.metrics import accuracy_score
 
@@ -25,7 +25,7 @@ int_label = Field(sequential = False,
                   unk_token = None)
 
 device = 'cpu'
-data_dir = '/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/'
+data_dir = '/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse/data/'
 # data_file = 'davidson_offensive.csv'
 data_file = 'davidson_test.csv'
 path = os.path.join(data_dir, data_file)
@@ -39,7 +39,7 @@ label_field = int_label
 
 # Update training field
 setattr(text_field, 'tokenize', clean.tokenize)
-setattr(text_field, 'preprocessing', compute_unigram_liwc)
+# setattr(text_field, 'preprocessing', compute_unigram_liwc)
 fields = [('', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
           ('label', label_field), ('text', text_field)]
 
@@ -54,8 +54,10 @@ print("Vocab Size", len(text_field.vocab))
 batch_sizes = (64, 64)
 tmp_train, tmp_test = BucketIterator.splits(loaded, batch_sizes = batch_sizes, sort_key = lambda x: len(x.text),
                                             device = device, shuffle = True, repeat = False)
-train_batches = OnehotBatchGenerator(tmp_train, 'text', 'label', VOCAB_SIZE)
-test_batches = OnehotBatchGenerator(tmp_test, 'text', 'label', VOCAB_SIZE)
+train_batches = BatchExtractor(tmp_train, 'text', 'label')
+test_batches = BatchExtractor(tmp_test, 'text', 'label')
+
+next(iter(train_batches))
 
 model = LSTMClassifier(len(text_field.vocab), embedding_dim = 128, hidden_dim = 128, no_classes = 3, no_layers = 1)
 optimizer = optim.Adam(model.parameters(), lr = 0.01)

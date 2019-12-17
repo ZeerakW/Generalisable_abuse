@@ -1,14 +1,15 @@
 import os
+import pdb
 import sys
 import torch.nn as nn
 import torch.optim as optim
 from torchtext.data import TabularDataset, BucketIterator, Field, Iterator
-sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse'])
+sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse'])
 
 from gen.shared.data import OnehotBatchGenerator
 from gen.neural import RNNClassifier
 from gen.shared.clean import Cleaner
-from gen.shared.representations import compute_unigram_liwc
+# from gen.shared.representations import compute_unigram_liwc
 from gen.shared.train import train_model, evaluate_model
 from sklearn.metrics import accuracy_score
 
@@ -25,7 +26,7 @@ int_label = Field(sequential = False,
                   unk_token = None)
 
 device = 'cpu'
-data_dir = '/Users/zeerakw/Documents/PhD/projects/Generalisable_abuse/data/'
+data_dir = '/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse/data/'
 train_file = 'davidson_train.csv'
 test_file = 'davidson_test.csv'
 train_path = os.path.join(data_dir, train_file)
@@ -40,7 +41,7 @@ label_field = int_label
 
 # Update training field
 setattr(text_field, 'tokenize', clean.tokenize)
-setattr(text_field, 'preprocessing', compute_unigram_liwc)
+# setattr(text_field, 'preprocessing', compute_unigram_liwc)
 fields = [('', None), ('CF_count', None), ('hate_speech', None), ('offensive', None), ('neither', None),
           ('label', label_field), ('text', text_field)]
 
@@ -65,7 +66,7 @@ model = RNNClassifier(len(text_field.vocab), hidden_dim = 128, output_dim = 3)
 optimizer = optim.Adam(model.parameters(), lr = 0.01)
 loss = nn.NLLLoss()
 
-# pdb.set_trace()
+pdb.set_trace()
 train_model(model, 5, train_batches, loss, optimizer, text_field)
 evaluate_model(model, valid_batches, loss, accuracy_score, "accuracy")
 evaluate_model(model, test_batches, loss, accuracy_score, "accuracy")
