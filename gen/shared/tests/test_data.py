@@ -1,4 +1,3 @@
-import pdb
 import unittest
 import torchtestcase
 import torch
@@ -259,14 +258,14 @@ class TestDataSet(torchtestcase.TorchTestCase):
         output = self.csv_dataset.encode(test, True)
         self.assertEqual(output, expected, msg = 'Onehot encoding failed.')
 
-    # def test_encoding(self):
-    #     """Test the encoding."""
-    #     self.csv_dataset.build_token_vocab(self.train)
-    #     self.csv_dataset.load('test')
-    #     test = self.csv_dataset.test
-    #     expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]
-    #     output = [tensor for tensor in self.csv_dataset.encode(test, False)]
-    #     self.assertEqual(output, expected, msg = 'Encoding failed.')
+    def test_encoding(self):
+        """Test the encoding. Not Implemented."""
+        self.csv_dataset.build_token_vocab(self.train)
+        self.csv_dataset.load('test')
+        test = self.csv_dataset.test
+        expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]
+        output = [tensor for tensor in self.csv_dataset.encode(test, False)]
+        self.assertEqual(output, expected, msg = 'Encoding failed.')
 
     def test_split(self):
         """Test splitting functionality."""
@@ -390,29 +389,18 @@ class TestBatch(unittest.TestCase):
         self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
 
     def test_encoded_batches(self):
-        """Test creation of encoded batches."""
+        """Test creation of encoded batches. Not Implemented."""
         self.dataset.build_token_vocab(self.train)
-        self.dataset.encode(self.train, True)
         b = Batch(32, self.train)
-        b.create_batches()
 
+        self.dataset.encode(self.train, False)
         expected = [True for batch in b]
         output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
         self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
 
         expected = [len(batch_item.text) for batch in b for batch_item in batch]
-        output = [batch_item.encoded.size(1) for batch in b for batch_item in batch]
+        output = [getattr(batch_item, 'encoded').size(2) for batch in b for batch_item in batch]
         self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
-
-        # self.dataset.encode(self.train, False)
-        # expected = [True for batch in b]
-        # output = [all('encoded' in batch_item.__dict__ for batch_item in batch) for batch in b]
-        # self.assertEqual(output, expected, msg = "Not all items have an encoded element.")
-        #
-        # expected = [len(batch_item.text) for batch in b for batch_item in batch]
-        # output = [len(batch_item.encoded) for batch in b for batch_item in batch]
-        # pdb.set_trace()
-        # self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
 
 
 class TestBatchGenerator(unittest.TestCase):
