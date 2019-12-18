@@ -258,6 +258,7 @@ class TestDataSet(torchtestcase.TorchTestCase):
         output = torch.cat([datapoint.encoded for datapoint in self.csv_dataset.encode(test, True)], dim = 0)
         self.assertEqual(output, expected, msg = 'Onehot encoding failed.')
 
+    @unittest.skip("Not Implemented.")
     def test_encoding(self):
         """Test the encoding. Not Implemented."""
         self.csv_dataset.build_token_vocab(self.train)
@@ -388,6 +389,7 @@ class TestBatch(unittest.TestCase):
         output = [getattr(batch_item, 'encoded').size(2) for batch in b for batch_item in batch]
         self.assertEqual(output, expected, msg = "Not all encoded items have the right length.")
 
+    @unittest.skip("Not Implemented.")
     def test_encoded_batches(self):
         """Test creation of encoded batches. Not Implemented."""
         self.dataset.build_token_vocab(self.train)
@@ -435,6 +437,7 @@ class TestBatchGenerator(unittest.TestCase):
     def tearDownClass(cls):
         """Tear down class between each test."""
         cls.dataset = 0
+        cls.batches = 0
 
     def test_batch_generation(self):
         """Test the batchgenerator can access the variables."""

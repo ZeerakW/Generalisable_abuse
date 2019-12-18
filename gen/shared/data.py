@@ -1,5 +1,4 @@
 import os
-import pdb
 import csv
 import json
 import torch
@@ -436,19 +435,6 @@ class GeneralDataset(IterableDataset):
         :param data (t.DataType): List of datapoints to be encoded.
         :param onehot (bool, default = True): Set to true to onehot encode the document.
         """
-
-        # Have a single encoding method which just generates indices.
-        #
-        # IN BATCHING:
-        # For onehot: Generate onehot based on indices in each document.
-        # For non-onehot: Pad each document to sequence length
-        #
-        # QUESTIONS:
-        # If a tensor is sequence x batch x doc-length (verify)/vocab-size: Then what is contained in seq and doc?
-        # in doc length/vocab size: the actual document
-        # ANSWER:
-        # Each word in the sentence is represented as a onehot encoding up until the sequence length.
-
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
         for doc in tqdm(data, desc = "Encoding data"):
@@ -458,7 +444,6 @@ class GeneralDataset(IterableDataset):
 
     def onehot_encode_doc(self, doc, names):
         """Onehot encode a single document."""
-
         # If we have an index encoded document including padding and unks
         # then create a
         text = [tok for name in names for tok in getattr(doc, name)]
