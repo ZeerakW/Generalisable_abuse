@@ -230,10 +230,10 @@ class TestDataSet(torchtestcase.TorchTestCase):
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
         expected = torch.zeros(2, 12, 25)
-        expected[0][0][6] = 1
-        expected[0][1][13] = 1
-        expected[0][2][14] = 1
-        expected[0][3][6] = 1
+        expected[0][0][23] = 1
+        expected[0][1][12] = 1
+        expected[0][2][13] = 1
+        expected[0][3][23] = 1
         expected[0][4][24] = 1
         expected[0][5][24] = 1
         expected[0][6][24] = 1
@@ -243,9 +243,9 @@ class TestDataSet(torchtestcase.TorchTestCase):
         expected[0][10][24] = 1
         expected[0][11][24] = 1
         expected[1][0][1] = 1
-        expected[1][1][17] = 1
-        expected[1][2][22] = 1
-        expected[1][3][6] = 1
+        expected[1][1][16] = 1
+        expected[1][2][21] = 1
+        expected[1][3][23] = 1
         expected[1][4][0] = 1
         expected[1][5][24] = 1
         expected[1][6][24] = 1
@@ -255,7 +255,7 @@ class TestDataSet(torchtestcase.TorchTestCase):
         expected[1][10][24] = 1
         expected[1][11][24] = 1
 
-        output = self.csv_dataset.encode(test, True)
+        output = torch.cat([datapoint.encoded for datapoint in self.csv_dataset.encode(test, True)], dim = 0)
         self.assertEqual(output, expected, msg = 'Onehot encoding failed.')
 
     def test_encoding(self):
@@ -264,7 +264,7 @@ class TestDataSet(torchtestcase.TorchTestCase):
         self.csv_dataset.load('test')
         test = self.csv_dataset.test
         expected = [[6, 13, 14, 6], [1, 17, 22, 6, 0]]
-        output = [tensor for tensor in self.csv_dataset.encode(test, False)]
+        output = [datapoint.encoded for datapoint in self.csv_dataset.encode(test, False)]
         self.assertEqual(output, expected, msg = 'Encoding failed.')
 
     def test_split(self):

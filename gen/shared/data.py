@@ -1,4 +1,5 @@
 import os
+import pdb
 import csv
 import json
 import torch
@@ -53,6 +54,7 @@ class BatchExtractor:
 
     def __iter__(self):
         for batch in self.data:
+            # pdb.set_trace()
             X = torch.cat([getattr(doc, self.df) for doc in batch], dim = 0)
             y = torch.tensor([getattr(doc, self.lf) for doc in batch]).flatten()
             yield (X, y)
@@ -290,7 +292,7 @@ class GeneralDataset(IterableDataset):
         train_fields = self.train_fields
         self.token_counts = Counter()
 
-        for doc in tqdm(data, desc = "Get token counts for the dataset."):
+        for doc in tqdm(data, desc = "Building vocabulary"):
             if original:
                 self.token_counts.update(doc.original)
             else:
@@ -300,11 +302,8 @@ class GeneralDataset(IterableDataset):
         self.token_counts.update({'<unk>': int(np.mean(list(self.token_counts.values())))})
         self.token_counts.update({'<pad>': 0})
 
-        self.itos, self.stoi = {}, {}
-
-        for ix, (tok, _) in tqdm(enumerate(self.token_counts.most_common()), desc = "Building vocabulary"):
-            self.itos[ix] = tok
-            self.stoi[tok] = ix
+        self.itos = {ix: tok for ix, (tok, _) in enumerate(self.token_counts.most_common())}
+        self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def extend_vocab(self, data: t.DataType):
         """Extend the vocabulary.
@@ -452,9 +451,10 @@ class GeneralDataset(IterableDataset):
 
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
-        self.encoded = torch.cat([encoding_func(doc, names) for doc in data], dim = 0)
-
-        return self.encoded
+        for doc in tqdm(data, desc = "Encoding data"):
+            encoded = encoding_func(doc, names)
+            setattr(doc, 'encoded', encoded)
+        return data
 
     def onehot_encode_doc(self, doc, names):
         """Onehot encode a single document."""
