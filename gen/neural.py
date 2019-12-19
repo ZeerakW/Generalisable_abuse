@@ -17,7 +17,6 @@ class LSTMClassifier(nn.Module):
         """
         super(LSTMClassifier, self).__init__()
         self.batch_first = batch_first
-        self.train_mode = True
 
         self.itoh = nn.Linear(input_dim, embedding_dim)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, no_layers, batch_first = batch_first)
@@ -43,19 +42,19 @@ class LSTMClassifier(nn.Module):
         return prob_dist.squeeze(0)
 
     @property
-    def mode(self) -> bool:
+    def train_mode(self) -> bool:
         """Set or unset train mode.
-        :train_mode (bool): True or False, setting train mode.
+        :mode (bool): True or False, setting train mode.
         :returns: Value of train mode.
         """
-        return self.train_mode
+        return self.mode
 
-    @mode.setter
-    def mode(self, train_mode: bool) -> None:
+    @train_mode.setter
+    def train_mode(self, mode: bool) -> None:
         """Set train mode.
-        :train_mode (bool): Bool value to set.
+        :mode (bool): Bool value to set.
         """
-        self.train_mode = train_mode
+        self.mode = mode
 
 
 class MLPClassifier(nn.Module):
@@ -69,7 +68,6 @@ class MLPClassifier(nn.Module):
         """
         super(MLPClassifier, self).__init__()
         self.batch_first = batch_first
-        self.train_mode = True
 
         self.itoh = nn.Linear(input_dim, hidden_dim)
         self.htoh = nn.Linear(hidden_dim, hidden_dim)
@@ -89,7 +87,7 @@ class MLPClassifier(nn.Module):
             sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
 
         sequence = sequence.float()
-        dropout = self.dropout if self.train_mode else lambda x: x
+        dropout = self.dropout if self.mode else lambda x: x
         out = dropout(self.tanh(self.itoh(sequence)))
         out = dropout(self.tanh(self.htoh(out)))
         out = out.mean(0)
@@ -99,19 +97,19 @@ class MLPClassifier(nn.Module):
         return prob_dist
 
     @property
-    def mode(self) -> bool:
+    def train_mode(self) -> bool:
         """Set or unset train mode.
-        :train_mode (bool): True or False, setting train mode.
+        :mode (bool): True or False, setting train mode.
         :returns: Value of train mode.
         """
-        return self.train_mode
+        return self.mode
 
-    @mode.setter
-    def mode(self, train_mode: bool) -> None:
+    @train_mode.setter
+    def train_mode(self, mode: bool) -> None:
         """Set train mode.
-        :train_mode (bool): Bool value to set.
+        :mode (bool): Bool value to set.
         """
-        self.train_mode = train_mode
+        self.mode = mode
 
 
 class CNNClassifier(nn.Module):
@@ -125,7 +123,6 @@ class CNNClassifier(nn.Module):
         """
         super(CNNClassifier, self).__init__()
         self.batch_first = batch_first
-        self.train_mode = True
 
         self.itoh = nn.Linear(max_feats, hidden_dim)  # Works
         self.conv = nn.ModuleList([nn.Conv2d(1, num_filters, (w, hidden_dim)) for w in window_sizes])
@@ -152,19 +149,19 @@ class CNNClassifier(nn.Module):
         return scores
 
     @property
-    def mode(self) -> bool:
+    def train_mode(self) -> bool:
         """Set or unset train mode.
-        :train_mode (bool): True or False, setting train mode.
+        :mode (bool): True or False, setting train mode.
         :returns: Value of train mode.
         """
-        return self.train_mode
+        return self.mode
 
-    @mode.setter
-    def mode(self, train_mode: bool) -> None:
+    @train_mode.setter
+    def train_mode(self, mode: bool) -> None:
         """Set train mode.
-        :train_mode (bool): Bool value to set.
+        :mode (bool): Bool value to set.
         """
-        self.train_mode = train_mode
+        self.mode = mode
 
 
 class RNNClassifier(nn.Module):
@@ -178,7 +175,6 @@ class RNNClassifier(nn.Module):
         """
         super(RNNClassifier, self).__init__()
         self.batch_first = batch_first
-        self.train_mode = True
 
         # Initialise the hidden dim
         self.hidden_dim = hidden_dim
@@ -209,16 +205,16 @@ class RNNClassifier(nn.Module):
         return softmax.squeeze(0)
 
     @property
-    def mode(self) -> bool:
+    def train_mode(self) -> bool:
         """Set or unset train mode.
-        :train_mode (bool): True or False, setting train mode.
+        :mode (bool): True or False, setting train mode.
         :returns: Value of train mode.
         """
-        return self.train_mode
+        return self.mode
 
-    @mode.setter
-    def mode(self, train_mode: bool) -> None:
+    @train_mode.setter
+    def train_mode(self, mode: bool) -> None:
         """Set train mode.
-        :train_mode (bool): Bool value to set.
+        :mode (bool): Bool value to set.
         """
-        self.train_mode = train_mode
+        self.mode = mode
