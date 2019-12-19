@@ -31,7 +31,7 @@ class LSTMClassifier(nn.Module):
         :return scores: The "probability" distribution for the classes.
         """
         if not self.batch_first:
-            sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
+            sequence = sequence.transpose(0, 1)
 
         sequence = sequence.float()
         out = self.itoh(sequence)  # Get embedding for the sequence
@@ -84,7 +84,7 @@ class MLPClassifier(nn.Module):
         :return scores: The "probability" distribution for the classes.
         """
         if self.batch_first:
-            sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
+            sequence = sequence.transpose(0, 1)
 
         sequence = sequence.float()
         dropout = self.dropout if self.mode else lambda x: x
@@ -137,7 +137,7 @@ class CNNClassifier(nn.Module):
 
         # CNNs expect batch first so let's try that
         if self.batch_first:
-            sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
+            sequence = sequence.transpose(0, 1)
 
         sequence = sequence.float()
         emb = self.itoh(sequence)  # Get embeddings for sequence
@@ -194,7 +194,7 @@ class RNNClassifier(nn.Module):
         :return softmax, hidden: Return the "probability" distribution and the new hidden representation.
         """
         if not self.batch_first:
-            sequence = sequence.view(sequence.shape[1], sequence.shape[0], sequence.shape[2])
+            sequence = sequence.transpose(0, 1)
 
         sequence = sequence.float()
         hidden = self.itoh(sequence)  # Map from input to hidden representation

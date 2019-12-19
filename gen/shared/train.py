@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 def train_model(model, epochs, batches, loss_func, optimizer, text_field):
     losses = []
+    model.mode = True
     for epoch in tqdm(range(epochs)):
         epoch_loss = []
         model.zero_grad()
@@ -23,6 +24,7 @@ def train_model(model, epochs, batches, loss_func, optimizer, text_field):
 def evaluate_model(model, iterator, loss_func, metric_func, metric_str):
     epoch_loss = []
     epoch_eval = []
+    model.train_mode = False
 
     with torch.no_grad():
         for X, y in iterator:
