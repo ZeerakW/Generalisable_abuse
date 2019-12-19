@@ -464,6 +464,9 @@ class GeneralDataset(IterableDataset):
         length = sum(len(getattr(doc, name)) for name in names)
         encoded_doc = torch.LongTensor(1, self.length, length)  # batch, seq, doc length
 
+        # 5 x 1 x [2, 35, 4, 0, 0] (last dimension is: indices in the document up to the document length)
+        # 5 x 1 x len(vocab) (last dimension is: vocab length for each token)
+
         # ISSUE
         # We need to create a tensor containing a onehot tensor of each word.
         # CURRENT STATUS
