@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from math import floor
-from ..shared import custom_types as t
+from . import custom_types as t
 from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
@@ -13,7 +13,7 @@ from torch.utils.data import IterableDataset
 class TorchTextOnehotBatchGenerator:
     """A class to get the information from the batches."""
 
-    def __init__(self, dataloader, datafield, labelfield, vocab_size):
+    def __init__(self, dataloader: t.DataType, datafield: str, labelfield: str, vocab_size: int):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
         self.VOCAB_SIZE = vocab_size
 
@@ -29,7 +29,7 @@ class TorchTextOnehotBatchGenerator:
 
 class TorchTextDefaultExtractor:
 
-    def __init__(self, datafield, labelfield, dataloader):
+    def __init__(self, datafield: str, labelfield: str, dataloader: t.DataType):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
 
     def __len__(self):
@@ -45,7 +45,7 @@ class TorchTextDefaultExtractor:
 class BatchExtractor:
     """A class to get the information from the batches."""
 
-    def __init__(self, datafield, labelfield, dataloader):
+    def __init__(self, datafield: str, labelfield: str, dataloader: t.DataType):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
 
     def __len__(self):
@@ -53,7 +53,6 @@ class BatchExtractor:
 
     def __iter__(self):
         for batch in self.data:
-            # pdb.set_trace()
             X = torch.cat([getattr(doc, self.df) for doc in batch], dim = 0)
             y = torch.tensor([getattr(doc, self.lf) for doc in batch]).flatten()
             yield (X, y)
@@ -62,7 +61,7 @@ class BatchExtractor:
 class Batch(object):
     """Create batches."""
 
-    def __init__(self, batch_size, data):
+    def __init__(self, batch_size: int, data: t.DataType):
         self.batch_size = batch_size
         self.data = data
 
