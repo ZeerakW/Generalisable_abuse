@@ -8,12 +8,11 @@ from string import punctuation
 class Cleaner(object):
     """A class for methods for cleaning."""
 
-    def __init__(self, cleaners: base.List[str] = None):
+    def __init__(self, processes: base.List[str] = None):
         """Initialise cleaner class.
-        :param cleaners base.List[str]: Cleaning operations to be taken.
+        :param processes base.List[str]: Cleaning operations to be taken.
         """
-        self.processes = cleaners
-        self.cleaners = cleaners
+        self.processes = processes
         self.tagger = spacy.load('en')
         self.liwc_dict = None
 
@@ -29,21 +28,21 @@ class Cleaner(object):
 
         return liwc_dict
 
-    def clean_document(self, text: base.DocType, cleaners: base.List[str] = None):
+    def clean_document(self, text: base.DocType, processes: base.List[str] = None):
         """Data cleaning method.
         :param text (types.DocType): The document to be cleaned.
-        :param cleaners (List[str]): The cleaning processes to be undertaken.
+        :param processes (List[str]): The cleaning processes to be undertaken.
         :return cleaned: Return the cleaned text.
         """
-        self.cleaners = self.cleaners if self.cleaners else cleaners
+        self.processes = self.processes if self.processes else processes
         cleaned = str(text)
-        if 'lower' in self.cleaners or 'lower' in cleaners:
+        if 'lower' in self.processes or 'lower' in processes:
             cleaned = cleaned.lower()
-        if 'url' in self.cleaners or 'url' in cleaners:
+        if 'url' in self.processes or 'url' in processes:
             cleaned = re.sub(r'https?:/\/\S+', 'URL', cleaned)
-        if 'hashtag' in self.cleaners or 'hashtag' in cleaners:
+        if 'hashtag' in self.processes or 'hashtag' in processes:
             cleaned = re.sub(r'#[a-zA-Z0-9]*\b', 'HASHTAG', cleaned)
-        if 'username' in self.cleaners or 'username' in cleaners:
+        if 'username' in self.processes or 'username' in processes:
             cleaned = re.sub(r'@\S+', 'AT_USER', cleaned)
         cleaned = re.sub("'", ' ', cleaned)
 
