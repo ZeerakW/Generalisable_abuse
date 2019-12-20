@@ -1,6 +1,6 @@
-import gen.shared.custom_types as t
 import pdb
-from gen.shared.data import Dataset, BatchGenerator
+from ..shared import custom_types as t
+from ..shared.data import Dataset, BatchGenerator
 
 
 def store_fields(obj, data_field, label_field, **kwargs):

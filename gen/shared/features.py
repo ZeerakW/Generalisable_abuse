@@ -1,7 +1,7 @@
 import re
 from nltk import ngrams
-import gen.shared.custom_types as t
 from collections import Counter
+from ..shared import custom_types as t
 
 
 def unigrams(doc: t.List[str]) -> t.Dict[str, int]:

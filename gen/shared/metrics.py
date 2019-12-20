@@ -1,9 +1,9 @@
 from collections import OrderedDict
-from typing import List, Callable, Dict
+from ..shared import custom_types as t
 from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, confusion_matrix
 
 
-def select_metrics(metrics: List[str], lib: str) -> Dict[str, Callable]:
+def select_metrics(metrics: t.List[str], lib: str) -> t.Dict[str, t.Callable]:
     """Select metrics for computation based on a list of metric names.
     :param metrics: List of metric names.
     :param lib: Library used (options: ['sklearn', 'pytorch'])
@@ -26,7 +26,7 @@ def select_metrics(metrics: List[str], lib: str) -> Dict[str, Callable]:
     return out
 
 
-def get_accuracy_func(lib: str) -> Callable:
+def get_accuracy_func(lib: str) -> t.Callable:
     """Select the accuracy computation function depending on the library.
     :param lib: Library used.
     :return func: Accuracy function.
@@ -40,7 +40,7 @@ def get_accuracy_func(lib: str) -> Callable:
     return func
 
 
-def get_precision_func(lib: str) -> Callable:
+def get_precision_func(lib: str) -> t.Callable:
     """Select the precision computation function depending on the library.
     :param lib: Library used.
     :return func: precision function.
@@ -54,7 +54,7 @@ def get_precision_func(lib: str) -> Callable:
     return func
 
 
-def get_recall_func(lib: str) -> Callable:
+def get_recall_func(lib: str) -> t.Callable:
     """Select the recall computation function depending on the library.
     :param lib: Library used.
     :return func: recall function.
@@ -68,7 +68,7 @@ def get_recall_func(lib: str) -> Callable:
     return func
 
 
-def get_auc_func(lib: str) -> Callable:
+def get_auc_func(lib: str) -> t.Callable:
     """Select the auc computation function depending on the library.
     :param lib: Library used.
     :return func: auc function.
@@ -82,7 +82,7 @@ def get_auc_func(lib: str) -> Callable:
     return func
 
 
-def get_confusion_func(lib: str) -> Callable:
+def get_confusion_func(lib: str) -> t.Callable:
     """Select the confusion_matrix computation function depending on the library.
     :param lib: Library used.
     :return func: confusion_matrix function.

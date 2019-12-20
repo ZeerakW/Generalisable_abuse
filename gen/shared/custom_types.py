@@ -1,16 +1,17 @@
 import torch
 import spacy
 import numpy as np
-from torch.nn import Module
-from torchtext.data import Field
-from sklearn.base import ClassifierMixin, TransformerMixin
 from typing import *
+from torch.nn import Module
+from ..shared.data import Field, Datapoint
+from sklearn.base import ClassifierMixin, TransformerMixin
 
 
 # Data types
 FieldType = Field
-DataType = Union[list, np.ndarray, torch.LongTensor]
-DocType = Union[str, List[str], spacy.tokens.doc.Doc]
+DataType = Union[list, np.ndarray, torch.LongTensor, List[Datapoint]]
+DocType = Union[str, List[str], spacy.tokens.doc.Doc, Datapoint]
+ModelType = Union[Module]
 
 # Model/Vectorizer Type
 ModelType = Union[ClassifierMixin, Module]

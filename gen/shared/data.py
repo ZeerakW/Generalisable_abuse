@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from math import floor
-import gen.shared.custom_types as t
+from ..shared import custom_types as t
 from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 

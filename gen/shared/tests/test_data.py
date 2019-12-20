@@ -1,7 +1,7 @@
 import unittest
 import torchtestcase
 import torch
-from gen.shared.data import Field, GeneralDataset, Datapoint, Batch, BatchExtractor
+from ..data import Field, GeneralDataset, Datapoint, Batch, BatchExtractor
 
 
 class TestDataSet(torchtestcase.TorchTestCase):

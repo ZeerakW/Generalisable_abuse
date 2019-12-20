@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from tqdm import tqdm
+from ..shared import custom_types as t
 
 
 def train_model(model: t.ModelType, epochs, batches, dev_batches, loss_func, optimizer, metrics):

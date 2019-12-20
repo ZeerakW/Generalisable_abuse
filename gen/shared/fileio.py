@@ -1,7 +1,7 @@
 import sys
 import ast
 import json
-import gen.shared.custom_types as t
+from ..shared import custom_types as t
 
 
 def read_json(fh: str, enc, doc_key: str, label_key: str, **kwargs) -> t.Tuple[str, str, ...]:
