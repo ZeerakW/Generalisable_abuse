@@ -3,7 +3,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-def train_model(model, epochs, batches, loss_func, optimizer, text_field):
+def train_model(model: t.ModelType, epochs, batches, dev_batches, loss_func, optimizer, metrics):
     losses = []
     model.mode = True
     for epoch in tqdm(range(epochs)):
@@ -15,6 +15,16 @@ def train_model(model, epochs, batches, loss_func, optimizer, text_field):
             loss.backward()
             optimizer.step()
             epoch_loss.append(float(loss))
+
+        # Predict on dev
+        with torch.zero_grad:
+            for devX, devY in dev_batches:
+                dev_scores = model(devX)
+                dev_loss = loss_func(scores, devY)
+                dev_losses.append(dev_loss)
+
+                # TODO Compute dev metric
+
         losses.append(np.mean(epoch_loss))
 
     print("Max loss: {0};Index: {1}\nMin loss: {2}; Index: {3}".format(np.max(losses), np.argmax(losses),
