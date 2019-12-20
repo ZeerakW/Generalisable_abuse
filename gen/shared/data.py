@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from math import floor
-from . import custom_types as t
+from . import base
 from collections import Counter, defaultdict
 from torch.utils.data import IterableDataset
 
@@ -13,7 +13,7 @@ from torch.utils.data import IterableDataset
 class TorchTextOnehotBatchGenerator:
     """A class to get the information from the batches."""
 
-    def __init__(self, dataloader: t.DataType, datafield: str, labelfield: str, vocab_size: int):
+    def __init__(self, dataloader: base.DataType, datafield: str, labelfield: str, vocab_size: int):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
         self.VOCAB_SIZE = vocab_size
 
@@ -29,7 +29,7 @@ class TorchTextOnehotBatchGenerator:
 
 class TorchTextDefaultExtractor:
 
-    def __init__(self, datafield: str, labelfield: str, dataloader: t.DataType):
+    def __init__(self, datafield: str, labelfield: str, dataloader: base.DataType):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
 
     def __len__(self):
@@ -45,7 +45,7 @@ class TorchTextDefaultExtractor:
 class BatchExtractor:
     """A class to get the information from the batches."""
 
-    def __init__(self, datafield: str, labelfield: str, dataloader: t.DataType):
+    def __init__(self, datafield: str, labelfield: str, dataloader: base.DataType):
         self.data, self.df, self.lf = dataloader, datafield, labelfield
 
     def __len__(self):
@@ -61,7 +61,7 @@ class BatchExtractor:
 class Batch(object):
     """Create batches."""
 
-    def __init__(self, batch_size: int, data: t.DataType):
+    def __init__(self, batch_size: int, data: base.DataType):
         self.batch_size = batch_size
         self.data = data
 
@@ -90,45 +90,18 @@ class Batch(object):
             yield doc[attr]
 
 
-class Field(object):
-    """A class to set different properties of the individual fields."""
-    def __init__(self, name: str, train: bool, label: bool, ignore: bool = True, ix: int = None,
-                 cname: str = None):
-        """Initialize the field object. Each individual field is to hold information about that field only.
-        :param name (str): Name of the field.
-        :param train (bool): Use for training.
-        :param label (bool): Indicate if it is a label field.
-        :param ignore (bool): Indicate whether to ignore the information in this field.
-        :param ix (int, default = None): Index of the field in the splitted file. Only set this for [C|T]SV files.
-        :param cname (str, default = None): Name of the column (/field) in the file. Only set this for JSON objects.
-        Example Use:
-            train_field = Field('text', train = True, label = False, ignore = False, ix = 0)
-        """
-        self.name = name
-        self.train = train
-        self.cname = cname
-        self.label = label
-        self.ignore = ignore
-        self.index = ix
-
-
-class Datapoint(object):
-    """A class for each datapoint to instantiated as an object, which can allow for getting and setting attributes."""
-    pass
-
-
 class GeneralDataset(IterableDataset):
     """A general dataset class, which loads a dataset, creates a vocabulary, pads, tensorizes, etc."""
-    def __init__(self, data_dir: str, ftype: str, sep: str, fields: t.List[Field],
+    def __init__(self, data_dir: str, ftype: str, sep: str, fields: base.FieldType,
                  train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
-                 test_labels: str = None, tokenizer: t.Union[t.Callable, str] = 'spacy', lower: bool = True,
-                 preprocessor: t.Callable = None, transformations: t.Callable = None,
-                 label_processor: t.Callable = None, length: int = None) -> None:
+                 test_labels: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy', lower: bool = True,
+                 preprocessor: base.Callable = None, transformations: base.Callable = None,
+                 label_processor: base.Callable = None, length: int = None) -> None:
         """Initialize the variables required for the dataset loading.
         :param data_dir (str): Path of the directory containing the files.
         :param ftype (str): ftype of the file ([C|T]SV and JSON accepted)
         :param sep (str): Separator token.
-        :param fields (t.List[t.Tuple[str, ...]]): The names of the fields in the same order as they appear (in csv).
+        :param fields (base.List[base.Tuple[str, ...]]): Fields in the same order as they appear in the file.
                     Example: ('data', None)
         :param train (str): Path to training file.
         :param dev (str, default None): Path to dev file, if dev file exists.
@@ -136,11 +109,11 @@ class GeneralDataset(IterableDataset):
         :param train_labels (str, default = None): Path to file containing labels for training data.
         :param dev_labels (str, default = None): Path to file containing labels for dev data.
         :param test_labels (str, default = None): Path to file containing labels for test data.
-        :param tokenizer (t.Callable or str, default = 'spacy'): Tokenizer to apply.
+        :param tokenizer (base.Callable or str, default = 'spacy'): Tokenizer to apply.
         :param lower (bool, default = True): Lowercase the document before tokenization.
-        :param preprocessor (t.Callable, default = None): Preprocessing step to apply.
-        :param transformations (t.Callable, default = None): Method changing from one representation to another.
-        :param label_processor(t.Callable, default = None): Function to process labels with.
+        :param preprocessor (base.Callable, default = None): Preprocessing step to apply.
+        :param transformations (base.Callable, default = None): Method changing from one representation to another.
+        :param label_processor(base.Callable, default = None): Function to process labels with.
         """
         self.data_dir = os.path.abspath(data_dir) if '~' not in data_dir else os.path.expanduser(data_dir)
         super(GeneralDataset, self).__init__()
@@ -179,7 +152,7 @@ class GeneralDataset(IterableDataset):
         self.length = length
 
     def load(self, dataset: str = 'train', skip_header = True) -> None:
-        """Load the dataset.
+        """Load the datasebase.
         :param skip_header (bool, default = True): Skip the header.
         :param dataset (str, default = 'train'): Dataset to load. Must exist as key in self.data_files.
         """
@@ -189,7 +162,7 @@ class GeneralDataset(IterableDataset):
 
         data = []
         for line in self.reader(fp):
-            data_line, datapoint = {}, Datapoint()  # TODO Look at moving all of this to the datapoint class.
+            data_line, datapoint = {}, base.Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
@@ -217,7 +190,7 @@ class GeneralDataset(IterableDataset):
 
         # TODO Think about this some more. Fine to run this when extending the dataset (but maybe not extend labels?)
         # TODO but not when loading dev or test because then the model will see the data before it's allowed to.
-        # TODO Potentially just allow one class per file / dataset.
+        # TODO Potentially just allow one class per file / datasebase.
         if dataset == 'train':
             self.data = data
         elif dataset == 'dev':
@@ -226,8 +199,8 @@ class GeneralDataset(IterableDataset):
             self.test = data
 
     def load_labels(self, dataset: str, label_name: str, label_path: str = None, ftype: str = None, sep: str = None,
-                    skip_header: bool = True, label_processor: t.Callable = None,
-                    label_ix: t.Union[int, str] = None) -> None:
+                    skip_header: bool = True, label_processor: base.Callable = None,
+                    label_ix: base.Union[int, str] = None) -> None:
         """Load labels from external file.
         :param path (str): Path to data files.
         :param dataset (str): dataset labels belong to.
@@ -265,7 +238,7 @@ class GeneralDataset(IterableDataset):
         :param fp: Opened file.
         :param ftype (str, default = None): Filetype if loading external data.
         :param sep (str, default = None): Separator to be used.
-        :return reader: Iterable object.
+        :return reader: Iterable objecbase.
         """
         ftype = ftype if ftype is not None else self.ftype
         if ftype in ['CSV', 'TSV']:
@@ -275,16 +248,16 @@ class GeneralDataset(IterableDataset):
             reader = self.json_reader(fp)
         return reader
 
-    def json_reader(self, fp: str) -> t.Generator:
-        """Create a JSON reading object.
-        :param fp (str): Opened file object.
+    def json_reader(self, fp: str) -> base.Generator:
+        """Create a JSON reading objecbase.
+        :param fp (str): Opened file objecbase.
         :return: """
         for line in fp:
             yield json.loads(line)
 
-    def build_token_vocab(self, data: t.DataType, original: bool = True):
-        """Build vocab over dataset.
-        :param data (t.DataType): List of datapoints to process.
+    def build_token_vocab(self, data: base.DataType, original: bool = True):
+        """Build vocab over datasebase.
+        :param data (base.DataType): List of datapoints to process.
         :param original (bool): Use the original document to generate vocab.
         """
         train_fields = self.train_fields
@@ -303,9 +276,9 @@ class GeneralDataset(IterableDataset):
         self.itos = {ix: tok for ix, (tok, _) in enumerate(self.token_counts.most_common())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
-    def extend_vocab(self, data: t.DataType):
+    def extend_vocab(self, data: base.DataType):
         """Extend the vocabulary.
-        :param data (t.DataType): List of datapoints to process.
+        :param data (base.DataType): List of datapoints to process.
         """
         for doc in data:
             start_ix = len(self.itos)
@@ -338,9 +311,9 @@ class GeneralDataset(IterableDataset):
         """
         return self.itos[ix]
 
-    def build_label_vocab(self, labels: t.DataType) -> None:
+    def build_label_vocab(self, labels: base.DataType) -> None:
         """Build label vocabulary.
-        :param labels (t.DataType): List of datapoints to process.
+        :param labels (base.DataType): List of datapoints to process.
         """
         labels = set(getattr(l, getattr(f, 'name')) for l in labels for f in self.label_fields)
         self.itol = {ix: l for ix, l in enumerate(sorted(labels))}
@@ -362,17 +335,17 @@ class GeneralDataset(IterableDataset):
         """Get the number of the labels."""
         return len(self.itol)
 
-    def process_labels(self, data: t.DataType, processor: t.Callable = None):
+    def process_labels(self, data: base.DataType, processor: base.Callable = None):
         """Take a dataset of labels and process them.
-        :param data (t.DataType): Dataset of datapoints to process.
-        :param processor (t.Callable, optional): Custom processor to use.
+        :param data (base.DataType): Dataset of datapoints to process.
+        :param processor (base.Callable, optional): Custom processor to use.
         """
         for doc in data:
             label = self._process_label([getattr(doc, getattr(f, 'name')) for f in self.label_fields], processor)
             setattr(doc, 'label', label)
 
-    def _process_label(self, label, processor: t.Callable = None) -> int:
-        """Modify label using external function to process it.
+    def _process_label(self, label, processor: base.Callable = None) -> int:
+        """Modify label using external function to process ibase.
         :param label: Label to process.
         :param processor: Function to process the label."""
         if not isinstance(label, list):
@@ -380,10 +353,10 @@ class GeneralDataset(IterableDataset):
         processor = processor if processor is not None else self.label_processor
         return [processor(l) for l in label]
 
-    def process_doc(self, doc: t.DocType) -> list:
-        """Process a single document.
-        :param doc (t.DocType): Document to be processed.
-        :return doc (list): Return processed doc in tokenized list format."""
+    def process_doc(self, doc: base.DocType) -> list:
+        """Process a single documenbase.
+        :param doc (base.DocType): Document to be processed.
+        :return doc (list): Return processed doc in tokenized list formabase."""
         if isinstance(doc, list):
             doc = " ".join(doc)
 
@@ -400,9 +373,9 @@ class GeneralDataset(IterableDataset):
 
         return doc
 
-    def pad(self, data: t.DataType, length: int = None) -> list:
-        """Pad each document in the datasets in the dataset or trim document.
-        :param data (t.DataType): List of datapoints to process.
+    def pad(self, data: base.DataType, length: int = None) -> list:
+        """Pad each document in the datasets in the dataset or trim documenbase.
+        :param data (base.DataType): List of datapoints to process.
         :param length (int, optional): The sequence length to be applied.
         :return doc: Return list of padded datapoints."""
 
@@ -423,16 +396,16 @@ class GeneralDataset(IterableDataset):
         """Do the actual padding.
         :param text: The extracted text to be padded or trimmed.
         :param length: The length of the sequence length to be applied.
-        :return padded: Return padded document as a list.
+        :return padded: Return padded document as a lisbase.
         """
         delta = length - len(text)
         padded = text[:delta] if delta < 0 else text + ['<pad>'] * delta
         return padded
 
-    def encode(self, data: t.DataType, onehot: bool = True):
-        """Encode a document.
-        :param data (t.DataType): List of datapoints to be encoded.
-        :param onehot (bool, default = True): Set to true to onehot encode the document.
+    def encode(self, data: base.DataType, onehot: bool = True):
+        """Encode a documenbase.
+        :param data (base.DataType): List of datapoints to be encoded.
+        :param onehot (bool, default = True): Set to true to onehot encode the documenbase.
         """
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
@@ -442,7 +415,7 @@ class GeneralDataset(IterableDataset):
         return data
 
     def onehot_encode_doc(self, doc, names):
-        """Onehot encode a single document."""
+        """Onehot encode a single documenbase."""
         # If we have an index encoded document including padding and unks
         # then create a
         text = [tok for name in names for tok in getattr(doc, name)]
@@ -456,7 +429,7 @@ class GeneralDataset(IterableDataset):
         return encoded_doc
 
     def encode_doc(self, doc, names):
-        """Encode documents using just the index of the tokens that are present in the document."""
+        """Encode documents using just the index of the tokens that are present in the documenbase."""
 
         raise NotImplementedError
         text = [tok for name in names for tok in getattr(doc, name)]
@@ -489,10 +462,11 @@ class GeneralDataset(IterableDataset):
             strata_maps[getattr(doc, strata_field)].append(doc)
         return list(strata_maps.values())
 
-    def split(self, data: t.DataType, splits: t.Union[int, t.List[int]], stratify: str = None) -> t.Tuple[t.DataType]:
-        """Split the dataset.
-        :param data (t.DataType): Dataset to split.
-        :param splits (int | t.List[int]]): Real valued splits.
+    def split(self, data: base.DataType, splits: base.Union[int, base.List[int]],
+              stratify: str = None) -> base.Tuple[base.DataType]:
+        """Split the datasebase.
+        :param data (base.DataType): Dataset to splibase.
+        :param splits (int | base.List[int]]): Real valued splits.
         :param stratify (str): The field to stratify the data along.
         :return data: Return splitted data.
         """
