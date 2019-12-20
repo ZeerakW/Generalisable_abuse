@@ -1,16 +1,16 @@
 import re
 import pdb
 import spacy
-from ..shared import custom_types as t
+from . import base
 from string import punctuation
 
 
 class Cleaner(object):
     """A class for methods for cleaning."""
 
-    def __init__(self, cleaners: t.List[str] = None):
+    def __init__(self, cleaners: base.List[str] = None):
         """Initialise cleaner class.
-        :param cleaners t.List[str]: Cleaning operations to be taken.
+        :param cleaners base.List[str]: Cleaning operations to be taken.
         """
         self.processes = cleaners
         self.cleaners = cleaners
@@ -29,7 +29,7 @@ class Cleaner(object):
 
         return liwc_dict
 
-    def clean_document(self, text: t.DocType, cleaners: t.List[str] = None):
+    def clean_document(self, text: base.DocType, cleaners: base.List[str] = None):
         """Data cleaning method.
         :param text (types.DocType): The document to be cleaned.
         :param cleaners (List[str]): The cleaning processes to be undertaken.
@@ -49,7 +49,7 @@ class Cleaner(object):
 
         return cleaned
 
-    def tokenize(self, document: t.DocType, processes: t.List[str] = None):
+    def tokenize(self, document: base.DocType, processes: base.List[str] = None):
         """Tokenize the document using SpaCy and clean it as it is processed.
         :param document: Document to be parsed.
         :param processes: The cleaning processes to engage in.
@@ -61,7 +61,7 @@ class Cleaner(object):
             toks = [tok.text for tok in self.tagger(self.clean_document(document))]
         return toks
 
-    def ptb_tokenize(self, document: t.DocType, processes: t.List[str] = None):
+    def ptb_tokenize(self, document: base.DocType, processes: base.List[str] = None):
         """Tokenize the document using SpaCy, get PTB tags and clean it as it is processed.
         :param document: Document to be parsed.
         :param processes: The cleaning processes to engage in.
@@ -71,7 +71,7 @@ class Cleaner(object):
         toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
         return " ".join(toks)
 
-    def sentiment_tokenize(self, document: t.DocType, processes: t.List[str] = None):
+    def sentiment_tokenize(self, document: base.DocType, processes: base.List[str] = None):
         """Tokenize the document using SpaCy, get sentiment and clean it as it is processed.
         :param document: Document to be parsed.
         :param processes: The cleaning processes to engage in.
@@ -112,10 +112,10 @@ class Cleaner(object):
 
         return term
 
-    def compute_unigram_liwc(self, doc: t.DocType):
+    def compute_unigram_liwc(self, doc: base.DocType):
         """Compute LIWC for each document document.
-        :param doc (t.DocType): Document to operate on.
-        :return liwc_doc (t.DocType): Document represented as LIWC categories.
+        :param doc (base.DocType): Document to operate on.
+        :return liwc_doc (base.DocType): Document represented as LIWC categories.
         """
 
         if not self.liwc_dict:

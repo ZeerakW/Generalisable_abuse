@@ -1,6 +1,6 @@
+import torch
 import unittest
 import torchtestcase
-import torch
 from ..data import Field, GeneralDataset, Datapoint, Batch, BatchExtractor
 
 

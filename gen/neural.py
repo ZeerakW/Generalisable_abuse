@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import gen.shared.custom_types as t
+from .shared import base
 import torch.nn.functional as F
 
 
@@ -114,7 +114,7 @@ class MLPClassifier(nn.Module):
 
 class CNNClassifier(nn.Module):
 
-    def __init__(self, window_sizes: t.List[int], num_filters: int, max_feats: int, hidden_dim: int, no_classes: int,
+    def __init__(self, window_sizes: base.List[int], num_filters: int, max_feats: int, hidden_dim: int, no_classes: int,
                  batch_first = True):
         """Initialise the model.
         :param window_sizes: The size of the filters (e.g. 1: unigram, 2: bigram, etc.)

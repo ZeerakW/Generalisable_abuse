@@ -1,10 +1,10 @@
 import re
 from nltk import ngrams
 from collections import Counter
-from ..shared import custom_types as t
+from . import base
 
 
-def unigrams(doc: t.List[str]) -> t.Dict[str, int]:
+def unigrams(doc: base.List[str]) -> base.Dict[str, int]:
     """Compute unigrams.
     :param doc: Document to be parsed.
     :return: counted ngrams.
@@ -12,7 +12,7 @@ def unigrams(doc: t.List[str]) -> t.Dict[str, int]:
     return Counter(doc)
 
 
-def n_grams(doc: t.Union[str, t.List[str]], n: int = 2) -> t.Dict[str, int]:
+def n_grams(doc: base.Union[str, base.List[str]], n: int = 2) -> base.Dict[str, int]:
     """
     :param doc: Document to create ngrams from.
     :param n: Size of ngrams.
@@ -21,7 +21,7 @@ def n_grams(doc: t.Union[str, t.List[str]], n: int = 2) -> t.Dict[str, int]:
     return Counter(["_".join(gram) for gram in ngrams(doc, n)]) + unigrams(doc)
 
 
-def char_ngrams(doc: str, n: int = 2) -> t.Dict[str, int]:
+def char_ngrams(doc: str, n: int = 2) -> base.Dict[str, int]:
     """
     :param doc: Document to character create ngrams from.
     :return: Counter object of counted char ngrams.
@@ -29,7 +29,7 @@ def char_ngrams(doc: str, n: int = 2) -> t.Dict[str, int]:
     return Counter(["_".join(gram) for gram in ngrams(doc, 2)])
 
 
-def char_count(doc: str) -> t.Dict[str, int]:
+def char_count(doc: str) -> base.Dict[str, int]:
     """
     :param doc: Document to create character counts from.
     :return: Counter dict of counted characters in document.
@@ -37,39 +37,39 @@ def char_count(doc: str) -> t.Dict[str, int]:
     return Counter(doc)
 
 
-def find_mentions(doc: str) -> t.List[str]:
+def find_mentions(doc: str) -> base.List[str]:
     """
     :param doc: Document to find mentions in.
-    :return: t.List of mentions.
+    :return: base.List of mentions.
     """
     return re.findall(r'@[a-zA-Z0-9]', doc)
 
 
-def find_hashtags(doc: str) -> t.List[str]:
+def find_hashtags(doc: str) -> base.List[str]:
     """
     :param doc: Document to find hashtags in.
-    :return: t.List of hashtags.
+    :return: base.List of hashtags.
     """
     return re.findall(r'#[a-zA-Z0-9]', doc)
 
 
-def find_urls(doc: str) -> t.List[str]:
+def find_urls(doc: str) -> base.List[str]:
     """
     :param doc: Document to find URLs in.
-    :return: t.List of urls.
+    :return: base.List of urls.
     """
     return re.findall(r'http:\/\/[a-zA-Z0-9\.\/a-zA-Z0-9]+', doc)
 
 
-def find_retweets(doc: str) -> t.List[str]:
+def find_retweets(doc: str) -> base.List[str]:
     """
     :param doc: Document to find retweets in.
-    :return: t.List of retweets.
+    :return: base.List of retweets.
     """
     return re.findall(r'\wRT\w @', doc)
 
 
-def count_syllables(doc: t.List[str]) -> int:
+def count_syllables(doc: base.List[str]) -> int:
     """Simplistic syllable count.
     :param doc: Document to count syllables in.
     :return: Count of syllables.
@@ -89,10 +89,10 @@ def count_syllables(doc: t.List[str]) -> int:
     return {'NO_SYLLABLES': count}
 
 
-def word_list(doc: t.List[str], word_list: t.List[str], salt: str) -> t.Dict[str, int]:
+def word_list(doc: base.List[str], word_list: base.List[str], salt: str) -> base.Dict[str, int]:
     """Identify if words are in word_list.
     :param doc: Tokenised document.
-    :param word_list: t.List containing words occurring in the wordlist.
+    :param word_list: base.List containing words occurring in the wordlist.
     :param salt: To add in front of word name.
     :return: Counts of each word appearing in dict.
     """
@@ -104,7 +104,7 @@ def word_list(doc: t.List[str], word_list: t.List[str], salt: str) -> t.Dict[str
     return Counter(res) if len(res) != 0 else {salt: 0}
 
 
-def _pos_helper(docs: t.List[str]) -> t.Tuple[t.List[str], t.List[str], t.List[str]]:
+def _pos_helper(docs: base.List[str]) -> base.Tuple[base.List[str], base.List[str], base.List[str]]:
     # for doc in tqdm(docs, desc = "POS helper"):
     for doc in docs:
         tokens = []
@@ -117,10 +117,10 @@ def _pos_helper(docs: t.List[str]) -> t.Tuple[t.List[str], t.List[str], t.List[s
         yield tokens, pos, confidence
 
 
-def sentiment_polarity(doc: str, sentiment: t.Callable) -> t.Dict[str, float]:
+def sentiment_polarity(doc: str, sentiment: base.Callable) -> base.Dict[str, float]:
     """Compute sentiment polarity scores and return features.
     :param doc: Document to be computed for.
-    :param sentiment: t.Callable sentiment analysis method.
+    :param sentiment: base.Callable sentiment analysis method.
     :return features: Features dict to return.
     """
     features = {}
@@ -172,18 +172,18 @@ def arcs(parsed):
     return features
 
 
-def get_brown_clusters(doc: t.List[str], cluster: t.Dict[str, str], salt: str = '') -> t.List[str]:
+def get_brown_clusters(doc: base.List[str], cluster: base.Dict[str, str], salt: str = '') -> base.List[str]:
     """Generate cluster for each word.
     :param doc: Document ebing procesed as a list.
     :param cluster: Cluster computed using clustering algorithm.
     :param salt: To add in front of the features.
-    :return: t.Dictionary of clustered values."""
+    :return: base.Dictionary of clustered values."""
     if salt != '':
         salt = salt.upper() + '_'
     return Counter([salt + cluster.get(w, 'CLUSTER_UNK') for w in doc])
 
 
-def word_syllable_counter(doc: t.DocType):
+def word_syllable_counter(doc: base.DocType):
     """Simplistic syllable count.
     :param doc: Document to count syllables in.
     :return: String containing
