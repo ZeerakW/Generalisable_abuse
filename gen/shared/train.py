@@ -4,6 +4,23 @@ from tqdm import tqdm
 from . import base
 
 
+def run_model(library: str, train: bool, **kwargs):
+    """Train or evaluate model.
+    :library (str): Library of the model.
+    :train (bool): Whether it's a train or test run.
+    """
+    if library == 'pytorch':
+        func = train_pytorch_model if train else evaluate_pytorch_model
+        return func(**kwargs)
+    else:  # It's sklearn
+        if train:
+            model = train_sklearn_model(**kwargs)  # Get model
+            return model
+        else:
+            evals = evaluate_sklearn_model(**kwargs)  # Get evaluation
+            return evals
+
+
 def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataType, loss_func: base.Callable,
                         optimizer: base.Callable, metrics: base.List[str], dev_batches: base.DataType = None):
     """Train a machine learning model.
@@ -15,7 +32,12 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
     :metrics (base.List[str])): Metrics to use.
     :dev_batches (base.DataType, optional): Batched dev set.
     """
-    losses = []
+
+    # TODO Look into this.
+    training_losses = []
+    training_scores = []
+    dev_losses = []
+    dev_scores = []
     model.mode = True
 
     # TODO Get metric functions.
@@ -23,6 +45,7 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
 
     for epoch in tqdm(range(epochs)):
         epoch_loss = []
+        epoch_scores = []
         model.zero_grad()
         for X, y in batches:  # TODO Update to also use dev batches.
             scores = model(X)
@@ -32,9 +55,11 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
             epoch_loss.append(float(loss))
             performance = scorer(torch.argmax(scores, 1), y)
             # TODO Get TQDM to provide this info in output
+        training_losses.append(sum(epoch_loss))
 
         # Predict on dev
         if dev_batches:
+            dev_losses = []
             with torch.zero_grad:
                 for devX, devY in dev_batches:
                     dev_scores = model(devX)
@@ -43,7 +68,9 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
 
                     # TODO Compute dev metric
 
-            losses.append(np.mean(epoch_loss))
+            dev_losses.append(np.mean(epoch_loss))
+
+    return losses, dev_losses,
 
     print("Max loss: {0};Index: {1}\nMin loss: {2}; Index: {3}".format(np.max(losses), np.argmax(losses),
                                                                        np.min(losses), np.argmin(losses)))
