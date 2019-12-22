@@ -14,7 +14,7 @@ class GeneralDataset(IterableDataset):
     """A general dataset class, which loads a dataset, creates a vocabulary, pads, tensorizes, etc."""
     def __init__(self, data_dir: str, ftype: str, sep: str, fields: base.FieldType,
                  train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
-                 test_labels: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy', lower: bool = True,
+                 test_labels: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
                  label_processor: base.Callable = None, length: int = None) -> None:
         """Initialize the variables required for the dataset loading.
@@ -30,7 +30,6 @@ class GeneralDataset(IterableDataset):
         :param dev_labels (str, default = None): Path to file containing labels for dev data.
         :param test_labels (str, default = None): Path to file containing labels for test data.
         :param tokenizer (base.Callable or str, default = 'spacy'): Tokenizer to apply.
-        :param lower (bool, default = True): Lowercase the document before tokenization.
         :param preprocessor (base.Callable, default = None): Preprocessing step to apply.
         :param transformations (base.Callable, default = None): Method changing from one representation to another.
         :param label_processor(base.Callable, default = None): Function to process labels with.
@@ -64,7 +63,6 @@ class GeneralDataset(IterableDataset):
                             zip([train_labels, dev_labels, test_labels], ['train', 'dev', 'test']) if f is not None}
 
         self.tokenizer = tokenizer
-        self.lower = lower
         self.preprocessor = preprocessor
         self.data_dir = data_dir
         self.repr_transform = transformations
@@ -279,9 +277,6 @@ class GeneralDataset(IterableDataset):
         :return doc (list): Return processed doc in tokenized list formabase."""
         if isinstance(doc, list):
             doc = " ".join(doc)
-
-        if self.lower:
-            doc = doc.lower()
 
         doc = self.tokenizer(doc.replace("\n", " "))
 
