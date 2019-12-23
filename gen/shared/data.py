@@ -12,16 +12,15 @@ from torch.utils.data import IterableDataset
 
 class GeneralDataset(IterableDataset):
     """A general dataset class, which loads a dataset, creates a vocabulary, pads, tensorizes, etc."""
-    def __init__(self, data_dir: str, ftype: str, sep: str, fields: base.FieldType,
-                 train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
-                 test_labels: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
+    def __init__(self, data_dir: str, ftype: str, fields: base.FieldType, train: str,
+                 dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
+                 test_labels: str = None, sep: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
                  label_processor: base.Callable = None, label_preprocessor: base.Callable = None,
                  length: int = None) -> None:
         """Initialize the variables required for the dataset loading.
         :param data_dir (str): Path of the directory containing the files.
         :param ftype (str): ftype of the file ([C|T]SV and JSON accepted)
-        :param sep (str): Separator token.
         :param fields (base.List[base.Tuple[str, ...]]): Fields in the same order as they appear in the file.
                     Example: ('data', None)
         :param train (str): Path to training file.
@@ -30,6 +29,7 @@ class GeneralDataset(IterableDataset):
         :param train_labels (str, default = None): Path to file containing labels for training data.
         :param dev_labels (str, default = None): Path to file containing labels for dev data.
         :param test_labels (str, default = None): Path to file containing labels for test data.
+        :param sep (str, default = None): Separator token.
         :param tokenizer (base.Callable or str, default = 'spacy'): Tokenizer to apply.
         :param preprocessor (base.Callable, default = None): Preprocessing step to apply.
         :param transformations (base.Callable, default = None): Method changing from one representation to another.
