@@ -16,7 +16,8 @@ class GeneralDataset(IterableDataset):
                  train: str, dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
                  test_labels: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
-                 label_processor: base.Callable = None, length: int = None) -> None:
+                 label_processor: base.Callable = None, label_preprocessor: base.Callable = None,
+                 length: int = None) -> None:
         """Initialize the variables required for the dataset loading.
         :param data_dir (str): Path of the directory containing the files.
         :param ftype (str): ftype of the file ([C|T]SV and JSON accepted)
@@ -67,6 +68,7 @@ class GeneralDataset(IterableDataset):
         self.data_dir = data_dir
         self.repr_transform = transformations
         self.label_processor = label_processor if label_processor else self.label_name_lookup
+        self.label_preprocessor = label_preprocessor
         self.length = length
 
     def load(self, dataset: str = 'train', skip_header = True) -> None:
@@ -89,7 +91,10 @@ class GeneralDataset(IterableDataset):
 
             for field in self.label_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
-                data_line[field.name] = line[idx].rstrip()
+                if self.label_preprocessor:
+                    data_line[field.name] = self.label_preprocessor(line[idx].rstrip())
+                else:
+                    data_line[field.name] = line[idx].rstrip()
 
             for key, val in data_line.items():
                 setattr(datapoint, key, val)
