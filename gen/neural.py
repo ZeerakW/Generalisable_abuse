@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class LSTMClassifier(nn.Module):
 
     def __init__(self, input_dim: int, embedding_dim: int, hidden_dim: int, no_classes: int, no_layers: int,
-                 batch_first: bool = True):
+                 batch_first: bool = True, **kwargs):
         """Initialise the LSTM.
         :param input_dim (int): The dimensionality of the input to the embedding generation.
         :param hidden_dim (int): The dimensionality of the hidden dimension.
@@ -59,7 +59,8 @@ class LSTMClassifier(nn.Module):
 
 class MLPClassifier(nn.Module):
 
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, dropout: int = 0.2, batch_first: bool = True):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, dropout: int = 0.2, batch_first: bool = True,
+                 **kwargs):
         """Initialise the model.
         :input_dim: The dimension of the input to the model.
         :hidden_dim: The dimension of the hidden layer.
@@ -115,7 +116,7 @@ class MLPClassifier(nn.Module):
 class CNNClassifier(nn.Module):
 
     def __init__(self, window_sizes: base.List[int], num_filters: int, max_feats: int, hidden_dim: int, no_classes: int,
-                 batch_first = True):
+                 batch_first = True, **kwargs):
         """Initialise the model.
         :param window_sizes: The size of the filters (e.g. 1: unigram, 2: bigram, etc.)
         :param no_filters: The number of filters to apply.
@@ -166,7 +167,7 @@ class CNNClassifier(nn.Module):
 
 class RNNClassifier(nn.Module):
 
-    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, batch_first: bool = True):
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, batch_first: bool = True, **kwargs):
         """Initialise the RNN classifier.
         :param input_dim: The dimension of the input to the network.
         :param hidden_dim: The dimension of the hidden representation.

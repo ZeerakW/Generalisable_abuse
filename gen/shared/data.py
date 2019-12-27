@@ -156,6 +156,37 @@ class GeneralDataset(IterableDataset):
         for l, doc in zip(labels, data):
             setattr(doc, label_name, l)
 
+    def set_labels(self, data, labels):
+        for doc, label in zip(data, labels):
+            setattr(doc, 'label', label)
+
+    @property
+    def train_set(self) -> base.DataType:
+        """Set or get the training set."""
+        return self.data
+
+    @train_set.setter
+    def train_set(self, train: base.DataType) -> None:
+        self.data = train
+
+    @property
+    def dev_set(self) -> base.DataType:
+        """Set or get the development set."""
+        return self.data
+
+    @dev_set.setter
+    def train_set(self, dev: base.DataType) -> None:
+        self.dev = dev
+
+    @property
+    def test_set(self) -> base.DataType:
+        """Set or get the testelopment set."""
+        return self.data
+
+    @test_set.setter
+    def train_set(self, test: base.DataType) -> None:
+        self.test = test
+
     def reader(self, fp, ftype: str = None, sep: str = None):
         """Instatiate the reader to be used.
         :param fp: Opened file.
@@ -282,6 +313,8 @@ class GeneralDataset(IterableDataset):
         :return doc (list): Return processed doc in tokenized list formabase."""
         if isinstance(doc, list):
             doc = " ".join(doc)
+
+        doc = doc.lower() if self.lower else doc
 
         doc = self.tokenizer(doc.replace("\n", " "))
 
