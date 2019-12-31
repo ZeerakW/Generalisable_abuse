@@ -5,16 +5,38 @@ from . import base
 from string import punctuation
 
 
-class Cleaner(object):
-    """A class for methods for cleaning."""
+class Preprocessors(object):
 
-    def __init__(self, processes: base.List[str] = None):
+    def __init__(self):
         """Initialise cleaner class.
-        :param processes base.List[str]: Cleaning operations to be taken.
         """
-        self.processes = processes
         self.tagger = spacy.load('en')
         self.liwc_dict = None
+        self.slurs = None
+
+    def slur_replacement(self, doc):
+        """Produce documents where slurs are replaced.
+        :doc (base.List[str]): Document to be processed.
+        :returns: processed document
+        """
+        raise NotImplementedError
+
+    def word_token(self, doc: base.List[str]):
+        """Produce word tokens.
+        :doc (base.List[str]): Document to be processed.
+        :returns: processed document
+        """
+        return doc
+
+    def ptb_tokenize(self, document: base.DocType, processes: base.List[str] = None):
+        """Tokenize the document using SpaCy, get PTB tags and clean it as it is processed.
+        :document: Document to be parsed.
+        :processes: The cleaning processes to engage in.
+        :returns toks: Document that has been passed through spacy's tagger.
+        """
+        self.processes = processes if processes else self.processes
+        toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
+        return toks
 
     def read_liwc(self) -> dict:
         with open('/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse/data/liwc-2015.csv', 'r') as liwc_f:
@@ -27,60 +49,6 @@ class Cleaner(object):
                     liwc_dict.update({k: [v]})
 
         return liwc_dict
-
-    def clean_document(self, text: base.DocType, processes: base.List[str] = None):
-        """Data cleaning method.
-        :param text (types.DocType): The document to be cleaned.
-        :param processes (List[str]): The cleaning processes to be undertaken.
-        :return cleaned: Return the cleaned text.
-        """
-        self.processes = self.processes if self.processes else processes
-        cleaned = str(text)
-        if 'lower' in self.processes or 'lower' in processes:
-            cleaned = cleaned.lower()
-        if 'url' in self.processes or 'url' in processes:
-            cleaned = re.sub(r'https?:/\/\S+', 'URL', cleaned)
-        if 'hashtag' in self.processes or 'hashtag' in processes:
-            cleaned = re.sub(r'#[a-zA-Z0-9]*\b', 'HASHTAG', cleaned)
-        if 'username' in self.processes or 'username' in processes:
-            cleaned = re.sub(r'@\S+', 'AT_USER', cleaned)
-        cleaned = re.sub("'", ' ', cleaned)
-
-        return cleaned
-
-    def tokenize(self, document: base.DocType, processes: base.List[str] = None):
-        """Tokenize the document using SpaCy and clean it as it is processed.
-        :param document: Document to be parsed.
-        :param processes: The cleaning processes to engage in.
-        :return toks: Document that has been passed through spacy's tagger.
-        """
-        if processes:
-            toks = [tok.text for tok in self.tagger(self.clean_document(document, processes = processes))]
-        else:
-            toks = [tok.text for tok in self.tagger(self.clean_document(document))]
-        return toks
-
-    def ptb_tokenize(self, document: base.DocType, processes: base.List[str] = None):
-        """Tokenize the document using SpaCy, get PTB tags and clean it as it is processed.
-        :param document: Document to be parsed.
-        :param processes: The cleaning processes to engage in.
-        :return toks: Document that has been passed through spacy's tagger.
-        """
-        self.processes = processes if processes else self.processes
-        toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
-        return " ".join(toks)
-
-    def sentiment_tokenize(self, document: base.DocType, processes: base.List[str] = None):
-        """Tokenize the document using SpaCy, get sentiment and clean it as it is processed.
-        :param document: Document to be parsed.
-        :param processes: The cleaning processes to engage in.
-        :return toks: Document that has been passed through spacy's tagger.
-        """
-        raise NotImplementedError
-        # self.processes = processes if processes else self.processes
-        # toks = [tok.sentiment for tok in self.tagger(self.clean_document(document))]
-        # pdb.set_trace()
-        # return toks
 
     def _compute_liwc_token(self, tok, kleene_star):
         if tok in self.liwc_dict:
@@ -113,8 +81,8 @@ class Cleaner(object):
 
     def compute_unigram_liwc(self, doc: base.DocType):
         """Compute LIWC for each document document.
-        :param doc (base.DocType): Document to operate on.
-        :return liwc_doc (base.DocType): Document represented as LIWC categories.
+        :doc (base.DocType): Document to operate on.
+        :returns liwc_doc (base.DocType): Document represented as LIWC categories.
         """
 
         if not self.liwc_dict:
@@ -134,3 +102,69 @@ class Cleaner(object):
             pdb.set_trace()
 
         return " ".join(liwc_doc)
+
+
+class Cleaner(object):
+    """A class for methods for cleaning."""
+
+    def __init__(self, processes: base.List[str] = None):
+        """Initialise cleaner class.
+        :processes base.List[str]: Cleaning operations to be taken.
+        """
+        self.processes = processes
+        self.tagger = spacy.load('en')
+        self.liwc_dict = None
+
+    def clean_document(self, text: base.DocType, processes: base.List[str] = None):
+        """Data cleaning method.
+        :text (types.DocType): The document to be cleaned.
+        :processes (List[str]): The cleaning processes to be undertaken.
+        :returns cleaned: Return the cleaned text.
+        """
+        self.processes = self.processes if self.processes else processes
+        cleaned = str(text)
+        if 'lower' in self.processes or 'lower' in processes:
+            cleaned = cleaned.lower()
+        if 'url' in self.processes or 'url' in processes:
+            cleaned = re.sub(r'https?:/\/\S+', 'URL', cleaned)
+        if 'hashtag' in self.processes or 'hashtag' in processes:
+            cleaned = re.sub(r'#[a-zA-Z0-9]*\b', 'HASHTAG', cleaned)
+        if 'username' in self.processes or 'username' in processes:
+            cleaned = re.sub(r'@\S+', 'AT_USER', cleaned)
+        cleaned = re.sub("'", ' ', cleaned)
+
+        return cleaned
+
+    def tokenize(self, document: base.DocType, processes: base.List[str] = None):
+        """Tokenize the document using SpaCy and clean it as it is processed.
+        :document: Document to be parsed.
+        :processes: The cleaning processes to engage in.
+        :returns toks: Document that has been passed through spacy's tagger.
+        """
+        if processes:
+            toks = [tok.text for tok in self.tagger(self.clean_document(document, processes = processes))]
+        else:
+            toks = [tok.text for tok in self.tagger(self.clean_document(document))]
+        return toks
+
+    def ptb_tokenize(self, document: base.DocType, processes: base.List[str] = None):
+        """Tokenize the document using SpaCy, get PTB tags and clean it as it is processed.
+        :document: Document to be parsed.
+        :processes: The cleaning processes to engage in.
+        :returns toks: Document that has been passed through spacy's tagger.
+        """
+        self.processes = processes if processes else self.processes
+        toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
+        return " ".join(toks)
+
+    def sentiment_tokenize(self, document: base.DocType, processes: base.List[str] = None):
+        """Tokenize the document using SpaCy, get sentiment and clean it as it is processed.
+        :document: Document to be parsed.
+        :processes: The cleaning processes to engage in.
+        :returns toks: Document that has been passed through spacy's tagger.
+        """
+        raise NotImplementedError
+        # self.processes = processes if processes else self.processes
+        # toks = [tok.sentiment for tok in self.tagger(self.clean_document(document))]
+        # pdb.set_trace()
+        # return toks
