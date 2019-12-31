@@ -6,28 +6,28 @@ import torch.nn.functional as F
 
 class LSTMClassifier(nn.Module):
 
-    def __init__(self, input_dim: int, embedding_dim: int, hidden_dim: int, no_classes: int, no_layers: int,
+    def __init__(self, input_dim: int, embedding_dim: int, hidden_dim: int, output_dim: int, num_layers: int,
                  batch_first: bool = True, **kwargs):
         """Initialise the LSTM.
-        :param input_dim (int): The dimensionality of the input to the embedding generation.
-        :param hidden_dim (int): The dimensionality of the hidden dimension.
-        :param no_classes (int): Number of classes for to predict on.
-        :param no_layers (int): The number of recurrent layers in the LSTM (1-3).
+        :input_dim (int): The dimensionality of the input to the embedding generation.
+        :hidden_dim (int): The dimensionality of the hidden dimension.
+        :output_dim (int): Number of classes for to predict on.
+        :num_layers (int): The number of recurrent layers in the LSTM (1-3).
         :batch_first (bool): Batch the first dimension?
         """
         super(LSTMClassifier, self).__init__()
         self.batch_first = batch_first
 
         self.itoh = nn.Linear(input_dim, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, no_layers, batch_first = batch_first)
-        self.htoo = nn.Linear(hidden_dim, no_classes)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first = batch_first)
+        self.htoo = nn.Linear(hidden_dim, output_dim)
 
         # Set the method for producing "probability" distribution.
         self.softmax = nn.LogSoftmax(dim = 1)
 
     def forward(self, sequence):
         """The forward step in the classifier.
-        :param sequence: The sequence to pass through the network.
+        :sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
         if not self.batch_first:
@@ -81,7 +81,7 @@ class MLPClassifier(nn.Module):
 
     def forward(self, sequence):
         """The forward step in the classifier.
-        :param sequence: The sequence to pass through the network.
+        :sequence: The sequence to pass through the network.
         :return scores: The "probability" distribution for the classes.
         """
         if self.batch_first:
@@ -115,24 +115,27 @@ class MLPClassifier(nn.Module):
 
 class CNNClassifier(nn.Module):
 
-    def __init__(self, window_sizes: base.List[int], num_filters: int, max_feats: int, hidden_dim: int, no_classes: int,
-                 batch_first = True, **kwargs):
+    def __init__(self, window_sizes: base.List[int], num_filters: int, max_feats: int, hidden_dim: int, output_dim: int,
+                 batch_first: bool = True, **kwargs):
         """Initialise the model.
-        :param window_sizes: The size of the filters (e.g. 1: unigram, 2: bigram, etc.)
-        :param no_filters: The number of filters to apply.
-        :param max_feats: The maximum length of the sequence to consider.
+        :window_sizes: The size of the filters (e.g. 1: unigram, 2: bigram, etc.)
+        :no_filters: The number of filters to apply.
+        :max_feats: The maximum length of the sequence to consider.
+        :hidden_dim (int): Hidden dimension size.
+        :output_dim (int): Output dimension.
+        :batch_first (bool, default: True): True if the batch is the first dimension.
         """
         super(CNNClassifier, self).__init__()
         self.batch_first = batch_first
 
         self.itoh = nn.Linear(max_feats, hidden_dim)  # Works
         self.conv = nn.ModuleList([nn.Conv2d(1, num_filters, (w, hidden_dim)) for w in window_sizes])
-        self.linear = nn.Linear(len(window_sizes) * num_filters, no_classes)
+        self.linear = nn.Linear(len(window_sizes) * num_filters, output_dim)
         self.softmax = nn.LogSoftmax(dim = 1)
 
     def forward(self, sequence):
         """The forward step of the model.
-        :param sequence: The sequence to be predicted on.
+        :sequence: The sequence to be predicted on.
         :return scores: The scores computed by the model.
         """
 
@@ -169,9 +172,9 @@ class RNNClassifier(nn.Module):
 
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int, batch_first: bool = True, **kwargs):
         """Initialise the RNN classifier.
-        :param input_dim: The dimension of the input to the network.
-        :param hidden_dim: The dimension of the hidden representation.
-        :param output_dim: The dimension of the output representation.
+        :input_dim: The dimension of the input to the network.
+        :hidden_dim: The dimension of the hidden representation.
+        :output_dim: The dimension of the output representation.
         :batch_first (bool): Is batch the first dimension?
         """
         super(RNNClassifier, self).__init__()
@@ -190,8 +193,8 @@ class RNNClassifier(nn.Module):
 
     def forward(self, sequence):
         """The forward step in the network.
-        :param inputs: The inputs to pass through network.
-        :param hidden: The hidden representation at the previous timestep.
+        :inputs: The inputs to pass through network.
+        :hidden: The hidden representation at the previous timestep.
         :return softmax, hidden: Return the "probability" distribution and the new hidden representation.
         """
         if not self.batch_first:
