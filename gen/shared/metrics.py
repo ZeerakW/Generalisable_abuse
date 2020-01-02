@@ -1,96 +1,25 @@
-from collections import OrderedDict
 from . import base
+from collections import OrderedDict
 from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_auc_score, confusion_matrix
 
 
-def select_metrics(metrics: base.List[str], lib: str) -> base.Dict[str, base.Callable]:
+def select_metrics(metrics: base.List[str]) -> base.Dict[str, base.Callable]:
     """Select metrics for computation based on a list of metric names.
-    :param metrics: List of metric names.
-    :param lib: Library used (options: ['sklearn', 'pytorch'])
+    :metrics: List of metric names.
     :return out: Dictionary containing name and methods.
     """
     out = OrderedDict()
     for m in metrics:
         m = m.lower()
         if 'accuracy' in m and 'accuracy' not in out:
-            out['accuracy'] = get_accuracy_func(lib)
+            out['accuracy'] = accuracy_score
         elif 'precision' in m and 'precision' not in out:
-            out['precision'] = get_precision_func(lib)
+            out['precision'] = precision_score
         elif 'recall' in m and 'recall' not in out:
-            out['recall'] = get_recall_func(lib)
+            out['recall'] = recall_score
         elif 'auc' in m and 'auc' not in out:
-            out['auc'] = get_auc_func(lib)
+            out['auc'] = roc_auc_score
         elif 'confusion' in m and 'confusion' not in out:
-            out['confusion'] = get_confusion_func(lib)
+            out['confusion'] = confusion_matrix
 
     return out
-
-
-def get_accuracy_func(lib: str) -> base.Callable:
-    """Select the accuracy computation function depending on the library.
-    :param lib: Library used.
-    :return func: Accuracy function.
-    """
-
-    if lib.lower == 'sklearn':
-        func = accuracy_score
-    else:
-        raise NotImplementedError
-
-    return func
-
-
-def get_precision_func(lib: str) -> base.Callable:
-    """Select the precision computation function depending on the library.
-    :param lib: Library used.
-    :return func: precision function.
-    """
-
-    if lib.lower == 'sklearn':
-        func = precision_score
-    else:
-        raise NotImplementedError
-
-    return func
-
-
-def get_recall_func(lib: str) -> base.Callable:
-    """Select the recall computation function depending on the library.
-    :param lib: Library used.
-    :return func: recall function.
-    """
-
-    if lib.lower == 'sklearn':
-        func = recall_score
-    else:
-        raise NotImplementedError
-
-    return func
-
-
-def get_auc_func(lib: str) -> base.Callable:
-    """Select the auc computation function depending on the library.
-    :param lib: Library used.
-    :return func: auc function.
-    """
-
-    if lib.lower == 'sklearn':
-        func = roc_auc_score
-    else:
-        raise NotImplementedError
-
-    return func
-
-
-def get_confusion_func(lib: str) -> base.Callable:
-    """Select the confusion_matrix computation function depending on the library.
-    :param lib: Library used.
-    :return func: confusion_matrix function.
-    """
-
-    if lib.lower == 'sklearn':
-        func = confusion_matrix
-    else:
-        raise NotImplementedError
-
-    return func
