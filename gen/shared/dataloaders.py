@@ -1,5 +1,5 @@
-from ..gen.shared import base
-from ..gen.shared.data import GeneralDataset
+from . import base
+from .data import GeneralDataset
 
 
 def _loader(args: dict):
@@ -180,10 +180,10 @@ def wulczyn(cleaners: base.Callable, preprocessor: base.Callable = None):
             'label_processor': None
             }
 
-    text = base.Fields('text', train = True, label = False, cname = 'comment')
-    label = base.Fields('label', train = False, label = True, cname = 'label')
-    idx = base.Fields('id', train = False, label = False)
-    ignore = base.Fields('ignore', train = False, label = False, ignore = True)
+    text = base.Field('text', train = True, label = False, cname = 'comment')
+    label = base.Field('label', train = False, label = True, cname = 'label')
+    idx = base.Field('id', train = False, label = False)
+    ignore = base.Field('ignore', train = False, label = False, ignore = True)
 
     args['fields'] = [idx, text, label, ignore]
 
