@@ -1,7 +1,9 @@
 import torch
 import unittest
 import torchtestcase
-from ..data import Field, GeneralDataset, Datapoint, Batch, BatchExtractor
+from ..data import GeneralDataset
+from ..base import Field, Datapoint
+from ..batching import Batch, BatchExtractor
 
 
 class TestDataSet(torchtestcase.TorchTestCase):
@@ -15,14 +17,14 @@ class TestDataSet(torchtestcase.TorchTestCase):
         cls.csv_dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/gen/shared/tests/',
                                          ftype = 'csv', fields = fields, train = 'train.csv', dev = None,
                                          test = 'test.csv', train_labels = None, tokenizer = lambda x: x.split(),
-                                         lower = True, preprocessor = None, transformations = None,
+                                         preprocessor = None, transformations = None,
                                          label_processor = None, sep = ',')
         cls.csv_dataset.load('train')
         cls.train = cls.csv_dataset.data
         cls.json_dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/gen/shared/tests/',
                                           ftype = 'json', fields = fields, train = 'train.json', dev = None,
                                           test = 'test.json', train_labels = None, tokenizer = lambda x: x.split(),
-                                          lower = True, preprocessor = None, transformations = None,
+                                          preprocessor = None, transformations = None,
                                           label_processor = None, sep = ',')
 
     @classmethod
@@ -297,7 +299,7 @@ class TestDataPoint(unittest.TestCase):
         cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/gen/shared/tests/',
                                          ftype = 'csv', fields = fields, train = 'train.csv', dev = None,
                                          test = 'test.csv', train_labels = None, tokenizer = lambda x: x.split(),
-                                         lower = True, preprocessor = None, transformations = None,
+                                         preprocessor = None, transformations = None,
                                          label_processor = None, sep = ',')
         cls.dataset.load('train')
         cls.train = cls.dataset.data
@@ -341,7 +343,7 @@ class TestBatch(unittest.TestCase):
         cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/data/',
                                      ftype = 'csv', fields = fields, train = 'davidson_test.csv', dev = None,
                                      test = None, train_labels = None, tokenizer = lambda x: x.split(),
-                                     lower = True, preprocessor = None, transformations = None,
+                                     preprocessor = None, transformations = None,
                                      label_processor = None, sep = ',')
         cls.dataset.load('train')
         cls.train = cls.dataset.data
@@ -420,7 +422,7 @@ class TestBatchGenerator(unittest.TestCase):
         cls.dataset = GeneralDataset(data_dir = '~/PhD/projects/active/Generalisable_abuse/data/',
                                      ftype = 'csv', fields = fields, train = 'davidson_test.csv', dev = None,
                                      test = None, train_labels = None, tokenizer = lambda x: x.split(),
-                                     lower = True, preprocessor = None, transformations = None,
+                                     preprocessor = None, transformations = None,
                                      label_processor = None, sep = ',')
         cls.dataset.load('train')
         cls.train = cls.dataset.data

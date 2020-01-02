@@ -8,13 +8,13 @@ from sklearn.base import ClassifierMixin, TransformerMixin
 
 class Field(object):
     """A class to set different properties of the individual fields."""
-    def __init__(self, name: str, train: bool, label: bool, ignore: bool = True, ix: int = None,
+    def __init__(self, name: str, train: bool = False, label: bool = False, ignore: bool = False, ix: int = None,
                  cname: str = None):
         """Initialize the field object. Each individual field is to hold information about that field only.
         :name (str): Name of the field.
-        :train (bool): Use for training.
-        :label (bool): Indicate if it is a label field.
-        :ignore (bool): Indicate whether to ignore the information in this field.
+        :train (bool, default = False): Use for training.
+        :label (bool, default = False): Indicate if it is a label field.
+        :ignore (bool, default = False): Indicate whether to ignore the information in this field.
         :ix (int, default = None): Index of the field in the splitted file. Only set this for [C|T]SV files.
         :cname (str, default = None): Name of the column (/field) in the file. Only set this for JSON objects.
         Example Use:
