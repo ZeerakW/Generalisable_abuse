@@ -1,11 +1,12 @@
+import sys
+sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse'])
 import torch
 import argparse
-from ..gen.shared import base
-from . import dataloaders as loaders
-from ..gen.shared.clean import Cleaner, Preprocessors
-from ..gen.shared.train import run_model
-from ..gen.shared.batching import Batch, BatchExtractor
-from ..gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
+from gen.shared import dataloaders as loaders
+from gen.shared.clean import Cleaner, Preprocessors
+from gen.shared.train import run_model
+from gen.shared.batching import Batch, BatchExtractor
+from gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
 
 
 def process_and_batch(dataset, data, batch_size):
@@ -26,34 +27,23 @@ def process_and_batch(dataset, data, batch_size):
     return batches
 
 
-def split_data(dataset, split_ratio: base.Union[base.List[float], float]):
-    """Load dataaset and split it.
-    :dataset: Dataset object to be loaded.
-    :split_ratio (base.Union[base.List[float], float]): Float or list of floats.
-    :returns: TODO
-    """
-    if dataset.test is None:
-        dataset.split(dataset.data, split_ratio)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Run Experiments to generalise models.")
 
     # For all models
     parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.")
-    parser.add_argument("--binary", help = "Reduce labels to binary classification", action = "store_true")
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = "mlp")
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200)
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 200)
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
-    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", default = None)
-    parser.add_argument("--metrics", help = "Set the metrics to be used.", default = "f1")
+    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", default = None, nargs = '+')
+    parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"])
 
     # Model (hyper) parameters
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300)
     parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128)
-    parser.add_argument("--window_size", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
+    parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128)
     parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100)
     parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.2)
@@ -63,7 +53,6 @@ if __name__ == "__main__":
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
-    parser.add_argument("--task", help = "Set experiment to run.", default = "classification")
 
     args = parser.parse_args()
 
@@ -76,8 +65,8 @@ if __name__ == "__main__":
                   'batch_first': True,
                   'metrics': args.metrics,
                   'dropout': args.dropout,
-                  'embedding_dim': args.embedding_dim,
-                  'hidden_dim': args.hidden_dim,
+                  'embedding_dim': args.embedding,
+                  'hidden_dim': args.hidden,
                   'window_sizes': args.window_sizes,
                   'num_filters': args.filters,
                   'max_feats': args.max_feats,
@@ -175,9 +164,6 @@ if __name__ == "__main__":
         run_model('pytorch', train = True, **train_args)
 
         for data in others:  # Test on other datasets.
-            # Split the data
-            split_data(data)
-
             # Process and batch the data
             batched = process_and_batch(main, data.test, args.batch_size)
 
