@@ -5,10 +5,11 @@ from tqdm import tqdm
 from . import base
 
 
-def run_model(library: str, train: bool, **kwargs):
+def run_model(library: str, train: bool, outf, **kwargs):
     """Train or evaluate model.
     :library (str): Library of the model.
     :train (bool): Whether it's a train or test run.
+    :outf (str): File to output model performance to.
     """
     if library == 'pytorch':
         func = train_pytorch_model if train else evaluate_pytorch_model

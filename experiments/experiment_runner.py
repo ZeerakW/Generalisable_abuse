@@ -1,11 +1,14 @@
+import sys
 import torch
 import argparse
-from ..gen.shared import base
-from . import dataloaders as loaders
-from ..gen.shared.clean import Cleaner, Preprocessors
-from ..gen.shared.train import run_model
-from ..gen.shared.batching import Batch, BatchExtractor
-from ..gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
+sys.path.extend(['/Users/zeerakw/PhD/projects/active/Generalisable_abuse/'])
+from gen.shared import base
+from gen.shared.train import run_model
+import gen.shared.dataloaders as loaders
+from gen.shared.metrics import select_metrics
+from gen.shared.clean import Cleaner, Preprocessors
+from gen.shared.batching import Batch, BatchExtractor
+from gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
 
 
 def process_and_batch(dataset, data, batch_size):
@@ -47,13 +50,13 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 200)
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
-    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", default = None)
+    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", default = "f1")
 
     # Model (hyper) parameters
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300)
     parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128)
-    parser.add_argument("--window_size", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
+    parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128)
     parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100)
     parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.2)
@@ -74,10 +77,10 @@ if __name__ == "__main__":
                   'loss_func': None,
                   'num_layers': 1,
                   'batch_first': True,
-                  'metrics': args.metrics,
+                  'metrics': select_metrics(args.metrics),
                   'dropout': args.dropout,
-                  'embedding_dim': args.embedding_dim,
-                  'hidden_dim': args.hidden_dim,
+                  'embedding_dim': args.embedding,
+                  'hidden_dim': args.hidden,
                   'window_sizes': args.window_sizes,
                   'num_filters': args.filters,
                   'max_feats': args.max_feats,
@@ -120,7 +123,7 @@ if __name__ == "__main__":
         others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
                   loaders.waseem_hovy(c, experiment)]
 
-    elif args.train == 'waseem-hovy':
+    elif args.train == 'waseem_hovy':
         main = loaders.waseem_hovy(c, experiment)
         others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
                   loaders.waseem(c, experiment)]
@@ -135,6 +138,7 @@ if __name__ == "__main__":
         others = [loaders.garcia(c, experiment), loaders.davidson(c, experiment), loaders.waseem_hovy(c, experiment),
                   loaders.waseem(c, experiment)]
 
+    __import__('pdb').set_trace()
     main.build_token_vocab(main.data)
     main.build_label_vocab(main.data)
 
