@@ -17,7 +17,7 @@ class GeneralDataset(IterableDataset):
                  test_labels: str = None, sep: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
                  label_processor: base.Callable = None, label_preprocessor: base.Callable = None,
-                 length: int = None, lower: bool = False) -> None:
+                 length: int = None, lower: bool = True) -> None:
         """Initialize the variables required for the dataset loading.
         :data_dir (str): Path of the directory containing the files.
         :ftype (str): ftype of the file ([C|T]SV and JSON accepted)
