@@ -89,7 +89,7 @@ def waseem(cleaners: base.Callable, preprocessor: base.Callable = None):
             'label_processor': waseem_to_binary
             }
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
-    label_field = base.Field('text', train = False, label = True, ignore = False, cname = 'Annotation')
+    label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'Annotation')
     args['fields'] = [text_field, label_field]
 
     return _loader(args)
@@ -114,7 +114,7 @@ def waseem_hovy(cleaners: base.Callable, preprocessor: base.Callable = None):
             'label_processor': waseem_to_binary
             }
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
-    label_field = base.Field('text', train = False, label = True, ignore = False, cname = 'Annotation')
+    label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'Annotation')
     args['fields'] = [text_field, label_field]
 
     return _loader(args)
