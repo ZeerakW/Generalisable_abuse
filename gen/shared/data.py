@@ -83,7 +83,7 @@ class GeneralDataset(IterableDataset):
             next(fp)
 
         data = []
-        for line in self.reader(fp):
+        for line in tqdm(self.reader(fp), desc = f'loading {dataset}'):
             data_line, datapoint = {}, base.Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:

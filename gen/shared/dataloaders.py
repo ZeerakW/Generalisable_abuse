@@ -86,10 +86,10 @@ def waseem(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_processor': waseem_to_binary
+            'label_preprocessor': waseem_to_binary
             }
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
-    label_field = base.Field('text', train = False, label = True, ignore = False, cname = 'Annotation')
+    label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'Annotation')
     args['fields'] = [text_field, label_field]
 
     return _loader(args)
@@ -111,10 +111,10 @@ def waseem_hovy(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_processor': waseem_to_binary
+            'label_preprocessor': waseem_to_binary
             }
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
-    label_field = base.Field('text', train = False, label = True, ignore = False, cname = 'Annotation')
+    label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'Annotation')
     args['fields'] = [text_field, label_field]
 
     return _loader(args)
@@ -146,11 +146,11 @@ def garcia(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_processor': streamline_garcia
+            'label_preprocessor': streamline_garcia
             }
 
-    text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
-    label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'label')
+    text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text', ix = 5)
+    label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'label', ix = 4)
     id_field = base.Field('idx', train = False, label = False, ignore = False)
     user_field = base.Field('user_idx', train = False, label = False, ignore = False, cname = 'user_id')
     ignore = base.Field('ignore', train = False, label = False, ignore = True)
@@ -177,11 +177,11 @@ def wulczyn(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_processor': None
+            'label_preprocessor': None
             }
 
-    text = base.Field('text', train = True, label = False, cname = 'comment')
-    label = base.Field('label', train = False, label = True, cname = 'label')
+    text = base.Field('text', train = True, label = False, cname = 'comment', ix = 1)
+    label = base.Field('label', train = False, label = True, cname = 'label', ix = 2)
     idx = base.Field('id', train = False, label = False)
     ignore = base.Field('ignore', train = False, label = False, ignore = True)
 
