@@ -17,6 +17,7 @@ class LSTMClassifier(nn.Module):
         """
         super(LSTMClassifier, self).__init__()
         self.batch_first = batch_first
+        self.name = 'lstm'
 
         self.itoh = nn.Linear(input_dim, embedding_dim)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers, batch_first = batch_first)
@@ -69,6 +70,7 @@ class MLPClassifier(nn.Module):
         """
         super(MLPClassifier, self).__init__()
         self.batch_first = batch_first
+        self.name = 'mlp'
 
         self.itoh = nn.Linear(input_dim, hidden_dim)
         self.htoh = nn.Linear(hidden_dim, hidden_dim)
@@ -127,6 +129,7 @@ class CNNClassifier(nn.Module):
         """
         super(CNNClassifier, self).__init__()
         self.batch_first = batch_first
+        self.name = 'cnn'
 
         self.itoh = nn.Linear(max_feats, hidden_dim)  # Works
         self.conv = nn.ModuleList([nn.Conv2d(1, num_filters, (w, hidden_dim)) for w in window_sizes])
@@ -179,6 +182,7 @@ class RNNClassifier(nn.Module):
         """
         super(RNNClassifier, self).__init__()
         self.batch_first = batch_first
+        self.name = 'rnn'
 
         # Initialise the hidden dim
         self.hidden_dim = hidden_dim

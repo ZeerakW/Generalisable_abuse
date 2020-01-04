@@ -1,41 +1,60 @@
 import torch
-from collections import defaultdict
 import numpy as np
-from tqdm import tqdm
 from . import base
+from tqdm import tqdm
+from collections import defaultdict
 
 
-def run_model(library: str, train: bool, outf, **kwargs):
+def write_results(writer: base.Callable, train_scores: dict, train_loss: list, dev_scores: dict, dev_loss: list,
+                  epochs: int, model_info: list, metrics: list, exp_len) -> None:
+    """Write results to file.
+    :writer (base.Callable): Path to file.
+    :train_scores (dict): Train scores.
+    :train_loss (list): Train losses.
+    :dev_scores (dict): Dev scores.
+    :dev_loss (list): Dev losses.
+    :epochs (int): Epochs.
+    :model_info (list): Model info.
+    :metrics (list): Model info.
+    """
+    for i in range(epochs):
+        out = [i] + model_info + [train_scores[m][i] for m in metrics] + train_loss[i]
+
+        if dev_scores:
+            out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]
+
+        row_len = len(out)
+        if row_len < exp_len:
+            out += [''] * row_len - exp_len
+        elif row_len > exp_len:
+            __import__('pdb').set_trace()
+
+        writer.writerow(out)
+
+
+def run_model(library: str, train: bool, writer: base.Callable, model_info: list, metrics: list, head_len: int,
+              **kwargs):
     """Train or evaluate model.
     :library (str): Library of the model.
     :train (bool): Whether it's a train or test run.
-    :outf (str): File to output model performance to.
+    :writer (csv.writer): File to output model performance to.
+    :model_info (list): Information about the model to be added to each line of the output.
+    :metrics (list): List of metrics in order.
+    :head_len (int): The length of the header.
     """
-    if library == 'pytorch':
-        func = train_pytorch_model if train else evaluate_pytorch_model
-        return func(**kwargs)
-    else:  # It's sklearn
-        if train:
-            model = train_sklearn_model(**kwargs)  # Get model
-            return model
-        else:
-            evals = evaluate_sklearn_model(**kwargs)  # Get evaluation
-            return evals
 
+    if train:
+        func = train_pytorch_model if library == 'pytorch' else train_sklearn_model
+    else:
+        func = evaluate_pytorch_model if library == 'pytorch' else evaluate_sklearn_model
 
-def train_sklearn_model(arg1):
-    """TODO: Docstring for train_sklearn_model.
-
-    :arg1: TODO
-    :returns: TODO
-
-    """
-    pass
+    train_loss, dev_loss, train_scores, dev_scores = func(**kwargs)
 
 
 def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataType, loss_func: base.Callable,
                         optimizer: base.Callable, metrics: base.Dict[str, base.Callable],
-                        dev_batches: base.DataType = None, display_metric: str = 'accuracy'):
+                        dev_batches: base.DataType = None,
+                        display_metric: str = 'accuracy') -> base.Union[list, int, dict, dict]:
     """Train a machine learning model.
     :model (base.ModelType): Untrained model to be trained.
     :epochs (int): The number of epochs to run.
@@ -52,18 +71,21 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
     train_loss = []
     train_scores = defaultdict(list)
 
+    dev_losses = []
+    dev_scores = defaultdict(list)
+
     for epoch in tqdm(range(epochs)):  # TODO Get TQDM to show the scores for each epoch
 
         model.zero_grad()  # Zero out gradients
         epoch_loss = []
         epoch_scores = defaultdict(list)
 
-        for X, y in tqdm(batches):  # TODO Get TQDM to show the scores for each batch
+        for X, y in batches:
             scores = model(X)
             scores = torch.argmax(scores, 1)
 
             loss = loss_func(scores, y)
-            epoch_loss.append(float(loss))
+            epoch_loss.append(float(loss.item()))
 
             # Update steps
             loss.backward()
@@ -73,7 +95,6 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
                 performance = scorer(scores, y)
                 epoch_scores[metric].append(performance)
 
-            # batch_performance = epoch_scores[display_metric][-1]  TODO
         # epoch_performance = np.mean(epoch_scores[display_metric])  TODO
 
         train_loss.append(sum(epoch_loss))
@@ -82,20 +103,14 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
             train_scores[metric].append(np.mean(epoch_scores[metric]))
 
         if dev_batches:
-            dev_loss, dev_scores = evaluate_pytorch_model(model, dev_batches, loss_func, metrics)
+            dev_loss, _, dev_score, _ = evaluate_pytorch_model(model, dev_batches, loss_func, metrics)
+            dev_losses.append(dev_loss)
+
+            for score in dev_score:
+                dev_scores[score].append(dev_score[score])
             # dev_performance = dev_performance[display_metric]  TODO
 
-    return train_loss, dev_loss, train_scores, dev_scores
-
-
-def evaluate_sklearn_model(arg1):
-    """TODO: Docstring for evaluate_sklearn_model.
-
-    :arg1: TODO
-    :returns: TODO
-
-    """
-    pass
+    return train_loss, dev_losses, train_scores, dev_scores
 
 
 def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_func: base.Callable,
@@ -107,20 +122,44 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
     :metrics (base.Dict[str, base.Callable])): Metrics to use.
     """
     model.train_mode = False
-    dev_loss = []
-    dev_scores = defaultdict(list)
+    loss = []
+    scores = defaultdict(list)
 
     with torch.no_grad():
         for X, y in iterator:
             scores = model(X)
             scores = torch.argmax(scores, 1)
 
-            loss = loss_func(scores, y)
+            loss_f = loss_func(scores, y)
 
             for metric, scorer in metrics.items():
                 performance = scorer(scores, y)
-                dev_scores[metric].append(performance)
+                scores[metric].append(performance)
 
-            dev_loss.append(loss.item())
+            loss.append(loss_f.item())
 
-    return np.mean(dev_loss), {m: np.mean(vals) for m, vals in dev_scores.items()}
+    return np.mean(loss), None, {m: np.mean(vals) for m, vals in scores.items()}, None
+
+
+def train_sklearn_model(arg1):
+    """TODO: Docstring for train_sklearn_model.
+
+    :arg1: TODO
+    :returns: TODO
+
+    """
+    train_scores, dev_scores = None, None
+    raise NotImplementedError
+    return None, None, train_scores, dev_scores
+
+
+def evaluate_sklearn_model(arg1):
+    """TODO: Docstring for evaluate_sklearn_model.
+
+    :arg1: TODO
+    :returns: TODO
+
+    """
+    train_scores, dev_scores = None, None
+    raise NotImplementedError
+    return None, None, train_scores, dev_scores
