@@ -1,10 +1,13 @@
 import sys
-sys.path.extend(['/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse'])
+import csv
 import torch
 import argparse
-from gen.shared import dataloaders as loaders
-from gen.shared.clean import Cleaner, Preprocessors
+sys.path.extend(['/Users/zeerakw/PhD/projects/active/Generalisable_abuse/'])
+from gen.shared import base
 from gen.shared.train import run_model
+import gen.shared.dataloaders as loaders
+from gen.shared.metrics import select_metrics
+from gen.shared.clean import Cleaner, Preprocessors
 from gen.shared.batching import Batch, BatchExtractor
 from gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
 
@@ -37,12 +40,14 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 200)
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
-    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", default = None, nargs = '+')
-    parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"])
+    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
+    parser.add_argument("--metrics", help = "Set the metrics to be used.", default = "f1")
+    parser.add_argument("--display", help = "Metric to display in TQDM loops.")
 
     # Model (hyper) parameters
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300)
     parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128)
+    parser.add_argument("--layers", help = "Set the number of layers.", default = 1)
     parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128)
     parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100)
@@ -63,7 +68,7 @@ if __name__ == "__main__":
                   'loss_func': None,
                   'num_layers': 1,
                   'batch_first': True,
-                  'metrics': args.metrics,
+                  'metrics': select_metrics(args.metrics),
                   'dropout': args.dropout,
                   'embedding_dim': args.embedding,
                   'hidden_dim': args.hidden,
@@ -109,7 +114,7 @@ if __name__ == "__main__":
         others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
                   loaders.waseem_hovy(c, experiment)]
 
-    elif args.train == 'waseem-hovy':
+    elif args.train == 'waseem_hovy':
         main = loaders.waseem_hovy(c, experiment)
         others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
                   loaders.waseem(c, experiment)]
@@ -139,29 +144,63 @@ if __name__ == "__main__":
     # Set models
     if args.model == 'mlp':
         models = [MLPClassifier(**train_args)]
-
-    elif args.model == 'cnn':
-        models = [CNNClassifier(**train_args)]
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'dropout']
+        model_info = {'mlp': ['mlp', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
+                              train_args['output_dim'], train_args['dropout']]}
 
     elif args.model == 'lstm':
         models = [LSTMClassifier(**train_args)]
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'num layers']
+        model_info = {'lstm': ['lstm', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
+                               train_args['output'], train_args['num_layers']]}
 
     elif args.model == 'rnn':
         models = [RNNClassifier(**train_args)]
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output']
+        model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
+                              train_args['output'], train_args['num_layers']]}
+
+    elif args.model == 'cnn':
+        models = [CNNClassifier(**train_args)]
+        model_header = ['epoch', 'model', 'window sizes', 'num filters', 'max feats', 'hidden dim', 'output dim']
+        model_info = {'cnn': ['cnn', train_args['window_sizes'], train_args['num_filters'], train_args['max_feats'],
+                              train_args['hidden_dim'], train_args['output_dim']]}
 
     elif args.model == 'all':
+        model_header = ['epoch', 'model', 'input dim', 'hidden dim', 'embedding dim', 'dropout', 'window sizes',
+                        'num filters', 'max feats', 'output dim']
+        model_info = {'all': [train_args['input_dim'], train_args['hidden_dim'], train_args['embedding_dim'],
+                              train_args['dropout'], train_args['window_sizes'], train_args['num_filters'],
+                              train_args['max_feats'], train_args['output_dim']]}
+
         models = [MLPClassifier(**train_args),
                   CNNClassifier(**train_args),
                   LSTMClassifier(**train_args),
                   RNNClassifier(**train_args)]
 
+    # Initialize writers
+    train_writer = csv.writer(open(args.results + '_train', 'a', encoding = 'utf-8'), delimiter = '\t')
+    test_writer = csv.writer(open(args.results + '_test', 'a', encoding = 'utf-8'), delimiter = '\t')
+
+    # Create header
+    metrics = train_args['metrics'].keys()
+    header = model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
+    train_writer.writerow(header)
+    test_writer.writerow(header)
+
     for model in models:
+        if args.model == 'all':
+            info = [model.name] + model_info['all']
+        else:
+            info = [model.name] + model_info[model.name]
+
         # Explains losses:
         # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
         train_args['loss_func'] = torch.nn.NLLLoss() if args.loss.lower() == 'nlll' else torch.nn.CrossEntropyLoss()
         train_args['optimizer'] = torch.optim.adam(model.parameters(), args.learning_rate)
 
-        run_model('pytorch', train = True, **train_args)
+        run_model('pytorch', train = True, writer = train_writer, model_info = info, metrics = metrics,
+                  head_len = len(header), **train_args)
 
         for data in others:  # Test on other datasets.
             # Process and batch the data

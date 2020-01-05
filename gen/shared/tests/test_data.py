@@ -101,6 +101,18 @@ class TestDataSet(torchtestcase.TorchTestCase):
         expected = 25
         self.assertEqual(output, expected, msg = 'Building vocab failed.')
 
+    def test_vocab_limiter(self):
+        """Test vocab limiter."""
+        self.csv_dataset.build_token_vocab(self.train)
+
+        def limiter(vocab, n = 2):
+            return {ix: tok for ix, (tok, c) in enumerate(vocab.most_common()) if c >= n}
+
+        self.csv_dataset.limit_vocab(limiter, n = 2)
+        output = [tok for tok in self.csv_dataset.stoi]
+        expected = ['me', 'it', 'to', 'no', 'sea', 'idea', '<pad>', '<unk>']
+        self.assertListEqual(output, expected, msg = "Limiting vocab failed.")
+
     def test_build_label_vocab(self):
         """Test building label vocab."""
         self.csv_dataset.build_label_vocab(self.train)

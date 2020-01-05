@@ -17,7 +17,7 @@ class GeneralDataset(IterableDataset):
                  test_labels: str = None, sep: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
                  label_processor: base.Callable = None, label_preprocessor: base.Callable = None,
-                 length: int = None, lower: bool = False) -> None:
+                 length: int = None, lower: bool = True) -> None:
         """Initialize the variables required for the dataset loading.
         :data_dir (str): Path of the directory containing the files.
         :ftype (str): ftype of the file ([C|T]SV and JSON accepted)
@@ -83,7 +83,7 @@ class GeneralDataset(IterableDataset):
             next(fp)
 
         data = []
-        for line in self.reader(fp):
+        for line in tqdm(self.reader(fp), desc = f'loading {dataset}'):
             data_line, datapoint = {}, base.Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:
@@ -227,7 +227,7 @@ class GeneralDataset(IterableDataset):
                     self.token_counts.update(getattr(doc, getattr(f, 'name')))
 
         self.token_counts.update({'<unk>': int(np.mean(list(self.token_counts.values())))})
-        self.token_counts.update({'<pad>': 0})
+        self.token_counts.update({'<pad>': int(np.mean(list(self.token_counts.values())))})
 
         self.itos = {ix: tok for ix, (tok, _) in enumerate(self.token_counts.most_common())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
@@ -243,6 +243,16 @@ class GeneralDataset(IterableDataset):
                 self.token_counts.update(tokens)
                 self.itos.update({start_ix + ix: tok for ix, tok in enumerate(tokens) if tok not in self.stoi.values()})
 
+        self.stoi = {tok: ix for ix, tok in self.itos.items()}
+
+    def limit_vocab(self, limiter: base.Callable, **kwargs) -> None:
+        """Limit vocabulary using a function that returns a new vocabulary.
+        :limiter (base.Callable): Function to limit the vocabulary.
+        :kwargs: All arguments needed for the limiter function.
+        """
+        self.itos = limiter(self.token_counts, **kwargs)
+        self.itos[len(self.itos)] = '<pad>'
+        self.itos[len(self.itos)] = '<unk>'
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
 
     def vocab_size(self) -> int:
