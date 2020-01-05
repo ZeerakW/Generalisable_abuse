@@ -14,11 +14,38 @@ class Preprocessors(object):
         self.liwc_dict = None
         self.slurs = None
 
-    def slur_replacement(self, doc):
+    @classmethod
+    def word_length(self, doc: base.DocType):
+        """Represent sentence as the length of each token.
+        :doc (base.DocType): Document to be processed.
+        :returns: Processed document.
+        """
+        return [len(tok) for tok in doc]
+
+    def load_slurs(self):
+        self.slurs = None
+        # TODO Update this with a slur list
+
+    def slur_replacement(self, doc, window_size: int):
         """Produce documents where slurs are replaced.
         :doc (base.List[str]): Document to be processed.
+        :window_size (int): Size of the window.
         :returns: processed document
         """
+        if self.slurs is not None:
+            self.slurs = self.load_slurs()
+
+        pos = [tok for tok in self.tagger(" ".join(doc))]
+        for i in range(doc):
+            if doc[i] in self.slurs:
+                if i < window_size:
+                    pass
+                elif i + window_size > len(doc):
+                    pass
+                else:
+                    # Replace tokens before and after token.
+                    pass
+
         raise NotImplementedError
 
     def word_token(self, doc: base.List[str]):
@@ -35,7 +62,7 @@ class Preprocessors(object):
         :returns toks: Document that has been passed through spacy's tagger.
         """
         self.processes = processes if processes else self.processes
-        toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
+        toks = [tok.tag_ for tok in self.tagger(" ".join(document))]
         return toks
 
     def read_liwc(self) -> dict:
