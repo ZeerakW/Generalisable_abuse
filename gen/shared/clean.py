@@ -10,16 +10,67 @@ class Preprocessors(object):
     def __init__(self):
         """Initialise cleaner class.
         """
-        self.tagger = spacy.load('en')
+        self.tagger = spacy.load('en', disable = ['ner', 'parser'])
         self.liwc_dict = None
         self.slurs = None
+        self.slur_window = None
 
-    def slur_replacement(self, doc):
+    def word_length(self, doc: base.DocType):
+        """Represent sentence as the length of each token.
+        :doc (base.DocType): Document to be processed.
+        :returns: Processed document.
+        """
+        return [len(tok) for tok in doc]
+
+    def syllable_count(self, doc: base.DocType) -> base.List[int]:
+        """Represent sentence as the syllable count for each word.
+        :doc (base.DocType): Document to be processed.
+        :returns: Processed document.
+        """
+        return [self._syllable_counter(tok) for tok in doc]
+
+    def _syllable_counter(self, tok: str) -> int:
+        """Calculate syllables for each token.
+        :tok (str): The token to be analyzed.
+        :returns count (int): The number of syllables in the word.
+        """
+        count = 0
+        vowels = 'aeiouy'
+        exceptions = ['le', 'es', 'e']
+        prev_char = None
+
+        for i in tok:
+            if i == len(tok) and (prev_char + tok[i] in exceptions or tok[i] in exceptions):
+                prev_char = tok[i]
+                continue
+            if (tok[i] in vowels) and (prev_char not in vowels and not prev_char):
+                prev_char = tok[i]
+                count += 1
+
+    def load_slurs(self):
+        self.slurs = None
+        # TODO Update this with a slur list
+
+    def slur_replacement(self, doc: base.DocType):
         """Produce documents where slurs are replaced.
         :doc (base.List[str]): Document to be processed.
-        :returns: processed document
+        :returns doc: processed document
         """
-        raise NotImplementedError
+        if self.slurs is not None:
+            self.slurs = self.load_slurs()
+
+        pos = [tok for tok in self.tagger(" ".join(doc))]
+
+        for i in range(doc):
+            if doc[i] in self.slurs:
+                doc[i] = pos[i]
+
+                min_pos = 0 if i - self.slur_window < 0 else i - self.slur_window
+                max_pos = len(doc) - 1 if i + self.slur_window > len(doc) - 1 else i + self.slur_window
+
+                for j in range(min_pos, max_pos, 1):  # Replace within window
+                    doc[j] = pos[j]
+        return doc
 
     def word_token(self, doc: base.List[str]):
         """Produce word tokens.
@@ -35,7 +86,7 @@ class Preprocessors(object):
         :returns toks: Document that has been passed through spacy's tagger.
         """
         self.processes = processes if processes else self.processes
-        toks = [tok.tag_ for tok in self.tagger(self.clean_document(document))]
+        toks = [tok.tag_ for tok in self.tagger(" ".join(document))]
         return toks
 
     def read_liwc(self) -> dict:
@@ -112,7 +163,7 @@ class Cleaner(object):
         :processes base.List[str]: Cleaning operations to be taken.
         """
         self.processes = processes
-        self.tagger = spacy.load('en')
+        self.tagger = spacy.load('en', disable = ['ner', 'parser', 'textcats'])
         self.liwc_dict = None
 
     def clean_document(self, text: base.DocType, processes: base.List[str] = None):

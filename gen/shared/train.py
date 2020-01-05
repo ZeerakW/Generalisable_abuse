@@ -3,6 +3,25 @@ import numpy as np
 from . import base
 from tqdm import tqdm
 from collections import defaultdict
+from gen.shared.batching import Batch, BatchExtractor
+
+
+def process_and_batch(dataset, data, batch_size):
+    """Process a dataset and data.
+    :dataset: A dataset object.
+    :data: Data to be processed.
+    :returns: Processed data.
+    """
+    # Process labels and encode data.
+    dataset.process_labels(data)
+    encoded = dataset.encode(data, onehot = True)
+
+    # Batch data
+    batch = Batch(batch_size, encoded)
+    batch.create_batches()
+    batches = BatchExtractor('encoded', 'label', batch)
+
+    return batches
 
 
 def write_results(writer: base.Callable, train_scores: dict, train_loss: list, dev_scores: dict, dev_loss: list,

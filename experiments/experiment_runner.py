@@ -3,41 +3,11 @@ import csv
 import torch
 import argparse
 sys.path.extend(['/Users/zeerakw/PhD/projects/active/Generalisable_abuse/'])
-from gen.shared import base
-from gen.shared.train import run_model
+from gen.shared.train import run_model, process_and_batch
 import gen.shared.dataloaders as loaders
 from gen.shared.metrics import select_metrics
 from gen.shared.clean import Cleaner, Preprocessors
-from gen.shared.batching import Batch, BatchExtractor
 from gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
-
-
-def process_and_batch(dataset, data, batch_size):
-    """Process a dataset and data.
-    :dataset: A dataset object.
-    :data: Data to be processed.
-    :returns: Processed data.
-    """
-    # Process labels and encode data.
-    dataset.process_labels(data)
-    encoded = dataset.encode(data, onehot = True)
-
-    # Batch data
-    batch = Batch(batch_size, encoded)
-    batch.create_batches()
-    batches = BatchExtractor('encoded', 'label', batch)
-
-    return batches
-
-
-def split_data(dataset, split_ratio: base.Union[base.List[float], float]):
-    """Load dataaset and split it.
-    :dataset: Dataset object to be loaded.
-    :split_ratio (base.Union[base.List[float], float]): Float or list of floats.
-    :returns: TODO
-    """
-    if dataset.test is None:
-        dataset.split(dataset.data, split_ratio)
 
 
 if __name__ == "__main__":
@@ -45,7 +15,6 @@ if __name__ == "__main__":
 
     # For all models
     parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.")
-    parser.add_argument("--binary", help = "Reduce labels to binary classification", action = "store_true")
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = "mlp")
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200)
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 200)
@@ -69,7 +38,7 @@ if __name__ == "__main__":
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
-    parser.add_argument("--task", help = "Set experiment to run.", default = "classification")
+    parser.add_argument("--slur_window", help = "Set window size for slur replacement.")
 
     args = parser.parse_args()
 
@@ -115,6 +84,16 @@ if __name__ == "__main__":
 
     elif args.experiment in ['ptb', 'pos']:
         experiment = p.ptb_tokenize
+
+    elif args.experiment == 'length':
+        experiment = p.word_length
+
+    elif args.experiment == 'syllable':
+        experiment = p.syllable_count
+
+    elif args.experiment == 'slur':
+        p.slur_window = args.slur_window
+        experiement = p.slur_replacement
 
     if args.train == 'davidson':
         main = loaders.davidson(c, experiment)
@@ -215,9 +194,6 @@ if __name__ == "__main__":
                   head_len = len(header), **train_args)
 
         for data in others:  # Test on other datasets.
-            # Split the data
-            split_data(data)
-
             # Process and batch the data
             batched = process_and_batch(main, data.test, args.batch_size)
 
