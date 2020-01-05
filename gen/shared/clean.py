@@ -13,6 +13,7 @@ class Preprocessors(object):
         self.tagger = spacy.load('en', disable = ['ner', 'parser'])
         self.liwc_dict = None
         self.slurs = None
+        self.slur_window = None
 
     def word_length(self, doc: base.DocType):
         """Represent sentence as the length of each token.
@@ -50,10 +51,9 @@ class Preprocessors(object):
         self.slurs = None
         # TODO Update this with a slur list
 
-    def slur_replacement(self, doc, window_size: int):
+    def slur_replacement(self, doc: base.DocType):
         """Produce documents where slurs are replaced.
         :doc (base.List[str]): Document to be processed.
-        :window_size (int): Size of the window.
         :returns doc: processed document
         """
         if self.slurs is not None:
@@ -65,12 +65,11 @@ class Preprocessors(object):
             if doc[i] in self.slurs:
                 doc[i] = pos[i]
 
-                min_pos = 0 if i - window_size < 0 else i - window_size
-                max_pos = len(doc) - 1 if i + window_size > len(doc) - 1 else i + window_size
+                min_pos = 0 if i - self.slur_window < 0 else i - self.slur_window
+                max_pos = len(doc) - 1 if i + self.slur_window > len(doc) - 1 else i + self.slur_window
 
                 for j in range(min_pos, max_pos, 1):  # Replace within window
                     doc[j] = pos[j]
-
         return doc
 
     def word_token(self, doc: base.List[str]):
