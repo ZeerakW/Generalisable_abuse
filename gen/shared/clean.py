@@ -56,20 +56,18 @@ class Preprocessors(object):
         :doc (base.List[str]): Document to be processed.
         :returns doc: processed document
         """
-        if self.slurs is not None:
+        if self.slurs is None:
             self.slurs = self.load_slurs()
 
+        slur_loc = [i for i, tok in enumerate(doc) if tok in self.slurs]
         pos = [tok for tok in self.tagger(" ".join(doc))]
 
-        for i in range(doc):
-            if doc[i] in self.slurs:
+        for ix in slur_loc:  # Only look at the indices where slurs exist
+            min_ix = 0 if ix - self.slur_window < 0 else ix - self.slur_window
+            max_ix = len(doc) - 1 if ix + self.slur_window > len(doc) - 1 else ix + self.slur_window
+
+            for i in range(min_ix, max_ix, 1):  # Do replacements within the window
                 doc[i] = pos[i]
-
-                min_pos = 0 if i - self.slur_window < 0 else i - self.slur_window
-                max_pos = len(doc) - 1 if i + self.slur_window > len(doc) - 1 else i + self.slur_window
-
-                for j in range(min_pos, max_pos, 1):  # Replace within window
-                    doc[j] = pos[j]
         return doc
 
     def word_token(self, doc: base.List[str]):

@@ -101,7 +101,6 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
 
         for X, y in batches:
             scores = model(X)
-            scores = torch.argmax(scores, 1)
 
             loss = loss_func(scores, y)
             epoch_loss.append(float(loss.item()))
@@ -110,6 +109,7 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
             loss.backward()
             optimizer.step()
 
+            scores = torch.argmax(scores, 1)
             for metric, scorer in metrics.items():
                 performance = scorer(scores, y)
                 epoch_scores[metric].append(performance)
@@ -147,10 +147,10 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
     with torch.no_grad():
         for X, y in iterator:
             scores = model(X)
-            scores = torch.argmax(scores, 1)
 
             loss_f = loss_func(scores, y)
 
+            scores = torch.argmax(scores, 1)
             for metric, scorer in metrics.items():
                 performance = scorer(scores, y)
                 scores[metric].append(performance)
