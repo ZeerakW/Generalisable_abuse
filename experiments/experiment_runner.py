@@ -63,7 +63,7 @@ if __name__ == "__main__":
     eval_args = {'model': None,
                  'iterator': None,
                  'loss_func': None,
-                 'metrics': None
+                 'metrics': train_args['metrics']
                  }
     c = Cleaner(args.cleaners)
     p = Preprocessors()
@@ -205,13 +205,15 @@ if __name__ == "__main__":
         # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
         train_args['loss_func'] = train_args['loss_func']()
         train_args['optimizer'] = train_args['optimizer'](model.parameters(), args.learning_rate)
+        train_args['data_name'] = main.name
 
         run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(header),
                   **train_args)
 
         for data in others:  # Test on other datasets.
             # Process and batch the data
-            batched = process_and_batch(main, data.test, args.batch_size)
+            eval_args['iterator'] = process_and_batch(main, data.test, args.batch_size)
+            eval_args['data_name'] = data.name
 
             # Set up the model arguments
             eval_args['model'] = model

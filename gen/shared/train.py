@@ -25,7 +25,7 @@ def process_and_batch(dataset, data, batch_size):
 
 
 def write_results(writer: base.Callable, train_scores: dict, train_loss: list, dev_scores: dict, dev_loss: list,
-                  epochs: int, model_info: list, metrics: list, exp_len, **kwargs) -> None:
+                  epochs: int, model_info: list, metrics: list, exp_len: int, data_name: str, **kwargs) -> None:
     """Write results to file.
     :writer (base.Callable): Path to file.
     :train_scores (dict): Train scores.
@@ -35,16 +35,19 @@ def write_results(writer: base.Callable, train_scores: dict, train_loss: list, d
     :epochs (int): Epochs.
     :model_info (list): Model info.
     :metrics (list): Model info.
+    :exp_len (int): Expected length of each line.
+    :data_name (str): Dataset object.
     """
     for i in range(epochs):
-        out = [i] + model_info + [train_scores[m][i] for m in metrics] + [train_loss[i]]
+        out = [data_name] + [i] + model_info  # Base info
+        out += [train_scores[m][i] for m in metrics] + [train_loss[i]]  # Train info
 
         if dev_scores:
-            out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]
+            out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]  # Dev info
 
         row_len = len(out)
         if row_len < exp_len:
-            out += [''] * row_len - exp_len
+            out += [''] * (row_len - exp_len)
         elif row_len > exp_len:
             __import__('pdb').set_trace()
 
@@ -59,8 +62,6 @@ def run_model(library: str, train: bool, writer: base.Callable, model_info: list
     :model_info (list): Information about the model to be added to each line of the output.
     :head_len (int): The length of the header.
     """
-    # TODO Finish this so that the the output is also written.
-
     if train:
         func = train_pytorch_model if library == 'pytorch' else train_sklearn_model
     else:
