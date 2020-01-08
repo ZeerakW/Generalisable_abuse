@@ -39,11 +39,14 @@ def write_results(writer: base.Callable, train_scores: dict, train_loss: list, d
     :data_name (str): Dataset object.
     """
     for i in range(epochs):
-        out = [data_name] + [i] + model_info  # Base info
-        out += [train_scores[m][i] for m in metrics] + [train_loss[i]]  # Train info
+        try:
+            out = [data_name] + [i] + model_info  # Base info
+            out += [train_scores[m][i] for m in metrics] + [train_loss[i]]  # Train info
 
-        if dev_scores:
-            out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]  # Dev info
+            if dev_scores:
+                out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]  # Dev info
+        except IndexError as e:
+            __import__('pdb').set_trace()
 
         row_len = len(out)
         if row_len < exp_len:
@@ -125,10 +128,10 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
 
         if dev_batches:
             dev_loss, _, dev_score, _ = evaluate_pytorch_model(model, dev_batches, loss_func, metrics)
-            dev_losses.append(dev_loss)
+            dev_losses.extend(dev_loss)
 
             for score in dev_score:
-                dev_scores[score].append(dev_score[score])
+                dev_scores[score].extend(dev_score[score])
             # dev_performance = dev_performance[display_metric]  TODO
 
     return train_loss, dev_losses, train_scores, dev_scores
@@ -159,7 +162,7 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
 
             loss.append(loss_f.item())
 
-    return np.mean(loss), None, {m: np.mean(vals) for m, vals in eval_scores.items()}, None
+    return [np.mean(loss)], None, {m: [np.mean(vals)] for m, vals in eval_scores.items()}, None
 
 
 def train_sklearn_model(arg1):

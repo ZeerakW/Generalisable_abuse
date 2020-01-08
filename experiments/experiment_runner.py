@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4], type = int)
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int)
     parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100, type = int)
-    parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.2, type = float)
+    parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.0, type = float)
     parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam')
     parser.add_argument("--loss", help = "Loss to use.", default = 'NLLL')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01, type = float)
@@ -189,9 +189,10 @@ if __name__ == "__main__":
 
     # Create header
     metrics = list(train_args['metrics'].keys())
-    header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
-    train_writer.writerow(header)
-    test_writer.writerow(header)
+    train_header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
+    test_header = ['dataset'] + model_header + metrics + ['loss']
+    train_writer.writerow(train_header)
+    test_writer.writerow(test_header)
 
     for model in models:
         train_args['model'] = model
@@ -207,17 +208,19 @@ if __name__ == "__main__":
         train_args['optimizer'] = train_args['optimizer'](model.parameters(), args.learning_rate)
         train_args['data_name'] = main.name
 
-        run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(header),
+        run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                   **train_args)
 
         for data in others:  # Test on other datasets.
             # Process and batch the data
-            eval_args['iterator'] = process_and_batch(main, data.test, args.batch_size)
+            eval_args['iterator'] = process_and_batch(main, data.test, len(data.test))
             eval_args['data_name'] = data.name
+            eval_args['epochs'] = 1
 
             # Set up the model arguments
             eval_args['model'] = model
             eval_args['loss_func'] = train_args['loss_func']
 
             # Run the model
-            run_model('pytorch', train = False, **eval_args)
+            run_model('pytorch', train = False, writer = test_writer, model_info = info, head_len = len(test_header),
+                      **eval_args)
