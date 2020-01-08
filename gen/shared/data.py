@@ -372,6 +372,7 @@ class GeneralDataset(IterableDataset):
         :data (base.DataType): List of datapoints to be encoded.
         :onehot (bool, default = True): Set to true to onehot encode the documenbase.
         """
+        # TODO Names need to be the same for all datasets used.
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
         for doc in tqdm(data, desc = "Encoding data"):
@@ -381,13 +382,17 @@ class GeneralDataset(IterableDataset):
 
     def onehot_encode_doc(self, doc, names):
         """Onehot encode a single documenbase."""
-        # If we have an index encoded document including padding and unks
-        # then create a
         text = [tok for name in names for tok in getattr(doc, name)]
         encoded_doc = torch.zeros(1, self.length, len(self.stoi))
 
+        if len(text) < self.length:  # For externally loaded datasets
+            text = self._pad_doc(text, self.length)
+
         for ix in range(self.length):
-            tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
+            try:
+                tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
+            except IndexError:
+                __import__('pdb').set_trace()
             encoded_doc[0][ix][tok_ix] = 1
         setattr(doc, 'encoded', encoded_doc)
 
