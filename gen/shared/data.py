@@ -79,11 +79,13 @@ class GeneralDataset(IterableDataset):
         :dataset (str, default = 'train'): Dataset to load. Must exist as key in self.data_files.
         """
         fp = open(self.data_files[dataset])
+        filename = self.data_files[dataset].split('/')[-1].split('.')[0]
+
         if skip_header:
             next(fp)
 
         data = []
-        for line in tqdm(self.reader(fp), desc = f'loading {dataset}'):
+        for line in tqdm(self.reader(fp), desc = f'loading {filename} ({dataset})'):
             data_line, datapoint = {}, base.Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:
@@ -113,9 +115,6 @@ class GeneralDataset(IterableDataset):
 
         data = self.pad(data, self.length)
 
-        # TODO Think about this some more. Fine to run this when extending the dataset (but maybe not extend labels?)
-        # TODO but not when loading dev or test because then the model will see the data before it's allowed to.
-        # TODO Potentially just allow one class per file / datasebase.
         if dataset == 'train':
             self.data = data
         elif dataset == 'dev':
