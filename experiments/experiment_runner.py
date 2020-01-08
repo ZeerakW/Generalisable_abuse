@@ -127,6 +127,20 @@ if __name__ == "__main__":
     train_args['output_dim'] = main.label_count()
     train_args['batches'] = process_and_batch(main, main.data, args.batch_size)
 
+    if args.optimizer == 'adam':
+        train_args['optimizer'] = torch.optim.Adam
+    elif args.optimizer == 'sgd':
+        train_args['optimizer'] = torch.optim.SGD
+    elif args.optimizer == 'asgd':
+        train_args['optimizer'] = torch.optim.ASGD
+    elif args.optimizer == 'adamw':
+        train_args['optimizer'] = torch.optim.AdamW
+
+    if args.loss == 'nlll':
+        train_args['loss_func'] = torch.nn.NLLLoss
+    elif args.loss == 'crossentropy':
+        train_args['loss_func'] = torch.nn.CrossEntropyLoss
+
     if main.test is not None:
         train_args['dev_batches'] = process_and_batch(main, main.test, args.batch_size)
     else:
@@ -143,13 +157,13 @@ if __name__ == "__main__":
         models = [LSTMClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'num layers']
         model_info = {'lstm': ['lstm', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                               train_args['output'], train_args['num_layers']]}
+                               train_args['output_dim'], train_args['num_layers']]}
 
     elif args.model == 'rnn':
         models = [RNNClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output']
         model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                              train_args['output'], train_args['num_layers']]}
+                              train_args['output_dim'], train_args['num_layers']]}
 
     elif args.model == 'cnn':
         models = [CNNClassifier(**train_args)]
@@ -174,12 +188,14 @@ if __name__ == "__main__":
     test_writer = csv.writer(open(args.results + '_test', 'a', encoding = 'utf-8'), delimiter = '\t')
 
     # Create header
-    metrics = train_args['metrics'].keys()
+    metrics = list(train_args['metrics'].keys())
     header = model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
     train_writer.writerow(header)
     test_writer.writerow(header)
 
     for model in models:
+        train_args['model'] = model
+
         if args.model == 'all':
             info = [model.name] + model_info['all']
         else:
@@ -187,11 +203,11 @@ if __name__ == "__main__":
 
         # Explains losses:
         # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
-        train_args['loss_func'] = torch.nn.NLLLoss() if args.loss.lower() == 'nlll' else torch.nn.CrossEntropyLoss()
-        train_args['optimizer'] = torch.optim.adam(model.parameters(), args.learning_rate)
+        train_args['loss_func'] = train_args['loss_func']()
+        train_args['optimizer'] = train_args['optimizer'](model.parameters(), args.learning_rate)
 
-        run_model('pytorch', train = True, writer = train_writer, model_info = info, metrics = metrics,
-                  head_len = len(header), **train_args)
+        run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(header),
+                  **train_args)
 
         for data in others:  # Test on other datasets.
             # Process and batch the data
