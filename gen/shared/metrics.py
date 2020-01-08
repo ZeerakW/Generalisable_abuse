@@ -9,6 +9,9 @@ def select_metrics(metrics: base.List[str]) -> base.Dict[str, base.Callable]:
     :return out: Dictionary containing name and methods.
     """
     out = OrderedDict()
+    if not isinstance(metrics, list):
+        metrics = [metrics]
+
     for m in metrics:
         m = m.lower()
         if 'accuracy' in m and 'accuracy' not in out:
