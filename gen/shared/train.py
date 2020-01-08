@@ -25,7 +25,7 @@ def process_and_batch(dataset, data, batch_size):
 
 
 def write_results(writer: base.Callable, train_scores: dict, train_loss: list, dev_scores: dict, dev_loss: list,
-                  epochs: int, model_info: list, metrics: list, exp_len) -> None:
+                  epochs: int, model_info: list, metrics: list, exp_len, **kwargs) -> None:
     """Write results to file.
     :writer (base.Callable): Path to file.
     :train_scores (dict): Train scores.
@@ -37,7 +37,7 @@ def write_results(writer: base.Callable, train_scores: dict, train_loss: list, d
     :metrics (list): Model info.
     """
     for i in range(epochs):
-        out = [i] + model_info + [train_scores[m][i] for m in metrics] + train_loss[i]
+        out = [i] + model_info + [train_scores[m][i] for m in metrics] + [train_loss[i]]
 
         if dev_scores:
             out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]
@@ -51,16 +51,15 @@ def write_results(writer: base.Callable, train_scores: dict, train_loss: list, d
         writer.writerow(out)
 
 
-def run_model(library: str, train: bool, writer: base.Callable, model_info: list, metrics: list, head_len: int,
-              **kwargs):
+def run_model(library: str, train: bool, writer: base.Callable, model_info: list, head_len: int, **kwargs):
     """Train or evaluate model.
     :library (str): Library of the model.
     :train (bool): Whether it's a train or test run.
     :writer (csv.writer): File to output model performance to.
     :model_info (list): Information about the model to be added to each line of the output.
-    :metrics (list): List of metrics in order.
     :head_len (int): The length of the header.
     """
+    # TODO Finish this so that the the output is also written.
 
     if train:
         func = train_pytorch_model if library == 'pytorch' else train_sklearn_model
@@ -68,12 +67,14 @@ def run_model(library: str, train: bool, writer: base.Callable, model_info: list
         func = evaluate_pytorch_model if library == 'pytorch' else evaluate_sklearn_model
 
     train_loss, dev_loss, train_scores, dev_scores = func(**kwargs)
+    write_results(writer, train_scores, train_loss, dev_scores, dev_loss, model_info = model_info, exp_len = head_len,
+                  **kwargs)
 
 
 def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataType, loss_func: base.Callable,
                         optimizer: base.Callable, metrics: base.Dict[str, base.Callable],
                         dev_batches: base.DataType = None,
-                        display_metric: str = 'accuracy') -> base.Union[list, int, dict, dict]:
+                        display_metric: str = 'accuracy', **kwargs) -> base.Union[list, int, dict, dict]:
     """Train a machine learning model.
     :model (base.ModelType): Untrained model to be trained.
     :epochs (int): The number of epochs to run.
@@ -133,7 +134,7 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
 
 
 def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_func: base.Callable,
-                           metrics: base.Dict[str, base.Callable]) -> base.List[float]:
+                           metrics: base.Dict[str, base.Callable], **kwargs) -> base.List[float]:
     """Evaluate a machine learning model.
     :model (base.ModelType): Untrained model to be trained.
     :iterator (base.DataType): Test set to evaluate on.
@@ -142,7 +143,7 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
     """
     model.train_mode = False
     loss = []
-    scores = defaultdict(list)
+    eval_scores = defaultdict(list)
 
     with torch.no_grad():
         for X, y in iterator:
@@ -153,11 +154,11 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
             scores = torch.argmax(scores, 1)
             for metric, scorer in metrics.items():
                 performance = scorer(scores, y)
-                scores[metric].append(performance)
+                eval_scores[metric].append(performance)
 
             loss.append(loss_f.item())
 
-    return np.mean(loss), None, {m: np.mean(vals) for m, vals in scores.items()}, None
+    return np.mean(loss), None, {m: np.mean(vals) for m, vals in eval_scores.items()}, None
 
 
 def train_sklearn_model(arg1):
