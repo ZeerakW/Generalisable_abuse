@@ -21,14 +21,14 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
-    parser.add_argument("--metrics", help = "Set the metrics to be used.", default = "f1")
+    parser.add_argument("--metrics", help = "Set the metrics to be used.", default = ["f1"], type = str)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.")
 
     # Model (hyper) parameters
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300, type = int)
     parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128, type = int)
     parser.add_argument("--layers", help = "Set the number of layers.", default = 1, type = int)
-    parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
+    parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4], type = int)
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int)
     parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100, type = int)
     parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.2, type = float)
@@ -165,11 +165,11 @@ if __name__ == "__main__":
         model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
                               train_args['output_dim'], train_args['num_layers']]}
 
-    elif args.model == 'cnn':
-        models = [CNNClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'window sizes', 'num filters', 'max feats', 'hidden dim', 'output dim']
-        model_info = {'cnn': ['cnn', train_args['window_sizes'], train_args['num_filters'], train_args['max_feats'],
-                              train_args['hidden_dim'], train_args['output_dim']]}
+    # elif args.model == 'cnn':
+    #     models = [CNNClassifier(**train_args)]
+    #     model_header = ['epoch', 'model', 'window sizes', 'num filters', 'max feats', 'hidden dim', 'output dim']
+    #     model_info = {'cnn': ['cnn', train_args['window_sizes'], train_args['num_filters'], train_args['max_feats'],
+    #                           train_args['hidden_dim'], train_args['output_dim']]}
 
     elif args.model == 'all':
         model_header = ['epoch', 'model', 'input dim', 'hidden dim', 'embedding dim', 'dropout', 'window sizes',
@@ -179,7 +179,7 @@ if __name__ == "__main__":
                               train_args['max_feats'], train_args['output_dim']]}
 
         models = [MLPClassifier(**train_args),
-                  CNNClassifier(**train_args),
+                  # CNNClassifier(**train_args),
                   LSTMClassifier(**train_args),
                   RNNClassifier(**train_args)]
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
 
     # Create header
     metrics = list(train_args['metrics'].keys())
-    header = model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
+    header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
     train_writer.writerow(header)
     test_writer.writerow(header)
 
@@ -197,9 +197,9 @@ if __name__ == "__main__":
         train_args['model'] = model
 
         if args.model == 'all':
-            info = [model.name] + model_info['all']
+            info = model_info['all']
         else:
-            info = [model.name] + model_info[model.name]
+            info = model_info[model.name]
 
         # Explains losses:
         # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
