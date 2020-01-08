@@ -12,7 +12,7 @@ from torch.utils.data import IterableDataset
 
 class GeneralDataset(IterableDataset):
     """A general dataset class, which loads a dataset, creates a vocabulary, pads, tensorizes, etc."""
-    def __init__(self, data_dir: str, ftype: str, fields: base.FieldType, train: str,
+    def __init__(self, data_dir: str, ftype: str, fields: base.FieldType, name: str, train: str,
                  dev: str = None, test: str = None, train_labels: str = None, dev_labels: str = None,
                  test_labels: str = None, sep: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
@@ -23,6 +23,7 @@ class GeneralDataset(IterableDataset):
         :ftype (str): ftype of the file ([C|T]SV and JSON accepted)
         :fields (base.List[base.Tuple[str, ...]]): Fields in the same order as they appear in the file.
                     Example: ('data', None)
+        :name (str): Name of the dataset being used.
         :train (str): Path to training file.
         :dev (str, default None): Path to dev file, if dev file exists.
         :test (str, default = None): Path to test file, if test file exists.
@@ -37,6 +38,7 @@ class GeneralDataset(IterableDataset):
         :lower (bool, default = True): Lowercase the document.
         """
         self.data_dir = os.path.abspath(data_dir) if '~' not in data_dir else os.path.expanduser(data_dir)
+        self.name = name
         super(GeneralDataset, self).__init__()
 
         try:
@@ -79,13 +81,12 @@ class GeneralDataset(IterableDataset):
         :dataset (str, default = 'train'): Dataset to load. Must exist as key in self.data_files.
         """
         fp = open(self.data_files[dataset])
-        filename = self.data_files[dataset].split('/')[-1].split('.')[0]
 
         if skip_header:
             next(fp)
 
         data = []
-        for line in tqdm(self.reader(fp), desc = f'loading {filename} ({dataset})'):
+        for line in tqdm(self.reader(fp), desc = f'loading {self.name} ({dataset})'):
             data_line, datapoint = {}, base.Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:

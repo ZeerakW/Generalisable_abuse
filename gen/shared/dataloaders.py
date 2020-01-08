@@ -37,7 +37,7 @@ def davidson(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/data/',
+    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
             'ftype': 'csv',
             'fields': None,
             'train': 'davidson_offensive.csv', 'dev': None, 'test': None,
@@ -47,7 +47,8 @@ def davidson(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_preprocessor': davidson_to_binary
+            'label_preprocessor': davidson_to_binary,
+            'name': 'Davidson et al.'
             }
 
     ignore = base.Field('ignore', train = False, label = False, ignore = True)
@@ -76,7 +77,7 @@ def waseem(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/data/',
+    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
             'ftype': 'json',
             'fields': None,
             'train': 'Wamateur_expert.json', 'dev': None, 'test': None,
@@ -86,7 +87,8 @@ def waseem(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_preprocessor': waseem_to_binary
+            'label_preprocessor': waseem_to_binary,
+            'name': 'Waseem'
             }
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
     label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'Annotation')
@@ -101,7 +103,7 @@ def waseem_hovy(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/data/',
+    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
             'ftype': 'json',
             'fields': None,
             'train': 'waseem_hovy.json', 'dev': None, 'test': None,
@@ -111,7 +113,8 @@ def waseem_hovy(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_preprocessor': waseem_to_binary
+            'label_preprocessor': waseem_to_binary,
+            'name': 'Waseem-Hovy'
             }
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text')
     label_field = base.Field('label', train = False, label = True, ignore = False, cname = 'Annotation')
@@ -136,7 +139,7 @@ def garcia(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/data/',
+    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
             'ftype': 'tsv',
             'fields': None,
             'train': 'garcia_stormfront_train.tsv', 'dev': None, 'test': 'garcia_stormfront_test.tsv',
@@ -146,7 +149,8 @@ def garcia(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_preprocessor': streamline_garcia
+            'label_preprocessor': streamline_garcia,
+            'name': 'Garcia et al.'
             }
 
     text_field = base.Field('text', train = True, label = False, ignore = False, cname = 'text', ix = 5)
@@ -167,7 +171,7 @@ def wulczyn(cleaners: base.Callable, preprocessor: base.Callable = None):
     :returns: Loaded datasets.
     """
     # Labelfield needs to be set to nothing, then fields need to be modified
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/data/',
+    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
             'ftype': 'tsv',
             'fields': None,
             'train': 'wulczyn_train.tsv', 'dev': 'wulczyn_dev.tsv', 'test': 'wulczyn_test.tsv',
@@ -177,7 +181,8 @@ def wulczyn(cleaners: base.Callable, preprocessor: base.Callable = None):
             'preprocessor': preprocessor,
             'transformations': None,
             'length': None,
-            'label_preprocessor': None
+            'label_preprocessor': None,
+            'name': 'Wulczyn et al.'
             }
 
     text = base.Field('text', train = True, label = False, cname = 'comment', ix = 1)
