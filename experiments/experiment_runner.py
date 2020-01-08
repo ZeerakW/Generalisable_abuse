@@ -16,8 +16,8 @@ if __name__ == "__main__":
     # For all models
     parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.")
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = "mlp")
-    parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200)
-    parser.add_argument("--batch_size", help = "Set the batch size.", default = 200)
+    parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int)
+    parser.add_argument("--batch_size", help = "Set the batch size.", default = 200, type = int)
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
@@ -25,16 +25,16 @@ if __name__ == "__main__":
     parser.add_argument("--display", help = "Metric to display in TQDM loops.")
 
     # Model (hyper) parameters
-    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300)
-    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128)
-    parser.add_argument("--layers", help = "Set the number of layers.", default = 1)
+    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300, type = int)
+    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128, type = int)
+    parser.add_argument("--layers", help = "Set the number of layers.", default = 1, type = int)
     parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4])
-    parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128)
-    parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100)
-    parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.2)
+    parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int)
+    parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100, type = int)
+    parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.2, type = float)
     parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam')
     parser.add_argument("--loss", help = "Loss to use.", default = 'NLLL')
-    parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01)
+    parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01, type = float)
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
@@ -125,7 +125,7 @@ if __name__ == "__main__":
 
     train_args['input_dim'] = main.vocab_size()
     train_args['output_dim'] = main.label_count()
-    train_args['batches'] = process_and_batch(main, main.data)
+    train_args['batches'] = process_and_batch(main, main.data, args.batch_size)
 
     if main.test is not None:
         train_args['dev_batches'] = process_and_batch(main, main.test, args.batch_size)
