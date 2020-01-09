@@ -111,3 +111,6 @@ src/pytorch_tutorial
 
 # Ignore icloud files
 .*.icloud
+
+# Ignore data in trial directory
+trial/
