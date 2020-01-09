@@ -24,6 +24,21 @@ def process_and_batch(dataset, data, batch_size):
     return batches
 
 
+def write_predictions(pred: list, true: list, model_info: list, data_name: str, doc):
+    """TODO: Docstring for write_predictions.
+    :pred (list): Predictions
+    :true (list): Ground truth
+    :model_info (list): Model information
+    :data_name (str): Dataset evaluated on.
+    :doc: TODO
+    :returns: TODO
+    """
+    # TODO Figure out a way to get access to the original document after prediction
+    # TODO Write all predictions out to a file.
+    # TODO File header: Dataset, Model info, Train (yes/no), Predicted label, True label, Document
+    pass
+
+
 def write_results(writer: base.Callable, train_scores: dict, train_loss: list, dev_scores: dict, dev_loss: list,
                   epochs: int, model_info: list, metrics: list, exp_len: int, data_name: str, **kwargs) -> None:
     """Write results to file.
