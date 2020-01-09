@@ -224,3 +224,6 @@ if __name__ == "__main__":
             # Run the model
             run_model('pytorch', train = False, writer = test_writer, model_info = info, head_len = len(test_header),
                       **eval_args)
+
+    train_writer.close()
+    test_writer.close()
