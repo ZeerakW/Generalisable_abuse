@@ -2,7 +2,7 @@ import sys
 import csv
 import torch
 import argparse
-sys.path.extend(['/Users/zeerakw/PhD/projects/active/Generalisable_abuse/'])
+sys.path.extend(['/home/zeerakw/projects/Generalise/'])
 from gen.shared.train import run_model, process_and_batch
 import gen.shared.dataloaders as loaders
 from gen.shared.metrics import select_metrics
