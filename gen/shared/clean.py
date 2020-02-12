@@ -152,6 +152,10 @@ class Preprocessors(object):
 
         return " ".join(liwc_doc)
 
+    # TODO Othering language:
+    # Parse the document to see if there are us/them, we/them/ i/you
+    # Consider looking at a window that are 2-5 words before/after a slur.
+
 
 class Cleaner(object):
     """A class for methods for cleaning."""
