@@ -128,7 +128,7 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
     dev_losses = []
     dev_scores = defaultdict(list)
 
-    for epoch in tqdm(range(epochs)):  # TODO Get TQDM to show the scores for each epoch
+    for epoch in tqdm(range(epochs), desc = "Training model"):  # TODO Get TQDM to show the scores for each epoch
 
         model.zero_grad()  # Zero out gradients
         epoch_loss = []

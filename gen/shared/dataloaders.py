@@ -37,7 +37,7 @@ def davidson(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
+    args = {'data_dir': '/home/zeerakw/projects/Generalise/data/',
             'ftype': 'csv',
             'fields': None,
             'train': 'davidson_offensive.csv', 'dev': None, 'test': None,
@@ -77,7 +77,7 @@ def waseem(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
+    args = {'data_dir': '/home/zeerakw/projects/Generalise/data/',
             'ftype': 'json',
             'fields': None,
             'train': 'Wamateur_expert.json', 'dev': None, 'test': None,
@@ -103,7 +103,7 @@ def waseem_hovy(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
+    args = {'data_dir': '/home/zeerakw/projects/Generalise/data/',
             'ftype': 'json',
             'fields': None,
             'train': 'waseem_hovy.json', 'dev': None, 'test': None,
@@ -139,7 +139,7 @@ def garcia(cleaners: base.Callable, preprocessor: base.Callable = None):
     :preprocessor (base.Callable, default = None): Preprocessor allowing for different experiments.
     :returns: Loaded datasets.
     """
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
+    args = {'data_dir': '/home/zeerakw/projects/Generalise/data/',
             'ftype': 'tsv',
             'fields': None,
             'train': 'garcia_stormfront_train.tsv', 'dev': None, 'test': 'garcia_stormfront_test.tsv',
@@ -171,7 +171,7 @@ def wulczyn(cleaners: base.Callable, preprocessor: base.Callable = None):
     :returns: Loaded datasets.
     """
     # Labelfield needs to be set to nothing, then fields need to be modified
-    args = {'data_dir': '~/PhD/projects/active/Generalisable_abuse/trial/',
+    args = {'data_dir': '/home/zeerakw/projects/Generalise/data/',
             'ftype': 'tsv',
             'fields': None,
             'train': 'wulczyn_train.tsv', 'dev': 'wulczyn_dev.tsv', 'test': 'wulczyn_test.tsv',

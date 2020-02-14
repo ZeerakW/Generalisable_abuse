@@ -7,7 +7,7 @@ from tqdm import tqdm
 from math import floor
 from . import base
 from collections import Counter, defaultdict
-from torch.utils.data import IterableDataset
+from torch.utils.data import Dataset as IterableDataset
 
 
 class GeneralDataset(IterableDataset):
