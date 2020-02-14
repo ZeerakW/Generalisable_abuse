@@ -35,6 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam')
     parser.add_argument("--loss", help = "Loss to use.", default = 'NLLL')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01, type = float)
+    parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False, type = bool)
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
@@ -58,6 +59,7 @@ if __name__ == "__main__":
                   'max_feats': args.max_feats,
                   'output_dim': None,
                   'input_dim': None,
+                  'gpu': args.gpu
                   }
 
     eval_args = {'model': None,
@@ -184,6 +186,7 @@ if __name__ == "__main__":
                   RNNClassifier(**train_args)]
 
     # Initialize writers
+    # TODO Add experiment name to each output file.
     train_writer = csv.writer(open(args.results + '_train', 'a', encoding = 'utf-8'), delimiter = '\t')
     test_writer = csv.writer(open(args.results + '_test', 'a', encoding = 'utf-8'), delimiter = '\t')
 
@@ -195,7 +198,7 @@ if __name__ == "__main__":
     test_writer.writerow(test_header)
 
     for model in models:
-        train_args['model'] = model
+        train_args['model'] = model if not args.gpu else model.cuda()
 
         if args.model == 'all':
             info = model_info['all']
