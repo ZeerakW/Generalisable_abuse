@@ -2,6 +2,7 @@ import sys
 import csv
 import torch
 import argparse
+from tqdm import tqdm
 sys.path.extend(['/home/zeerakw/projects/Generalise/'])
 from gen.shared.train import run_model, process_and_batch
 import gen.shared.dataloaders as loaders
@@ -95,6 +96,7 @@ if __name__ == "__main__":
         p.slur_window = args.slur_window
         experiement = p.slur_replacement
 
+    print("Load datasets")
     if args.train == 'davidson':
         main = loaders.davidson(c, experiment)
         others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.waseem(c, experiment),
@@ -147,6 +149,7 @@ if __name__ == "__main__":
         train_args['dev_batches'] = process_and_batch(main, main.dev, args.batch_size)
 
     # Set models
+    print("Initialize model")
     if args.model == 'mlp':
         models = [MLPClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'dropout']
@@ -194,7 +197,7 @@ if __name__ == "__main__":
     train_writer.writerow(train_header)
     test_writer.writerow(test_header)
 
-    for model in models:
+    for model in tqdm(models, desc = "Iterating over models"):
         train_args['model'] = model
 
         if args.model == 'all':
@@ -211,7 +214,7 @@ if __name__ == "__main__":
         run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                   **train_args)
 
-        for data in others:  # Test on other datasets.
+        for data in tqdm(others, desc = 'Test on other dataset.'):  # Test on other datasets.
             # Process and batch the data
             eval_args['iterator'] = process_and_batch(main, data.test, len(data.test))
             eval_args['data_name'] = data.name
