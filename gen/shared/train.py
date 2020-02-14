@@ -1,8 +1,10 @@
 import torch
 import numpy as np
+import pandas as pd
 from . import base
 from tqdm import tqdm
 from collections import defaultdict
+import gen.shared.data as data
 from gen.shared.batching import Batch, BatchExtractor
 
 
@@ -24,15 +26,28 @@ def process_and_batch(dataset, data, batch_size):
     return batches
 
 
-def write_predictions(pred: list, true: list, model_info: list, data_name: str, doc):
+def write_predictions(output_info: pd.DataFrame, main_dataset: data.GeneralDataset, preds: list, truths: list,
+                      model_info: list, model_header: list, data_name: str, main_name: str):
     """TODO: Docstring for write_predictions.
-    :pred (list): Predictions
-    :true (list): Ground truth
+    :output_info (pd.DataFrame): Dataframe containing information to be written including each doc.
+    :main_dataset (data.GeneralDataset): dataset for main task.
+    :preds (list): Predictions
     :model_info (list): Model information
+    :model_header (list): Header with field information of the model.
     :data_name (str): Dataset evaluated on.
-    :doc: TODO
+    :main_name (str): Main task dataset.
     :returns: TODO
     """
+
+    output_info['predictions'] = [main_dataset.label_name_lookup(p) for p in preds]
+    output_info['true'] = [main_dataset.label_name_lookup(t) for t in truths]
+
+    for head, info in zip(model_header, model_info):
+        output_info[head] = info
+
+
+
+
     # TODO Figure out a way to get access to the original document after prediction
     # TODO Write all predictions out to a file.
     # TODO File header: Dataset, Model info, Train (yes/no), Predicted label, True label, Document

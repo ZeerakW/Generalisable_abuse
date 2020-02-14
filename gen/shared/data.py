@@ -17,7 +17,7 @@ class GeneralDataset(IterableDataset):
                  test_labels: str = None, sep: str = None, tokenizer: base.Union[base.Callable, str] = 'spacy',
                  preprocessor: base.Callable = None, transformations: base.Callable = None,
                  label_processor: base.Callable = None, label_preprocessor: base.Callable = None,
-                 length: int = None, lower: bool = True) -> None:
+                 length: int = None, lower: bool = True, gpu: bool = True) -> None:
         """Initialize the variables required for the dataset loading.
         :data_dir (str): Path of the directory containing the files.
         :ftype (str): ftype of the file ([C|T]SV and JSON accepted)
@@ -36,6 +36,7 @@ class GeneralDataset(IterableDataset):
         :transformations (base.Callable, default = None): Method changing from one representation to another.
         :label_processor(base.Callable, default = None): Function to process labels with.
         :lower (bool, default = True): Lowercase the document.
+        :gpu (bool, default = True): Run on GPU.
         """
         self.data_dir = os.path.abspath(data_dir) if '~' not in data_dir else os.path.expanduser(data_dir)
         self.name = name
@@ -74,6 +75,7 @@ class GeneralDataset(IterableDataset):
         self.label_preprocessor = label_preprocessor
         self.length = length
         self.lower = lower
+        self.gpu = gpu
 
     def load(self, dataset: str = 'train', skip_header = True) -> None:
         """Load the datasebase.
@@ -383,7 +385,8 @@ class GeneralDataset(IterableDataset):
     def onehot_encode_doc(self, doc, names):
         """Onehot encode a single documenbase."""
         text = [tok for name in names for tok in getattr(doc, name)]
-        encoded_doc = torch.zeros(1, self.length, len(self.stoi))
+        dtype = torch.LongTensor if not self.gpu else torch.cuda.LongTensor
+        encoded_doc = torch.zeros(1, self.length, len(self.stoi), dtype = dtype)
 
         if len(text) < self.length:  # For externally loaded datasets
             text = self._pad_doc(text, self.length)
@@ -440,7 +443,8 @@ class GeneralDataset(IterableDataset):
         :stratify (str): The field to stratify the data along.
         :return data: Return splitted data.
         """
-        if stratify is not None:
+        if stratify is not None:  # TODO
+            raise NotImplementedError
             data = self.stratify(data, )
 
         if isinstance(splits, float):
