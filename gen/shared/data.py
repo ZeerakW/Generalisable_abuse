@@ -88,7 +88,8 @@ class GeneralDataset(IterableDataset):
             next(fp)
 
         data = []
-        for line in tqdm(self.reader(fp), desc = f'loading {self.name} ({dataset})'):
+        for line in enumerate(tqdm(self.reader(fp), desc = f'loading {self.name} ({dataset})'):
+
             data_line, datapoint = {}, base.Datapoint()  # TODO Look at moving all of this to the datapoint class.
 
             for field in self.train_fields:
@@ -385,8 +386,7 @@ class GeneralDataset(IterableDataset):
     def onehot_encode_doc(self, doc, names):
         """Onehot encode a single documenbase."""
         text = [tok for name in names for tok in getattr(doc, name)]
-        dtype = torch.LongTensor if not self.gpu else torch.cuda.LongTensor
-        encoded_doc = torch.zeros(1, self.length, len(self.stoi), dtype = dtype)
+        encoded_doc = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
 
         if len(text) < self.length:  # For externally loaded datasets
             text = self._pad_doc(text, self.length)
