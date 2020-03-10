@@ -71,13 +71,13 @@ if __name__ == "__main__":
     c = Cleaner(args.cleaners)
     p = Preprocessors()
 
-    # Word token experiment
     args.experiment = args.experiment.lower()
     args.train = args.train.lower()
     args.loss = args.loss.lower()
     args.optimizer = args.optimizer.lower()
     args.model = args.model.lower()
 
+    # Word token experiment
     if args.experiment == 'word':
         # Set training dataset
         experiment = p.word_token
