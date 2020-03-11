@@ -88,7 +88,7 @@ class Preprocessors(object):
         return toks
 
     def read_liwc(self) -> dict:
-        with open('/Users/zeerakw/Documents/PhD/projects/active/Generalisable_abuse/data/liwc-2015.csv', 'r') as liwc_f:
+        with open('/home/zeerakw/projects/Generalise/data/liwc-2015.csv', 'r') as liwc_f:
             liwc_dict = {}
             for line in liwc_f:
                 k, v = line.strip('\n').split(',')
@@ -150,7 +150,7 @@ class Preprocessors(object):
         except AssertionError:
             pdb.set_trace()
 
-        return " ".join(liwc_doc)
+        return liwc_doc
 
     # TODO Othering language:
     # Parse the document to see if there are us/them, we/them/ i/you
