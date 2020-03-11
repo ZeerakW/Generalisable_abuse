@@ -95,7 +95,7 @@ class GeneralDataset(IterableDataset):
             for field in self.train_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
                 data_line[field.name] = self.process_doc(line[idx].rstrip())
-                data_line['original'] = self.process_doc(line[idx].rstrip())
+                data_line['original'] = line[idx].rstrip()
 
             for field in self.label_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
