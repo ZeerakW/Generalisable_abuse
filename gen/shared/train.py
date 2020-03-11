@@ -107,7 +107,7 @@ def run_model(library: str, train: bool, writer: base.Callable, model_info: list
 
 def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataType, loss_func: base.Callable,
                         optimizer: base.Callable, metrics: base.Dict[str, base.Callable],
-                        dev_batches: base.DataType = None, gpu: bool = True,
+                        dev_batches: base.DataType = None, gpu: bool = True, shuffle: bool = True,
                         display_metric: str = 'accuracy', **kwargs) -> base.Union[list, int, dict, dict]:
     """Train a machine learning model.
     :model (base.ModelType): Untrained model to be trained.
@@ -134,6 +134,9 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
         model.zero_grad()  # Zero out gradients
         epoch_loss = []
         epoch_scores = defaultdict(list)
+
+        if shuffle:
+            batches.shuffle()
 
         for X, y in batches:
 

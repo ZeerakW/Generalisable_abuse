@@ -2,6 +2,7 @@ import sys
 import csv
 import torch
 import argparse
+import numpy as np
 from tqdm import tqdm
 sys.path.extend(['/home/zeerakw/projects/Generalise/'])
 from gen.shared.train import run_model, process_and_batch
@@ -37,6 +38,8 @@ if __name__ == "__main__":
     parser.add_argument("--loss", help = "Loss to use.", default = 'NLLL')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01, type = float)
     parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
+    parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
+    parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
@@ -61,6 +64,7 @@ if __name__ == "__main__":
                   'output_dim': None,
                   'input_dim': None,
                   'gpu': args.gpu
+                  'shuffle': args.shuffle
                   }
 
     eval_args = {'model': None,
@@ -68,6 +72,11 @@ if __name__ == "__main__":
                  'loss_func': None,
                  'metrics': train_args['metrics']
                  }
+
+    # Set seeds
+    torch.random.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
     c = Cleaner(args.cleaners)
     p = Preprocessors()
 
@@ -223,7 +232,7 @@ if __name__ == "__main__":
 
                 for data in tqdm(others, desc = 'Test on other dataset.'):  # Test on other datasets.
                     # Process and batch the data
-                    eval_args['iterator'] = process_and_batch(main, data.test, len(data.test))
+                    eval_args['iterator'] = process_and_batch(main, data.test, args.batch_size)
                     eval_args['data_name'] = data.name
                     eval_args['epochs'] = 1
 

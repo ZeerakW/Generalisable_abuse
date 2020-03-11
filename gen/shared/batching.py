@@ -49,6 +49,9 @@ class BatchExtractor:
             y = torch.tensor([getattr(doc, self.lf) for doc in batch]).flatten()
             yield (X, y)
 
+    def shuffle(self):
+        self.data = torch.utils.data.RandomSampler(self.data)
+
 
 class Batch(object):
     """Create batches."""
