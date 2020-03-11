@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam')
     parser.add_argument("--loss", help = "Loss to use.", default = 'NLLL')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01, type = float)
-    parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False, type = bool)
+    parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
@@ -71,13 +71,13 @@ if __name__ == "__main__":
     c = Cleaner(args.cleaners)
     p = Preprocessors()
 
-    # Word token experiment
     args.experiment = args.experiment.lower()
     args.train = args.train.lower()
     args.loss = args.loss.lower()
     args.optimizer = args.optimizer.lower()
     args.model = args.model.lower()
 
+    # Word token experiment
     if args.experiment == 'word':
         # Set training dataset
         experiment = p.word_token
@@ -130,6 +130,7 @@ if __name__ == "__main__":
     train_args['input_dim'] = main.vocab_size()
     train_args['output_dim'] = main.label_count()
     train_args['batches'] = process_and_batch(main, main.data, args.batch_size)
+    train_args['gpu'] = args.gpu
 
     if args.optimizer == 'adam':
         train_args['optimizer'] = torch.optim.Adam
@@ -190,46 +191,46 @@ if __name__ == "__main__":
 
     # Initialize writers
     # TODO Add experiment name to each output file.
-    train_writer = csv.writer(open(args.results + '_train', 'a', encoding = 'utf-8'), delimiter = '\t')
-    test_writer = csv.writer(open(args.results + '_test', 'a', encoding = 'utf-8'), delimiter = '\t')
+    with open(args.results + '_train', 'a', encoding = 'utf-8') as train_res,\
+            open(args.results + '_test', 'a', encoding = 'utf-8') as test_res:
 
-    # Create header
-    metrics = list(train_args['metrics'].keys())
-    train_header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
-    test_header = ['dataset'] + model_header + metrics + ['loss']
-    train_writer.writerow(train_header)
-    test_writer.writerow(test_header)
+            train_writer = csv.writer(train_res, delimiter = '\t')
+            test_writer = csv.writer(test_res, delimiter = '\t')
 
-    for model in tqdm(models, desc = "Iterating over models"):
-        train_args['model'] = model if not args.gpu else model.cuda()
+            # Create header
+            metrics = list(train_args['metrics'].keys())
+            train_header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
+            test_header = ['dataset'] + model_header + metrics + ['loss']
+            train_writer.writerow(train_header)
+            test_writer.writerow(test_header)
 
-        if args.model == 'all':
-            info = model_info['all']
-        else:
-            info = model_info[model.name]
+            for model in tqdm(models, desc = "Iterating over models"):
+                train_args['model'] = model if not args.gpu else model.cuda()
 
-        # Explains losses:
-        # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
-        train_args['loss_func'] = train_args['loss_func']()
-        train_args['optimizer'] = train_args['optimizer'](model.parameters(), args.learning_rate)
-        train_args['data_name'] = main.name
+                if args.model == 'all':
+                    info = model_info['all']
+                else:
+                    info = model_info[model.name]
 
-        run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
-                  **train_args)
+                # Explains losses:
+                # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
+                train_args['loss_func'] = train_args['loss_func']()
+                train_args['optimizer'] = train_args['optimizer'](model.parameters(), args.learning_rate)
+                train_args['data_name'] = main.name
 
-        for data in tqdm(others, desc = 'Test on other dataset.'):  # Test on other datasets.
-            # Process and batch the data
-            eval_args['iterator'] = process_and_batch(main, data.test, len(data.test))
-            eval_args['data_name'] = data.name
-            eval_args['epochs'] = 1
+                run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
+                          **train_args)
 
-            # Set up the model arguments
-            eval_args['model'] = model
-            eval_args['loss_func'] = train_args['loss_func']
+                for data in tqdm(others, desc = 'Test on other dataset.'):  # Test on other datasets.
+                    # Process and batch the data
+                    eval_args['iterator'] = process_and_batch(main, data.test, len(data.test))
+                    eval_args['data_name'] = data.name
+                    eval_args['epochs'] = 1
 
-            # Run the model
-            run_model('pytorch', train = False, writer = test_writer, model_info = info, head_len = len(test_header),
-                      **eval_args)
+                    # Set up the model arguments
+                    eval_args['model'] = model
+                    eval_args['loss_func'] = train_args['loss_func']
 
-    train_writer.close()
-    test_writer.close()
+                    # Run the model
+                    run_model('pytorch', train = False, writer = test_writer, model_info = info, head_len = len(test_header),
+                              **eval_args)
