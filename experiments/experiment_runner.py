@@ -1,3 +1,4 @@
+import os
 import sys
 import csv
 import torch
@@ -63,7 +64,7 @@ if __name__ == "__main__":
                   'max_feats': args.max_feats,
                   'output_dim': None,
                   'input_dim': None,
-                  'gpu': args.gpu
+                  'gpu': args.gpu,
                   'shuffle': args.shuffle
                   }
 
@@ -176,7 +177,7 @@ if __name__ == "__main__":
 
     elif args.model == 'rnn':
         models = [RNNClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output']
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'num layers']
         model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
                               train_args['output_dim'], train_args['num_layers']]}
 
@@ -200,8 +201,9 @@ if __name__ == "__main__":
 
     # Initialize writers
     # TODO Add experiment name to each output file.
-    with open(args.results + '_train', 'a', encoding = 'utf-8') as train_res,\
-            open(args.results + '_test', 'a', encoding = 'utf-8') as test_res:
+    enc = 'a' if os.path.isfile(args.results + '_train') else 'w'
+    with open(args.results + '_train', enc, encoding = 'utf-8') as train_res,\
+            open(args.results + '_test', enc, encoding = 'utf-8') as test_res:
 
             train_writer = csv.writer(train_res, delimiter = '\t')
             test_writer = csv.writer(test_res, delimiter = '\t')
@@ -210,8 +212,10 @@ if __name__ == "__main__":
             metrics = list(train_args['metrics'].keys())
             train_header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
             test_header = ['dataset'] + model_header + metrics + ['loss']
-            train_writer.writerow(train_header)
-            test_writer.writerow(test_header)
+
+            if enc == 'w':  # Only write headers if the file doesn't already exist.
+                train_writer.writerow(train_header)
+                test_writer.writerow(test_header)
 
             for model in tqdm(models, desc = "Iterating over models"):
                 train_args['model'] = model if not args.gpu else model.cuda()
