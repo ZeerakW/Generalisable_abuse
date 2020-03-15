@@ -16,12 +16,11 @@ def process_and_batch(dataset, data, batch_size):
     """
     # Process labels and encode data.
     dataset.process_labels(data)
-    encoded = dataset.encode(data, onehot = True)
 
     # Batch data
-    batch = Batch(batch_size, encoded)
+    batch = Batch(batch_size, data)
     batch.create_batches()
-    batches = BatchExtractor('encoded', 'label', batch)
+    batches = BatchExtractor('encoded', 'label', batch, dataset)
 
     return batches
 
@@ -44,9 +43,6 @@ def write_predictions(output_info: pd.DataFrame, main_dataset: data.GeneralDatas
 
     for head, info in zip(model_header, model_info):
         output_info[head] = info
-
-
-
 
     # TODO Figure out a way to get access to the original document after prediction
     # TODO Write all predictions out to a file.
@@ -208,7 +204,6 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
                 eval_scores[metric].append(performance)
 
             loss.append(loss_f.item())
-
     return [np.mean(loss)], None, {m: [np.mean(vals)] for m, vals in eval_scores.items()}, None
 
 
