@@ -233,7 +233,6 @@ if __name__ == "__main__":
                           **train_args)
 
                 for data in tqdm(evals, desc = 'Test on other dataset.'):  # Test on other datasets.
-                    __import__('pdb').set_trace()
                     # Process and batch the data
                     eval_args['iterator'] = process_and_batch(main, data.test, args.batch_size)
                     eval_args['data_name'] = data.name
