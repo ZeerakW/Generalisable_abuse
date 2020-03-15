@@ -111,28 +111,28 @@ if __name__ == "__main__":
     print("Load datasets")
     if args.train == 'davidson':
         main = loaders.davidson(c, experiment)
-        others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.waseem(c, experiment),
-                  loaders.waseem_hovy(c, experiment)]
+        evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.waseem(c, experiment),
+                 loaders.waseem_hovy(c, experiment)]
 
     elif args.train == 'waseem':
         main = loaders.waseem(c, experiment)
-        others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
-                  loaders.waseem_hovy(c, experiment)]
+        evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
+                 loaders.waseem_hovy(c, experiment)]
 
     elif args.train == 'waseem_hovy':
         main = loaders.waseem_hovy(c, experiment)
-        others = [loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
-                  loaders.waseem(c, experiment)]
+        evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
+                 loaders.waseem(c, experiment)]
 
     elif args.train == 'garcia':
         main = loaders.garcia(c, experiment)
-        others = [loaders.wulczyn(c, experiment), loaders.davidson(c, experiment), loaders.waseem_hovy(c, experiment),
-                  loaders.waseem(c, experiment)]
+        evals = [main, loaders.wulczyn(c, experiment), loaders.davidson(c, experiment),
+                 loaders.waseem_hovy(c, experiment), loaders.waseem(c, experiment)]
 
     elif args.train == 'wulczyn':
         main = loaders.wulczyn(c, experiment)
-        others = [loaders.garcia(c, experiment), loaders.davidson(c, experiment), loaders.waseem_hovy(c, experiment),
-                  loaders.waseem(c, experiment)]
+        evals = [main, loaders.garcia(c, experiment), loaders.davidson(c, experiment),
+                loaders.waseem_hovy(c, experiment), loaders.waseem(c, experiment)]
 
     main.build_token_vocab(main.data)
     main.build_label_vocab(main.data)
@@ -156,9 +156,7 @@ if __name__ == "__main__":
     elif args.loss == 'crossentropy':
         train_args['loss_func'] = torch.nn.CrossEntropyLoss
 
-    if main.test is not None:
-        train_args['dev_batches'] = process_and_batch(main, main.test, args.batch_size)
-    else:
+    if main.dev is not None:  # As the dataloaders always create a dev set, this condition will always be True
         train_args['dev_batches'] = process_and_batch(main, main.dev, args.batch_size)
 
     # Set models
@@ -234,7 +232,8 @@ if __name__ == "__main__":
                 run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                           **train_args)
 
-                for data in tqdm(others, desc = 'Test on other dataset.'):  # Test on other datasets.
+                for data in tqdm(evals, desc = 'Test on other dataset.'):  # Test on other datasets.
+                    __import__('pdb').set_trace()
                     # Process and batch the data
                     eval_args['iterator'] = process_and_batch(main, data.test, args.batch_size)
                     eval_args['data_name'] = data.name
