@@ -180,7 +180,7 @@ class GeneralDataset(IterableDataset):
         return self.data
 
     @dev_set.setter
-    def train_set(self, dev: base.DataType) -> None:
+    def dev_set(self, dev: base.DataType) -> None:
         self.dev = dev
 
     @property
@@ -471,7 +471,7 @@ class GeneralDataset(IterableDataset):
             out = (self.data, self.test)
         elif num_splits == 3:
             self.data = data[:splits[0]]
-            self.dev = data[splits[0]:splits[1]]
+            self.dev = data[-splits[1]:-splits[2]]
             self.test = data[-splits[2]:]
             out = (self.data, self.dev, self.test)
         return out
