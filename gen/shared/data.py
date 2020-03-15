@@ -378,7 +378,7 @@ class GeneralDataset(IterableDataset):
         # TODO Names need to be the same for all datasets used.
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
-        for doc in tqdm(data, desc = "Encoding data"):
+        for doc in tqdm(data, desc = "Encoding data", leave = False):
             encoded = encoding_func(doc, names)
             setattr(doc, 'encoded', encoded)
         return data
