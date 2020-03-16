@@ -215,8 +215,8 @@ if __name__ == "__main__":
 
             # Create header
             metrics = list(train_args['metrics'].keys())
-            train_header = ['dataset'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
-            test_header = ['dataset'] + model_header + metrics + ['loss']
+            train_header = ['dataset', 'trained on'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
+            test_header = ['dataset', 'trained on'] + model_header + metrics + ['loss']
 
             if enc == 'w':  # Only write headers if the file doesn't already exist.
                 train_writer.writerow(train_header)
@@ -235,6 +235,7 @@ if __name__ == "__main__":
                 train_args['loss_func'] = model_args['loss_func']()
                 train_args['optimizer'] = model_args['optimizer'](model.parameters(), args.learning_rate)
                 train_args['data_name'] = main.name
+                train_args['main_name'] = main.name
 
                 run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                           **train_args)
@@ -243,6 +244,7 @@ if __name__ == "__main__":
                     # Process and batch the data
                     eval_args['iterator'] = iterator
                     eval_args['data_name'] = data.name
+                    eval_args['main_name'] = main.name
                     eval_args['epochs'] = 1
 
                     # Set up the model arguments
