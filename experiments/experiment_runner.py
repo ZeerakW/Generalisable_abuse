@@ -108,7 +108,6 @@ if __name__ == "__main__":
         p.slur_window = args.slur_window
         experiement = p.slur_replacement
 
-    print("Load datasets")
     if args.train == 'davidson':
         main = loaders.davidson(c, experiment)
         evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.waseem(c, experiment),
@@ -164,7 +163,6 @@ if __name__ == "__main__":
     test_sets = [process_and_batch(main, data.test, args.batch_size) for data in evals]
 
     # Set models
-    print("Initialize model")
     if args.model == 'mlp':
         models = [MLPClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'dropout',
@@ -240,7 +238,8 @@ if __name__ == "__main__":
                 run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                           **train_args)
 
-                for data, iterator in tqdm(zip(evals, test_sets), desc = 'Test on other dataset.'):  # Test on other datasets.
+                for data, iterator in tqdm(zip(evals, test_sets), desc = 'Test on other dataset.', leave = False):
+                    # Test on other datasets.
                     # Process and batch the data
                     eval_args['iterator'] = iterator
                     eval_args['data_name'] = data.name
