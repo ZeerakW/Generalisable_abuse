@@ -142,42 +142,49 @@ if __name__ == "__main__":
     train_args['batches'] = process_and_batch(main, main.data, args.batch_size)
     train_args['gpu'] = args.gpu
 
+    model_args = {}
+
     if args.optimizer == 'adam':
-        train_args['optimizer'] = torch.optim.Adam
+        model_args['optimizer'] = torch.optim.Adam
     elif args.optimizer == 'sgd':
-        train_args['optimizer'] = torch.optim.SGD
+        model_args['optimizer'] = torch.optim.SGD
     elif args.optimizer == 'asgd':
-        train_args['optimizer'] = torch.optim.ASGD
+        model_args['optimizer'] = torch.optim.ASGD
     elif args.optimizer == 'adamw':
-        train_args['optimizer'] = torch.optim.AdamW
+        model_args['optimizer'] = torch.optim.AdamW
 
     if args.loss == 'nlll':
-        train_args['loss_func'] = torch.nn.NLLLoss
+        model_args['loss_func'] = torch.nn.NLLLoss
     elif args.loss == 'crossentropy':
-        train_args['loss_func'] = torch.nn.CrossEntropyLoss
+        model_args['loss_func'] = torch.nn.CrossEntropyLoss
 
     if main.dev is not None:  # As the dataloaders always create a dev set, this condition will always be True
         train_args['dev_batches'] = process_and_batch(main, main.dev, args.batch_size)
+
+    test_sets = [process_and_batch(main, data.test, args.batch_size) for data in evals]
 
     # Set models
     print("Initialize model")
     if args.model == 'mlp':
         models = [MLPClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'dropout']
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'dropout',
+                        'learning rate']
         model_info = {'mlp': ['mlp', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                              train_args['output_dim'], train_args['dropout']]}
+                              train_args['output_dim'], train_args['dropout'], args.learning_rate]}
 
     elif args.model == 'lstm':
         models = [LSTMClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'num layers']
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'num layers',
+                        'learning rate']
         model_info = {'lstm': ['lstm', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                               train_args['output_dim'], train_args['num_layers']]}
+                               train_args['output_dim'], train_args['num_layers'], args.learning_rate]}
 
     elif args.model == 'rnn':
         models = [RNNClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output', 'num layers']
+        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'num layers',
+                        'learning rate']
         model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                              train_args['output_dim'], train_args['num_layers']]}
+                              train_args['output_dim'], train_args['num_layers'], args.learning_rate]}
 
     # elif args.model == 'cnn':
     #     models = [CNNClassifier(**train_args)]
@@ -186,11 +193,11 @@ if __name__ == "__main__":
     #                           train_args['hidden_dim'], train_args['output_dim']]}
 
     elif args.model == 'all':
-        model_header = ['epoch', 'model', 'input dim', 'hidden dim', 'embedding dim', 'dropout', 'window sizes',
-                        'num filters', 'max feats', 'output dim']
+        model_header = ['epoch', 'model', 'input dim', 'hidden dim', 'embedding dim', 'dropout', 'learning rate',
+                        'window sizes', 'num filters', 'max feats', 'output dim']
         model_info = {'all': [train_args['input_dim'], train_args['hidden_dim'], train_args['embedding_dim'],
-                              train_args['dropout'], train_args['window_sizes'], train_args['num_filters'],
-                              train_args['max_feats'], train_args['output_dim']]}
+                              train_args['dropout'], args.learning_rate, train_args['window_sizes'],
+                              train_args['num_filters'], train_args['max_feats'], train_args['output_dim']]}
 
         models = [MLPClassifier(**train_args),
                   # CNNClassifier(**train_args),
@@ -219,22 +226,22 @@ if __name__ == "__main__":
                 train_args['model'] = model if not args.gpu else model.cuda()
 
                 if args.model == 'all':
-                    info = model_info['all']
+                    info = [model.name] + model_info['all']
                 else:
                     info = model_info[model.name]
 
                 # Explains losses:
                 # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
-                train_args['loss_func'] = train_args['loss_func']()
-                train_args['optimizer'] = train_args['optimizer'](model.parameters(), args.learning_rate)
+                train_args['loss_func'] = model_args['loss_func']()
+                train_args['optimizer'] = model_args['optimizer'](model.parameters(), args.learning_rate)
                 train_args['data_name'] = main.name
 
                 run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                           **train_args)
 
-                for data in tqdm(evals, desc = 'Test on other dataset.'):  # Test on other datasets.
+                for data, iterator in tqdm(zip(evals, test_sets), desc = 'Test on other dataset.'):  # Test on other datasets.
                     # Process and batch the data
-                    eval_args['iterator'] = process_and_batch(main, data.test, args.batch_size)
+                    eval_args['iterator'] = iterator
                     eval_args['data_name'] = data.name
                     eval_args['epochs'] = 1
 
