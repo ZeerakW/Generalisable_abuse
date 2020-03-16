@@ -68,7 +68,6 @@ def write_results(writer: base.Callable, train_scores: dict, train_loss: list, d
         try:
             out = [data_name] + [i] + model_info  # Base info
             out += [train_scores[m][i] for m in metrics] + [train_loss[i]]  # Train info
-
             if dev_scores:
                 out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]  # Dev info
         except IndexError as e:
@@ -116,7 +115,6 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
     :gpu (bool, default = True): Run on GPU
     :display_metric (str): Metric to be diplayed in TQDM iterator
     """
-
     model.train_mode = True
 
     train_loss = []
@@ -156,13 +154,12 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
                 epoch_scores[metric].append(performance)
 
         # epoch_performance = np.mean(epoch_scores[display_metric])  TODO
-
         train_loss.append(sum(epoch_loss))
 
         for metric in metrics:
             train_scores[metric].append(np.mean(epoch_scores[metric]))
 
-        if dev_batches:
+        if dev_batches is not None:
             dev_loss, _, dev_score, _ = evaluate_pytorch_model(model, dev_batches, loss_func, metrics)
             dev_losses.extend(dev_loss)
 

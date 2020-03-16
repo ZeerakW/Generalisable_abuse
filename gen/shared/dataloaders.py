@@ -14,12 +14,16 @@ def _loader(args: dict):
         dataset.split(dataset.data, [0.8, 0.1, 0.1])
 
     elif args['dev'] is not None and args['test'] is None:  # Dev set is given, test it not.
-        dataset.split(dataset.data, 0.8)
         dataset.load('dev')
+        dataset.split(dataset.data, 0.8)
 
     elif args['dev'] is None and args['test'] is not None:  # Test is given, dev is not.
         dataset.split(dataset.data, 0.8)
         dataset.dev_set = dataset.test
+        dataset.load('test')
+
+    else:  # Both dev and test sets are given.
+        dataset.load('dev')
         dataset.load('test')
 
     return dataset
