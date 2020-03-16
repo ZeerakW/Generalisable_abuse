@@ -132,7 +132,7 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
         if shuffle:
             batches.shuffle()
 
-        for X, y in batches:
+        for X, y in tqdm(batches, desc = "Iterating over batches", leave = False):
 
             if gpu:  # Make sure it's GPU runnable
                 X = X.cuda()
