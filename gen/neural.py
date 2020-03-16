@@ -89,8 +89,6 @@ class MLPClassifier(nn.Module):
         if self.batch_first:
             sequence = sequence.transpose(0, 1)
 
-        __import__('pdb').set_trace()
-
         sequence = sequence.float()
         dropout = self.dropout if self.mode else lambda x: x
         out = dropout(self.tanh(self.itoh(sequence)))

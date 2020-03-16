@@ -95,7 +95,7 @@ class GeneralDataset(IterableDataset):
             for field in self.train_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
                 data_line[field.name] = self.process_doc(line[idx].rstrip())
-                data_line['original'] = self.process_doc(line[idx].rstrip())
+                data_line['original'] = line[idx].rstrip()
 
             for field in self.label_fields:
                 idx = field.index if self.ftype in ['CSV', 'TSV'] else field.cname
@@ -180,7 +180,7 @@ class GeneralDataset(IterableDataset):
         return self.data
 
     @dev_set.setter
-    def train_set(self, dev: base.DataType) -> None:
+    def dev_set(self, dev: base.DataType) -> None:
         self.dev = dev
 
     @property
@@ -378,7 +378,7 @@ class GeneralDataset(IterableDataset):
         # TODO Names need to be the same for all datasets used.
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
-        for doc in tqdm(data, desc = "Encoding data"):
+        for doc in data:
             encoded = encoding_func(doc, names)
             setattr(doc, 'encoded', encoded)
         return data
@@ -471,7 +471,7 @@ class GeneralDataset(IterableDataset):
             out = (self.data, self.test)
         elif num_splits == 3:
             self.data = data[:splits[0]]
-            self.dev = data[splits[0]:splits[1]]
+            self.dev = data[splits[0]:splits[0] + splits[1]]
             self.test = data[-splits[2]:]
             out = (self.data, self.dev, self.test)
         return out

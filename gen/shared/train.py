@@ -16,12 +16,11 @@ def process_and_batch(dataset, data, batch_size):
     """
     # Process labels and encode data.
     dataset.process_labels(data)
-    encoded = dataset.encode(data, onehot = True)
 
     # Batch data
-    batch = Batch(batch_size, encoded)
+    batch = Batch(batch_size, data)
     batch.create_batches()
-    batches = BatchExtractor('encoded', 'label', batch)
+    batches = BatchExtractor('encoded', 'label', batch, dataset)
 
     return batches
 
@@ -45,9 +44,6 @@ def write_predictions(output_info: pd.DataFrame, main_dataset: data.GeneralDatas
     for head, info in zip(model_header, model_info):
         output_info[head] = info
 
-
-
-
     # TODO Figure out a way to get access to the original document after prediction
     # TODO Write all predictions out to a file.
     # TODO File header: Dataset, Model info, Train (yes/no), Predicted label, True label, Document
@@ -55,7 +51,8 @@ def write_predictions(output_info: pd.DataFrame, main_dataset: data.GeneralDatas
 
 
 def write_results(writer: base.Callable, train_scores: dict, train_loss: list, dev_scores: dict, dev_loss: list,
-                  epochs: int, model_info: list, metrics: list, exp_len: int, data_name: str, **kwargs) -> None:
+                  epochs: int, model_info: list, metrics: list, exp_len: int, data_name: str, main_name: str,
+                  **kwargs) -> None:
     """Write results to file.
     :writer (base.Callable): Path to file.
     :train_scores (dict): Train scores.
@@ -66,13 +63,13 @@ def write_results(writer: base.Callable, train_scores: dict, train_loss: list, d
     :model_info (list): Model info.
     :metrics (list): Model info.
     :exp_len (int): Expected length of each line.
-    :data_name (str): Dataset object.
+    :data_name (str): Name of the dataset that's being run on.
+    :main_name (str): Name of the dataset the model is trained/being trained on.
     """
     for i in range(epochs):
         try:
-            out = [data_name] + [i] + model_info  # Base info
+            out = [data_name, main_name] + [i] + model_info  # Base info
             out += [train_scores[m][i] for m in metrics] + [train_loss[i]]  # Train info
-
             if dev_scores:
                 out += [dev_scores[m][i] for m in metrics] + [dev_loss[i]]  # Dev info
         except IndexError as e:
@@ -107,7 +104,7 @@ def run_model(library: str, train: bool, writer: base.Callable, model_info: list
 
 def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataType, loss_func: base.Callable,
                         optimizer: base.Callable, metrics: base.Dict[str, base.Callable],
-                        dev_batches: base.DataType = None, gpu: bool = True,
+                        dev_batches: base.DataType = None, gpu: bool = True, shuffle: bool = True,
                         display_metric: str = 'accuracy', **kwargs) -> base.Union[list, int, dict, dict]:
     """Train a machine learning model.
     :model (base.ModelType): Untrained model to be trained.
@@ -120,7 +117,6 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
     :gpu (bool, default = True): Run on GPU
     :display_metric (str): Metric to be diplayed in TQDM iterator
     """
-
     model.train_mode = True
 
     train_loss = []
@@ -135,7 +131,10 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
         epoch_loss = []
         epoch_scores = defaultdict(list)
 
-        for X, y in batches:
+        if shuffle:
+            batches.shuffle()
+
+        for X, y in tqdm(batches, desc = "Iterating over batches", leave = False):
 
             if gpu:  # Make sure it's GPU runnable
                 X = X.cuda()
@@ -157,13 +156,12 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
                 epoch_scores[metric].append(performance)
 
         # epoch_performance = np.mean(epoch_scores[display_metric])  TODO
-
         train_loss.append(sum(epoch_loss))
 
         for metric in metrics:
             train_scores[metric].append(np.mean(epoch_scores[metric]))
 
-        if dev_batches:
+        if dev_batches is not None:
             dev_loss, _, dev_score, _ = evaluate_pytorch_model(model, dev_batches, loss_func, metrics)
             dev_losses.extend(dev_loss)
 
@@ -205,7 +203,6 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
                 eval_scores[metric].append(performance)
 
             loss.append(loss_f.item())
-
     return [np.mean(loss)], None, {m: [np.mean(vals)] for m, vals in eval_scores.items()}, None
 
 
