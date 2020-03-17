@@ -24,7 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
-    parser.add_argument("--metrics", help = "Set the metrics to be used.", default = ["f1"], type = str)
+    parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"], type = str)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.")
 
     # Model (hyper) parameters
