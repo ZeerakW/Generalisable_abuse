@@ -184,6 +184,7 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
     model.train_mode = False
     loss = []
     eval_scores = defaultdict(list)
+    all_scores, labels = [], []
 
     with torch.no_grad():
         for X, y in iterator:
@@ -196,13 +197,15 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
 
             loss_f = loss_func(scores, y)
 
-            scores = torch.argmax(scores, 1)
-            for metric, scorer in metrics.items():
-                scores, y = scores.cpu(), y.cpu()
-                performance = scorer(scores, y)
-                eval_scores[metric].append(performance)
+            all_scores.extend(torch.argmax(scores, 1).cpu().tolist())
+            labels.extend(y.cpu().tolist())
 
             loss.append(loss_f.item())
+
+    for metric, scorer in metrics.items():
+        performance = scorer(all_scores, labels)
+        eval_scores[metric].append(performance)
+
     return [np.mean(loss)], None, {m: [np.mean(vals)] for m, vals in eval_scores.items()}, None
 
 
