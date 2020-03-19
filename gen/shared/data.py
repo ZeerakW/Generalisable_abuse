@@ -37,6 +37,7 @@ class GeneralDataset(IterableDataset):
         :label_processor(base.Callable, default = None): Function to process labels with.
         :lower (bool, default = True): Lowercase the document.
         :gpu (bool, default = True): Run on GPU.
+        :length (int, default = None): Max length of documents.
         """
         self.data_dir = os.path.abspath(data_dir) if '~' not in data_dir else os.path.expanduser(data_dir)
         self.name = name
