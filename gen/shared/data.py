@@ -216,7 +216,7 @@ class GeneralDataset(IterableDataset):
         for line in fp:
             yield json.loads(line)
 
-    def build_token_vocab(self, data: base.DataType, original: bool = True):
+    def build_token_vocab(self, data: base.DataType, original: bool = False):
         """Build vocab over datasebase.
         :data (base.DataType): List of datapoints to process.
         :original (bool): Use the original document to generate vocab.
