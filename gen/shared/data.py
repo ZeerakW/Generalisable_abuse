@@ -35,6 +35,7 @@ class GeneralDataset(IterableDataset):
         :preprocessor (base.Callable, default = None): Preprocessing step to apply.
         :transformations (base.Callable, default = None): Method changing from one representation to another.
         :label_processor(base.Callable, default = None): Function to process labels with.
+        :label_preprocessor(base.Callable, default = None): Function to preprocess labels.
         :lower (bool, default = True): Lowercase the document.
         :gpu (bool, default = True): Run on GPU.
         :length (int, default = None): Max length of documents.
@@ -117,8 +118,6 @@ class GeneralDataset(IterableDataset):
                 for f in self.train_fields:
                     lens.append(len([tok for tok in getattr(doc, getattr(f, 'name'))]))
             self.length = max(lens)
-
-        data = self.pad(data, self.length)
 
         if dataset == 'train':
             self.data = data
@@ -215,7 +214,7 @@ class GeneralDataset(IterableDataset):
         for line in fp:
             yield json.loads(line)
 
-    def build_token_vocab(self, data: base.DataType, original: bool = True):
+    def build_token_vocab(self, data: base.DataType, original: bool = False):
         """Build vocab over datasebase.
         :data (base.DataType): List of datapoints to process.
         :original (bool): Use the original document to generate vocab.
@@ -235,6 +234,8 @@ class GeneralDataset(IterableDataset):
 
         self.itos = {ix: tok for ix, (tok, _) in enumerate(self.token_counts.most_common())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
+        self.unk_tok = self.stoi['<unk>']
+        self.pad_tok = self.stoi['<pad>']
 
     def extend_vocab(self, data: base.DataType):
         """Extend the vocabulary.
@@ -286,7 +287,7 @@ class GeneralDataset(IterableDataset):
         :labels (base.DataType): List of datapoints to process.
         """
         labels = set(getattr(l, getattr(f, 'name')) for l in labels for f in self.label_fields)
-        self.itol = {ix: l for ix, l in enumerate(sorted(labels))}
+        self.itol = {ix: l for ix, l in enumerate(sorted(labels, reverse = True))}
         self.ltoi = {l: ix for ix, l in self.itol.items()}
 
     def label_name_lookup(self, label: str) -> int:
@@ -315,7 +316,7 @@ class GeneralDataset(IterableDataset):
             setattr(doc, 'label', label)
 
     def _process_label(self, label, processor: base.Callable = None) -> int:
-        """Modify label using external function to process ibase.
+        """Modify label using external function to process labels.
         :label: Label to process.
         :processor: Function to process the label."""
         if not isinstance(label, list):
@@ -376,57 +377,35 @@ class GeneralDataset(IterableDataset):
         :data (base.DataType): List of datapoints to be encoded.
         :onehot (bool, default = True): Set to true to onehot encode the documenbase.
         """
-        # TODO Names need to be the same for all datasets used.
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
+
         for doc in data:
-            encoded = encoding_func(doc, names)
-            setattr(doc, 'encoded', encoded)
-        return data
+            text = [tok for name in names for tok in getattr(doc, name)]
 
-    def onehot_encode_doc(self, doc, names):
-        """Onehot encode a single documenbase."""
-        text = [tok for name in names for tok in getattr(doc, name)]
-        encoded_doc = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
+            if len(text) != self.length:
+                text = self._pad_doc(text, self.length)
 
-        if len(text) < self.length:  # For externally loaded datasets
-            text = self._pad_doc(text, self.length)
+            yield encoding_func(text)
 
-        for ix in range(self.length):
-            try:
-                tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
-            except IndexError:
-                __import__('pdb').set_trace()
-            encoded_doc[0][ix][tok_ix] = 1
-        setattr(doc, 'encoded', encoded_doc)
+    def onehot_encode_doc(self, text: base.DataType) -> base.DataType:
+        """Onehot encode a single document.
+        :text (base.DataType): The document represented as a tokens.
+        """
+        encoded = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
 
-        return encoded_doc
+        indices = torch.tensor([self.stoi.get(doc[ix], self.unk_tok) for ix in range(len(doc))], dtype = torch.long)
+        encoded[0] = torch.nn.functional.one_hot(indices, len(self.stoi)).type(torch.long)
 
-    def encode_doc(self, doc, names):
-        """Encode documents using just the index of the tokens that are present in the documenbase."""
+        return encoded
 
-        raise NotImplementedError
-        text = [tok for name in names for tok in getattr(doc, name)]
-        length = sum(len(getattr(doc, name)) for name in names)
-        encoded_doc = torch.LongTensor(1, self.length, length)  # batch, seq, doc length
+    def encode_doc(self, text: base.DataType) -> base.DataType:
+        """Encode documents using just the index of the tokens that are present in the document.
+        :text (base.DataType): The document represented as a tokens.
+        """
+        encoded = torch.tensor([self.stoi.get(text[ix], self.unk_tok) for ix in range(len(text))], dtype = torch.long)
 
-        # 5 x 1 x [2, 35, 4, 0, 0] (last dimension is: indices in the document up to the document length)
-        # 5 x 1 x len(vocab) (last dimension is: vocab length for each token)
-
-        # ISSUE
-        # We need to create a tensor containing a onehot tensor of each word.
-        # CURRENT STATUS
-        # A single elmeent containing the index of the current token.
-        # GOAL
-        # For each position, ensure it's the token for that position
-
-        # Here we only have a tensor of a single token in the sentence. What we want is a onehot tensor
-        for ix in range(self.length):
-            tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
-            encoded_doc[0][ix][ix] = tok_ix
-
-        setattr(doc, 'encoded', encoded_doc)
-        return encoded_doc
+        return encoded
 
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.

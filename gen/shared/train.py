@@ -135,7 +135,6 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
             batches.shuffle()
 
         for X, y in tqdm(batches, desc = "Iterating over batches", leave = False):
-            # __import__('pdb').set_trace()
 
             if gpu:  # Make sure it's GPU runnable
                 X = X.cuda()
@@ -163,7 +162,7 @@ def train_pytorch_model(model: base.ModelType, epochs: int, batches: base.DataTy
             train_scores[metric].append(np.mean(epoch_scores[metric]))
 
         if dev_batches is not None:
-            dev_loss, _, dev_score, _ = evaluate_pytorch_model(model, dev_batches, loss_func, metrics)
+            dev_loss, _, dev_score, _ = evaluate_pytorch_model(model, dev_batches, loss_func, metrics, gpu = gpu)
             dev_losses.extend(dev_loss)
 
             for score in dev_score:
@@ -186,7 +185,6 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
     loss = []
     eval_scores = defaultdict(list)
     all_scores, labels = [], []
-    # __import__('pdb').set_trace()
     with torch.no_grad():
         for X, y in iterator:
 
@@ -202,7 +200,6 @@ def evaluate_pytorch_model(model: base.ModelType, iterator: base.DataType, loss_
             labels.extend(y.cpu().tolist())
 
             loss.append(loss_f.data.item())
-    # __import__('pdb').set_trace()
 
     for metric, scorer in metrics.items():
         performance = scorer(all_scores, labels)
