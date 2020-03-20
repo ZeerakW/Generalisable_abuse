@@ -20,7 +20,7 @@ if __name__ == "__main__":
     parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.")
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = "mlp")
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int)
-    parser.add_argument("--batch_size", help = "Set the batch size.", default = 200, type = int)
+    parser.add_argument("--batch_size", help = "Set the batch size.", default = 64, type = int)
     parser.add_argument("--save_model", help = "Directory to store models in.")
     parser.add_argument("--results", help = "Set file to output results to.")
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
