@@ -287,7 +287,7 @@ class GeneralDataset(IterableDataset):
         :labels (base.DataType): List of datapoints to process.
         """
         labels = set(getattr(l, getattr(f, 'name')) for l in labels for f in self.label_fields)
-        self.itol = {ix: l for ix, l in enumerate(sorted(labels))}
+        self.itol = {ix: l for ix, l in enumerate(sorted(labels, reverse = True))}
         self.ltoi = {l: ix for ix, l in self.itol.items()}
 
     def label_name_lookup(self, label: str) -> int:
@@ -316,7 +316,7 @@ class GeneralDataset(IterableDataset):
             setattr(doc, 'label', label)
 
     def _process_label(self, label, processor: base.Callable = None) -> int:
-        """Modify label using external function to process ibase.
+        """Modify label using external function to process labels.
         :label: Label to process.
         :processor: Function to process the label."""
         if not isinstance(label, list):
