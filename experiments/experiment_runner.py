@@ -71,7 +71,8 @@ if __name__ == "__main__":
     eval_args = {'model': None,
                  'iterator': None,
                  'loss_func': None,
-                 'metrics': train_args['metrics']
+                 'metrics': train_args['metrics'],
+                 'gpu': args.gpu
                  }
 
     # Set seeds
