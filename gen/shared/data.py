@@ -35,6 +35,7 @@ class GeneralDataset(IterableDataset):
         :preprocessor (base.Callable, default = None): Preprocessing step to apply.
         :transformations (base.Callable, default = None): Method changing from one representation to another.
         :label_processor(base.Callable, default = None): Function to process labels with.
+        :label_preprocessor(base.Callable, default = None): Function to preprocess labels.
         :lower (bool, default = True): Lowercase the document.
         :gpu (bool, default = True): Run on GPU.
         :length (int, default = None): Max length of documents.
@@ -235,6 +236,8 @@ class GeneralDataset(IterableDataset):
 
         self.itos = {ix: tok for ix, (tok, _) in enumerate(self.token_counts.most_common())}
         self.stoi = {tok: ix for ix, tok in self.itos.items()}
+        self.unk = self.stoi['<unk>']
+        self.pad = self.stoi['<pad>']
 
     def extend_vocab(self, data: base.DataType):
         """Extend the vocabulary.
@@ -376,13 +379,12 @@ class GeneralDataset(IterableDataset):
         :data (base.DataType): List of datapoints to be encoded.
         :onehot (bool, default = True): Set to true to onehot encode the documenbase.
         """
+        # TODO RUNS OUT OF SYSTEM MEMORY THIS WAY
         # TODO Names need to be the same for all datasets used.
         names = [getattr(f, 'name') for f in self.train_fields]
         encoding_func = self.onehot_encode_doc if onehot else self.encode_doc
         for doc in data:
-            encoded = encoding_func(doc, names)
-            setattr(doc, 'encoded', encoded)
-        return data
+            yield encoding_func(doc, names))
 
     def onehot_encode_doc(self, doc, names):
         """Onehot encode a single documenbase."""
@@ -394,11 +396,14 @@ class GeneralDataset(IterableDataset):
 
         for ix in range(self.length):
             try:
-                tok_ix = self.stoi['<unk>'] if text[ix] not in self.stoi else self.stoi[text[ix]]
+                tok_ix = self.stoi.get(text[ix], self.unk)
+
+                if econded_doc[0][ix][tok_ix] == 1:
+                    continue
+
+                encoded_doc[0][ix][tok_ix] = 1
             except IndexError:
                 __import__('pdb').set_trace()
-            encoded_doc[0][ix][tok_ix] = 1
-        setattr(doc, 'encoded', encoded_doc)
 
         return encoded_doc
 
