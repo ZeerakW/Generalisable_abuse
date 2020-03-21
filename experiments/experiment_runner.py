@@ -239,7 +239,7 @@ if __name__ == "__main__":
                 run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
                           **train_args)
 
-                for data, iterator in tqdm(zip(evals, test_sets), desc = 'Test on other dataset.', leave = False):
+                for data, iterator in tqdm(zip(evals, test_sets), desc = 'Evaluate', leave = False, total = len(evals)):
                     # Test on other datasets.
                     # Process and batch the data
                     eval_args['iterator'] = iterator
