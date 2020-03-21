@@ -8,6 +8,7 @@ from math import floor
 from . import base
 from collections import Counter, defaultdict
 from torch.utils.data import Dataset as IterableDataset
+from torch.nn.functional import one_hot
 
 
 class GeneralDataset(IterableDataset):
@@ -394,8 +395,8 @@ class GeneralDataset(IterableDataset):
         """
         encoded = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
 
-        indices = torch.tensor([self.stoi.get(doc[ix], self.unk_tok) for ix in range(len(doc))], dtype = torch.long)
-        encoded[0] = torch.nn.functional.one_hot(indices, len(self.stoi)).type(torch.long)
+        indices = torch.tensor([self.stoi.get(text[ix], self.unk_tok) for ix in range(len(text))], dtype = torch.long)
+        encoded[0] = one_hot(indices, len(self.stoi)).type(torch.long)
 
         return encoded
 
@@ -410,6 +411,7 @@ class GeneralDataset(IterableDataset):
     def stratify(self, data, strata_field):
         # TODO Rewrite this code to make sense with this implementation.
         # TODO This doesn't make sense to me.
+        raise NotImplementedError
         strata_maps = defaultdict(list)
         for doc in data:
             strata_maps[getattr(doc, strata_field)].append(doc)
