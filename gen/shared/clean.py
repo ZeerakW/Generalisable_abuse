@@ -174,15 +174,15 @@ class Cleaner(object):
         :processes (List[str]): The cleaning processes to be undertaken.
         :returns cleaned: Return the cleaned text.
         """
-        self.processes = self.processes if self.processes else processes
+        process = processes if processes is not None else self.processes
         cleaned = str(text)
-        if 'lower' in self.processes or 'lower' in processes:
+        if 'lower' in process:
             cleaned = cleaned.lower()
-        if 'url' in self.processes or 'url' in processes:
+        if 'url' in process:
             cleaned = re.sub(r'https?:/\/\S+', 'URL', cleaned)
-        if 'hashtag' in self.processes or 'hashtag' in processes:
+        if 'hashtag' in process:
             cleaned = re.sub(r'#[a-zA-Z0-9]*\b', 'HASHTAG', cleaned)
-        if 'username' in self.processes or 'username' in processes:
+        if 'username' in process:
             cleaned = re.sub(r'@\S+', 'AT_USER', cleaned)
         cleaned = re.sub("'", ' ', cleaned)
 
