@@ -193,6 +193,15 @@ class GeneralDataset(IterableDataset):
     def train_set(self, test: base.DataType) -> None:
         self.test = test
 
+    @property
+    def modify_length(self):
+        """Access and modify length of sequence."""
+        return self.length
+
+    @modify_length.setter
+    def modify_length(self, x: int):
+        self.length = x
+
     def reader(self, fp, ftype: str = None, sep: str = None):
         """Instatiate the reader to be used.
         :fp: Opened file.
@@ -352,6 +361,7 @@ class GeneralDataset(IterableDataset):
 
     def pad(self, data: base.DataType, length: int = None) -> list:
         """Pad each document in the datasets in the dataset or trim documenbase.
+
         :data (base.DataType): List of datapoints to process.
         :length (int, optional): The sequence length to be applied.
         :return doc: Return list of padded datapoints."""
@@ -371,6 +381,7 @@ class GeneralDataset(IterableDataset):
 
     def _pad_doc(self, text, length):
         """Do the actual padding.
+
         :text: The extracted text to be padded or trimmed.
         :length: The length of the sequence length to be applied.
         :return padded: Return padded document as a lisbase.
@@ -381,6 +392,7 @@ class GeneralDataset(IterableDataset):
 
     def encode(self, data: base.DataType, onehot: bool = True):
         """Encode a documenbase.
+
         :data (base.DataType): List of datapoints to be encoded.
         :onehot (bool, default = True): Set to true to onehot encode the documenbase.
         """
@@ -395,74 +407,167 @@ class GeneralDataset(IterableDataset):
 
             yield encoding_func(text)
 
-    def onehot_encode_doc(self, text: base.DataType) -> base.DataType:
+    def onehot_encode_doc(self, text: base.DataType, doc: base.Datapoint) -> base.DataType:
         """Onehot encode a single document.
+
         :text (base.DataType): The document represented as a tokens.
+        :doc (base.Datapoint): The datapoint to encode.
         """
         encoded = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
 
-        indices = torch.tensor([self.stoi.get(text[ix], self.unk_tok) for ix in range(len(text))], dtype = torch.long)
+        indices = self.encode_doc(text)
         encoded[0] = one_hot(indices, len(self.stoi)).type(torch.long)
 
         return encoded
 
-    def encode_doc(self, text: base.DataType) -> base.DataType:
+    def encode_doc(self, text: base.DataType, doc: base.Datapoint) -> base.DataType:
         """Encode documents using just the index of the tokens that are present in the document.
-        :text (base.DataType): The document represented as a tokens.
-        """
-        encoded = torch.tensor([self.stoi.get(text[ix], self.unk_tok) for ix in range(len(text))], dtype = torch.long)
 
+        :text (base.DataType): The document represented as a tokens.
+        :doc (base.Datapoint): The datapoint to encode.
+        """
+        if hasattr(doc, 'encoded'):
+            encoded = doc.encoded
+        else:
+            encoded = torch.tensor([self.stoi.get(text[ix], self.unk_tok) for ix in range(len(text))],
+                                   dtype = torch.long)
+            setattr(doc, 'encoded', encoded)
         return encoded
 
-    def stratify(self, data, strata_field):
-        # TODO Rewrite this code to make sense with this implementation.
-        # TODO This doesn't make sense to me.
-        raise NotImplementedError
-        strata_maps = defaultdict(list)
-        for doc in data:
-            strata_maps[getattr(doc, strata_field)].append(doc)
-        return list(strata_maps.values())
-
-    def split(self, data: base.DataType, splits: base.Union[int, base.List[int]],
-              stratify: str = None) -> base.Tuple[base.DataType]:
+    def split(self, data: base.DataType = None, splits: base.List[float] = [0.8, 0.1, 0.1],
+              store: bool = True, stratify: str = None, **kwargs) -> base.Tuple[base.DataType]:
         """Split the datasebase.
-        :data (base.DataType): Dataset to splibase.
-        :splits (int | base.List[int]]): Real valued splits.
+        :data (base.DataType, default = None): Dataset to split. If None, use self.data.
+        :splits (int | base.List[int]], default = [0.8, 0.1, 0.1]): Size of each split.
+        :store (bool, default = True): Store the splitted data in the object.
         :stratify (str): The field to stratify the data along.
         :return data: Return splitted data.
         """
+        data = self.data if data is None else data
+        split_sizes = list(map(lambda x: floor(len(data) * x), splits))  # Get the actual sizes of the splits.
+
         if stratify is not None:  # TODO
-            raise NotImplementedError
-            data = self.stratify(data, )
+            out = self._stratify_split(data, stratify, split_sizes, **kwargs)
+        else:
+            out = self._split(data, split_sizes)
 
-        if isinstance(splits, float):
-            splits = [splits]
+        if store:
+            self.data = out[0]
+            self.test = out[-1]
 
-        num_splits = len(splits)
-        num_datapoints = len(data)
-        splits = list(map(lambda x: floor(num_datapoints * x), splits))
-
-        for ix, split in enumerate(splits):
-            if split == 0:
-                if 1 < splits[ix - 1] and ix + 1 != len(splits):
-                    splits[ix] = splits[ix - 1] + 1
-                else:
-                    splits[ix] = 1
-
-        if num_splits == 1:
-            self.data = data[:splits[0]]
-            self.test = data[splits[0]:]
-            out = (self.data, self.test)
-        elif num_splits == 2:
-            self.data = data[:splits[0]]
-            self.test = data[-splits[1]:]
-            out = (self.data, self.test)
-        elif num_splits == 3:
-            self.data = data[:splits[0]]
-            self.dev = data[splits[0]:splits[0] + splits[1]]
-            self.test = data[-splits[2]:]
-            out = (self.data, self.dev, self.test)
+            if len(splits) == 3:
+                self.dev = out[1]
         return out
+
+    def _stratify_split(self, data: base.DataType, strata_field: str, split_sizes: base.List[int], **kwargs
+                        ) -> base.Tuple[list, base.Union[list, None], list]:
+        """Stratify and split the data.
+        :data (base.DataType): dataset to split.
+        :split_sizes (int | base.List[int]): The number of documents in each split.
+        :strata_field (str): Name of label field.
+        :returns train, dev, test (base.Tuple[list, base.Union[list, None], list]): Return stratified splits.
+        """
+        train_size = split_sizes[0]
+
+        num_splits = len(split_sizes)
+        if num_splits == 1:
+            test_size = len(data) - split_sizes[0]
+        elif num_splits == 2:
+            test_size = split_sizes[-1]
+        elif num_splits == 3:
+            dev_size = split_sizes[1]
+            test_size = split_sizes[2]
+
+        dev, test = None, None
+        idx_maps = defaultdict(list)
+
+        # Create lists of each label.
+        for i, doc in enumerate(data):
+            idx_maps[getattr(doc, strata_field)].append(i)
+
+        # Get labels and probabilities ordered
+        labels, label_probs = zip(*{label: len(idx_maps[label]) / len(data) for label in idx_maps}.items())
+
+        train = self._stratify_helper(data, labels, train_size, label_probs, idx_maps)
+
+        if dev_size is not None:
+            dev = self._stratify_helper(data, labels, dev_size, label_probs, idx_maps)
+
+        if test_size is None:
+            if dev_size is not None:
+                test_size = len(data) - (train_size + dev_size)
+            else:
+                test_size = len(data) - train_size
+        else:
+            if dev_size is not None:
+                test_size += len(data) - (train_size + dev_size + test_size)
+            else:
+                test_size += len(data) - (train_size + dev_size + test_size)
+
+        indices = []
+        for label in idx_maps:
+            indices.extend(idx_maps[label])
+        test = [data[ix] for ix in np.random.choice(indices, test_size, replace = False)]
+
+        return train, dev, test
+
+    def _stratify_helper(self, data: base.DataType, labels: tuple, sample_size: int, probs: tuple,
+                         idx_map: dict) -> base.DataType:
+        """Helper function for stratifying the data splits.
+        :data (base.DataType): Data to be split.
+        :labels (tuple): The labels to choose from.
+        :sample_size (int): Number of documents in the split.
+        :probs (tuple): Probability for each label.
+        :idx_map (dict): label to index (of documents with said label) map.
+        :returns sampled (base.DataType): Returns the stratified split.
+        """
+        train_dist = np.random.choice(labels, sample_size, replace = True, p = probs)  # Get samples for distribution
+        label_count = Counter(train_dist)  # Get the number for each.
+
+        sampled = []
+        for label, count in label_count.items():
+            indices = np.random.choice(idx_map[label], count, replace = False)  # Get indices for label
+            sampled.extend([data[ix] for ix in indices])
+            idx_map[label] = [ix for ix in idx_map[label] if ix not in indices]  # Delete all used indices
+        return sampled
+
+    def _split(self, data: base.DataType, splits: base.Union[int, base.List[int]], **kwargs
+               ) -> base.Tuple[list, base.Union[list, None], list]:
+        """Split the dataset without stratification.
+        :data (base.DataType): dataset to split.
+        :splits (base.List[int]): The sizes of each split.
+        :returns out (base.Tuple[list, base.Union[list, None], list]): Tuple containing filled data splits.
+        """
+        indices = list(range(len(data)))
+        num_splits = len(splits)
+        if num_splits == 1:
+            train, indices = self._split_helper(data, splits[0], indices)
+            test, indices = self._split_helper(data, len(data) - splits[0], indices)
+            out = (train, None, test)
+
+        elif num_splits == 2:
+            train, indices = self._split_helper(data, splits[0], indices)
+            test, indices = self._split_helper(data, splits[1], indices)
+            out = (train, None, test)
+
+        elif num_splits == 3:
+            train, indices = self._split_helper(data, splits[0], indices)
+            dev, indices = self._split_helper(data, splits[1], indices)
+            test, indices = self._split_helper(data, splits[2], indices)
+            out = (train, dev, test)
+        return out
+
+    def _split_helper(self, data: base.DataType, size: int, indices: base.List[int]) -> base.Tuple[list, list]:
+        """Helper function for splitting dataset.
+        :data (base.DataType): Dataset to split.
+        :size: (int): Size of the sample.
+        :indices (base.List[int]): Indices for the entire dataset.
+        :returns sampled, indices (base.Tuple[list, list]): Return the sampled data and unused indices.
+        """
+        sample = np.random.choice(indices, size, replace = False)
+        sampled = [data[ix] for ix in sample]
+        indices = [ix for ix in indices if ix not in sample]
+        return sampled, indices
 
     def __getitem__(self, i):
         return self.data[i]
