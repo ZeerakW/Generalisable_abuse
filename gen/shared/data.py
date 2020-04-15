@@ -405,7 +405,7 @@ class GeneralDataset(IterableDataset):
             if len(text) != self.length:
                 text = self._pad_doc(text, self.length)
 
-            yield encoding_func(text)
+            yield encoding_func(text, doc)
 
     def onehot_encode_doc(self, text: base.DataType, doc: base.Datapoint) -> base.DataType:
         """Onehot encode a single document.
@@ -413,10 +413,10 @@ class GeneralDataset(IterableDataset):
         :text (base.DataType): The document represented as a tokens.
         :doc (base.Datapoint): The datapoint to encode.
         """
-        encoded = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
+        # encoded = torch.zeros(1, self.length, len(self.stoi), dtype = torch.long)
 
-        indices = self.encode_doc(text)
-        encoded[0] = one_hot(indices, len(self.stoi)).type(torch.long)
+        indices = self.encode_doc(text, doc)
+        encoded = one_hot(indices, len(self.stoi)).type(torch.long).unsqueeze(0)
 
         return encoded
 
