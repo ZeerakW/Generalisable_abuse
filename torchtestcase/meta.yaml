@@ -1,0 +1,38 @@
+{% set name = "torchtestcase" %}
+{% set version = "2018.2" %}
+
+package:
+  name: "{{ name|lower }}"
+  version: "{{ version }}"
+
+source:
+  url: "https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz"
+  sha256: 0061cde2eb79f09c9501fae675c52c799371606d52afcff8753c44e1a6254a00
+
+build:
+  number: 0
+  script: "{{ PYTHON }} -m pip install . -vv"
+
+requirements:
+  host:
+    - numpy >=1.13.1
+    - pip
+    - python
+    - torch >=0.4.0
+  run:
+    - numpy >=1.13.1
+    - python
+    - torch >=0.4.0
+
+about:
+  home: "https://github.com/phohenecker/torch-test-case"
+  license: MIT
+  license_family: MIT
+  license_file: 
+  summary: "Extends unittest.TestCase such that assertions support PyTorch tensors and parameters."
+  doc_url: 
+  dev_url: 
+
+extra:
+  recipe-maintainers:
+    - your-github-id-here
