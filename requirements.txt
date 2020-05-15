@@ -1,5 +1,2 @@
 git+ssh://git@github.com/zeerakw/mlearn.git
-numpy==1.17.2
-torch==1.2.0
-tqdm==4.36.1
 ipdb==0.12.3
