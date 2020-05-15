@@ -1,5 +1,0 @@
-numpy
-tqdm
-spacy
-scikit-learn
-nltk
