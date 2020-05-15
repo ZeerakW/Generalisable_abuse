@@ -1,16 +1,16 @@
 import os
-import sys
 import csv
 import torch
 import argparse
 import numpy as np
 from tqdm import tqdm
-sys.path.extend(['/home/zeerakw/projects/Generalise/'])
-from gen.shared.train import run_model, process_and_batch
-import gen.shared.dataloaders as loaders
-from gen.shared.metrics import select_metrics
-from gen.shared.clean import Cleaner, Preprocessors
-from gen.neural import CNNClassifier, MLPClassifier, RNNClassifier, LSTMClassifier
+import mlearn.modeling.onehot as oh
+import mlearn.data.loaders as loaders
+import mlearn.modeling.embedding as emb
+from mlearn.utils.metrics import Metrics
+from mlearn.utils.pipeline import process_and_batch
+from mlearn.data.clean import Cleaner, Preprocessors
+from mlearn.utils.train import run_singletask_model as run_model
 
 
 if __name__ == "__main__":
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--results", help = "Set file to output results to.")
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"], type = str)
-    parser.add_argument("--display", help = "Metric to display in TQDM loops.")
+    parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'accuracy')
 
     # Model (hyper) parameters
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300, type = int)
@@ -41,12 +41,15 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
     parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
+    parser.add_argument('--onehot', help = "Use one-hot tensors.", action = 'store_true', default = True)
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
     parser.add_argument("--slur_window", help = "Set window size for slur replacement.")
 
     args = parser.parse_args()
+
+    models = oh if args.onehot else emb
 
     train_args = {'model': None,
                   'epochs': args.epochs,
@@ -55,7 +58,7 @@ if __name__ == "__main__":
                   'loss_func': None,
                   'num_layers': 1,
                   'batch_first': True,
-                  'metrics': select_metrics(args.metrics),
+                  'metrics': Metrics(args.metrics, args.display),
                   'dropout': args.dropout,
                   'embedding_dim': args.embedding,
                   'hidden_dim': args.hidden,
@@ -132,14 +135,13 @@ if __name__ == "__main__":
     elif args.train == 'wulczyn':
         main = loaders.wulczyn(c, experiment)
         evals = [main, loaders.garcia(c, experiment), loaders.davidson(c, experiment),
-                loaders.waseem_hovy(c, experiment), loaders.waseem(c, experiment)]
+                 loaders.waseem_hovy(c, experiment), loaders.waseem(c, experiment)]
 
     main.build_token_vocab(main.data)
     main.build_label_vocab(main.data)
 
     train_args['input_dim'] = main.vocab_size()
     train_args['output_dim'] = main.label_count()
-    train_args['batches'] = process_and_batch(main, main.data, args.batch_size)
     train_args['gpu'] = args.gpu
 
     model_args = {}
@@ -158,38 +160,38 @@ if __name__ == "__main__":
     elif args.loss == 'crossentropy':
         model_args['loss_func'] = torch.nn.CrossEntropyLoss
 
-    if main.dev is not None:  # As the dataloaders always create a dev set, this condition will always be True
-        train_args['dev_batches'] = process_and_batch(main, main.dev, args.batch_size)
-
-    test_sets = [process_and_batch(main, data.test, args.batch_size) for data in evals]
-
     # Set models
     if args.model == 'mlp':
-        models = [MLPClassifier(**train_args)]
+        models = [models.MLPClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'dropout',
                         'learning rate']
         model_info = {'mlp': ['mlp', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
                               train_args['output_dim'], train_args['dropout'], args.learning_rate]}
 
     elif args.model == 'lstm':
-        models = [LSTMClassifier(**train_args)]
+        models = [models.LSTMClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'num layers',
                         'learning rate']
         model_info = {'lstm': ['lstm', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
                                train_args['output_dim'], train_args['num_layers'], args.learning_rate]}
 
     elif args.model == 'rnn':
-        models = [RNNClassifier(**train_args)]
+        models = [models.RNNClassifier(**train_args)]
         model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'num layers',
                         'learning rate']
         model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
                               train_args['output_dim'], train_args['num_layers'], args.learning_rate]}
 
-    # elif args.model == 'cnn':
-    #     models = [CNNClassifier(**train_args)]
-    #     model_header = ['epoch', 'model', 'window sizes', 'num filters', 'max feats', 'hidden dim', 'output dim']
-    #     model_info = {'cnn': ['cnn', train_args['window_sizes'], train_args['num_filters'], train_args['max_feats'],
-    #                           train_args['hidden_dim'], train_args['output_dim']]}
+    elif args.model == 'cnn':
+        # Make sure all documents adhere to the maximum number of features.
+        args.onehot = False
+        for d in evals:
+            d.modify_length = args.max_feats
+
+        models = [models.CNNClassifier(**train_args)]
+        model_header = ['epoch', 'model', 'window sizes', 'num filters', 'max feats', 'hidden dim', 'output dim']
+        model_info = {'cnn': ['cnn', train_args['window_sizes'], train_args['num_filters'], train_args['max_feats'],
+                              train_args['hidden_dim'], train_args['output_dim']]}
 
     elif args.model == 'all':
         model_header = ['epoch', 'model', 'input dim', 'hidden dim', 'embedding dim', 'dropout', 'learning rate',
@@ -198,10 +200,17 @@ if __name__ == "__main__":
                               train_args['dropout'], args.learning_rate, train_args['window_sizes'],
                               train_args['num_filters'], train_args['max_feats'], train_args['output_dim']]}
 
-        models = [MLPClassifier(**train_args),
-                  # CNNClassifier(**train_args),
-                  LSTMClassifier(**train_args),
-                  RNNClassifier(**train_args)]
+        models = [models.MLPClassifier(**train_args),
+                  models.CNNClassifier(**train_args),
+                  models.LSTMClassifier(**train_args),
+                  models.RNNClassifier(**train_args)]
+
+    train_args['batches'] = process_and_batch(main, main.data, args.batch_size, args.onehot)
+
+    if main.dev is not None:  # As the dataloaders always create a dev set, this condition will always be True
+        train_args['dev_batches'] = process_and_batch(main, main.dev, args.batch_size, args.onehot)
+
+    test_sets = [process_and_batch(main, data.test, args.batch_size, args.onehot) for data in evals]
 
     # Initialize writers
     # TODO Add experiment name to each output file.
@@ -209,48 +218,49 @@ if __name__ == "__main__":
     with open(args.results + '_train', enc, encoding = 'utf-8') as train_res,\
             open(args.results + '_test', enc, encoding = 'utf-8') as test_res:
 
-            train_writer = csv.writer(train_res, delimiter = '\t')
-            test_writer = csv.writer(test_res, delimiter = '\t')
+        train_writer = csv.writer(train_res, delimiter = '\t')
+        test_writer = csv.writer(test_res, delimiter = '\t')
 
-            # Create header
-            metrics = list(train_args['metrics'].keys())
-            train_header = ['dataset', 'trained on'] + model_header + metrics + ['train loss'] + ['dev ' + m for m in metrics] + ['dev loss']
-            test_header = ['dataset', 'trained on'] + model_header + metrics + ['loss']
+        # Create header
+        metrics = list(train_args['metrics'].keys())
+        train_header = ['dataset', 'trained on'] + model_header + metrics + ['train loss']
+        train_header += ['dev ' + m for m in metrics] + ['dev loss']
+        test_header = ['dataset', 'trained on'] + model_header + metrics + ['loss']
 
-            if enc == 'w':  # Only write headers if the file doesn't already exist.
-                train_writer.writerow(train_header)
-                test_writer.writerow(test_header)
+        if enc == 'w':  # Only write headers if the file doesn't already exist.
+            train_writer.writerow(train_header)
+            test_writer.writerow(test_header)
 
-            for model in tqdm(models, desc = "Iterating over models"):
-                train_args['model'] = model if not args.gpu else model.cuda()
+        for model in tqdm(models, desc = "Iterating over models"):
+            train_args['model'] = model if not args.gpu else model.cuda()
 
-                if args.model == 'all':
-                    info = [model.name] + model_info['all']
-                else:
-                    info = model_info[model.name]
+            if args.model == 'all':
+                info = [model.name] + model_info['all']
+            else:
+                info = model_info[model.name]
 
-                # Explains losses:
-                # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
+            # Explains losses:
+            # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
                 train_args['loss_func'] = model_args['loss_func']()
-                train_args['optimizer'] = model_args['optimizer'](model.parameters(), args.learning_rate)
-                train_args['data_name'] = main.name
-                train_args['main_name'] = main.name
+            train_args['optimizer'] = model_args['optimizer'](model.parameters(), args.learning_rate)
+            train_args['data_name'] = main.name
+            train_args['main_name'] = main.name
 
-                run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
-                          **train_args)
+            run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
+                      **train_args)
 
-                for data, iterator in tqdm(zip(evals, test_sets), desc = 'Evaluate', leave = False, total = len(evals)):
-                    # Test on other datasets.
-                    # Process and batch the data
-                    eval_args['iterator'] = iterator
-                    eval_args['data_name'] = data.name
-                    eval_args['main_name'] = main.name
-                    eval_args['epochs'] = 1
+            for data, iterator in tqdm(zip(evals, test_sets), desc = 'Evaluate', leave = False, total = len(evals)):
+                # Test on other datasets.
+                # Process and batch the data
+                eval_args['iterator'] = iterator
+                eval_args['data_name'] = data.name
+                eval_args['main_name'] = main.name
+                eval_args['epochs'] = 1
 
-                    # Set up the model arguments
-                    eval_args['model'] = model
-                    eval_args['loss_func'] = train_args['loss_func']
+                # Set up the model arguments
+                eval_args['model'] = model
+                eval_args['loss_func'] = train_args['loss_func']
 
-                    # Run the model
-                    run_model('pytorch', train = False, writer = test_writer, model_info = info, head_len = len(test_header),
-                              **eval_args)
+                # Run the model
+                run_model('pytorch', train = False, writer = test_writer, model_info = info,
+                          head_len = len(test_header), **eval_args)
