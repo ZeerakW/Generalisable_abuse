@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"], type = str)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'accuracy')
+    parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/')
 
     # Model (hyper) parameters
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300, type = int)
@@ -113,29 +114,76 @@ if __name__ == "__main__":
         experiement = p.slur_replacement
 
     if args.train == 'davidson':
-        main = loaders.davidson(c, experiment)
-        evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.waseem(c, experiment),
-                 loaders.waseem_hovy(c, experiment)]
+        main = loaders.davidson(c, args.datadir, preprocessor = experiment,
+                                label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True)
+        evals = [main,
+                 loaders.davidson(c, args.datadir, preprocessor = experiment,
+                                  label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
+                 loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True),
+                 loaders.garcia(c, args.datadir, preprocessor = experiment, label_processor = loaders.binarize_garcia,
+                                stratify = 'label', skip_header = True),
+                 loaders.waseem(c, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
+                                stratify = 'label'),
+                 loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
+                                     label_processor = loaders.waseem_to_binary,
+                                     stratify = 'label')
+                 ]
 
     elif args.train == 'waseem':
-        main = loaders.waseem(c, experiment)
-        evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
-                 loaders.waseem_hovy(c, experiment)]
+        main = loaders.waseem(c, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
+                              stratify = 'label'),
+        evals = [main,
+                 loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True),
+                 loaders.garcia(c, args.datadir, preprocessor = experiment, label_processor = loaders.binarize_garcia,
+                                stratify = 'label', skip_header = True),
+                 loaders.davidson(c, args.datadir, preprocessor = experiment,
+                                  label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
+                 loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
+                                     label_processor = loaders.waseem_to_binary,
+                                     stratify = 'label')
+                 ]
 
     elif args.train == 'waseem_hovy':
-        main = loaders.waseem_hovy(c, experiment)
-        evals = [main, loaders.wulczyn(c, experiment), loaders.garcia(c, experiment), loaders.davidson(c, experiment),
-                 loaders.waseem(c, experiment)]
+        main = loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
+                                   label_processor = loaders.waseem_to_binary,
+                                   stratify = 'label')
+        evals = [main,
+                 loaders.davidson(c, args.datadir, preprocessor = experiment,
+                                  label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
+                 loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True),
+                 loaders.garcia(c, args.datadir, preprocessor = experiment, label_processor = loaders.binarize_garcia,
+                                stratify = 'label', skip_header = True),
+                 loaders.waseem(c, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
+                                stratify = 'label')
+                 ]
 
     elif args.train == 'garcia':
-        main = loaders.garcia(c, experiment)
-        evals = [main, loaders.wulczyn(c, experiment), loaders.davidson(c, experiment),
-                 loaders.waseem_hovy(c, experiment), loaders.waseem(c, experiment)]
+        main = loaders.garcia(c, args.datadir, preprocessor = experiment, label_processor = loaders.binarize_garcia,
+                              stratify = 'label', skip_header = True),
+        evals = [main,
+                 loaders.davidson(c, args.datadir, preprocessor = experiment,
+                                  label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
+                 loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True),
+                 loaders.waseem(c, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
+                                stratify = 'label'),
+                 loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
+                                     label_processor = loaders.waseem_to_binary,
+                                     stratify = 'label')
+                 ]
 
     elif args.train == 'wulczyn':
-        main = loaders.wulczyn(c, experiment)
-        evals = [main, loaders.garcia(c, experiment), loaders.davidson(c, experiment),
-                 loaders.waseem_hovy(c, experiment), loaders.waseem(c, experiment)]
+        main = loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True)
+        evals = [main,
+                 loaders.davidson(c, args.datadir, preprocessor = experiment,
+                                  label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
+                 loaders.garcia(c, args.datadir, preprocessor = experiment, label_processor = loaders.binarize_garcia,
+                                stratify = 'label', skip_header = True),
+                 loaders.waseem(c, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
+                                stratify = 'label'),
+                 loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
+                                     label_processor = loaders.waseem_to_binary,
+                                     stratify = 'label')
+                 ]
 
     main.build_token_vocab(main.data)
     main.build_label_vocab(main.data)
