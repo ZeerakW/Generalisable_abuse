@@ -84,7 +84,7 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
 
     c = Cleaner(args.cleaners)
-    p = Preprocessors()
+    p = Preprocessors(args.datadir)
 
     args.experiment = args.experiment.lower()
     args.train = args.train.lower()
@@ -270,7 +270,7 @@ if __name__ == "__main__":
         test_writer = csv.writer(test_res, delimiter = '\t')
 
         # Create header
-        metrics = list(train_args['metrics'].keys())
+        metrics = list(train_args['metrics'].list())
         train_header = ['dataset', 'trained on'] + model_header + metrics + ['train loss']
         train_header += ['dev ' + m for m in metrics] + ['dev loss']
         test_header = ['dataset', 'trained on'] + model_header + metrics + ['loss']
