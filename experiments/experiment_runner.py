@@ -84,7 +84,7 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
 
     c = Cleaner(args.cleaners)
-    p = Preprocessors()
+    p = Preprocessors(args.datadir)
 
     args.experiment = args.experiment.lower()
     args.train = args.train.lower()
