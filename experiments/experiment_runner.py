@@ -54,8 +54,8 @@ if __name__ == "__main__":
 
     train_args = {'model': None,
                   'epochs': args.epochs,
-                  'batches': None,
-                  'dev_batches': None,
+                  'iterator': None,
+                  'dev_iterator': None,
                   'loss_func': None,
                   'num_layers': 1,
                   'batch_first': True,
@@ -253,10 +253,10 @@ if __name__ == "__main__":
                   models.LSTMClassifier(**train_args),
                   models.RNNClassifier(**train_args)]
 
-    train_args['batches'] = process_and_batch(main, main.data, args.batch_size, args.onehot)
+    train_args['iterator'] = process_and_batch(main, main.data, args.batch_size, args.onehot)
 
     if main.dev is not None:  # As the dataloaders always create a dev set, this condition will always be True
-        train_args['dev_batches'] = process_and_batch(main, main.dev, args.batch_size, args.onehot)
+        train_args['dev_iterator'] = process_and_batch(main, main.dev, args.batch_size, args.onehot)
 
     test_sets = [process_and_batch(main, data.test, args.batch_size, args.onehot) for data in evals]
 
