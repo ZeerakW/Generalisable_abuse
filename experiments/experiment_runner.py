@@ -71,7 +71,7 @@ if __name__ == "__main__":
                   'input_dim': None,
                   'gpu': args.gpu,
                   'shuffle': args.shuffle,
-                  'save_path': args.save_path
+                  'save_path': "_".join([args.save_model, args.experiment, 'best_model']) + '.pkl'
                   }
 
     eval_args = {'model': None,
