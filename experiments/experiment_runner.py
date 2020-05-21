@@ -60,6 +60,7 @@ if __name__ == "__main__":
                   'num_layers': 1,
                   'batch_first': True,
                   'metrics': Metrics(args.metrics, args.display),
+                  'dev_metrics': Metrics(args.metrics, args.display),
                   'dropout': args.dropout,
                   'embedding_dim': args.embedding,
                   'hidden_dim': args.hidden,
