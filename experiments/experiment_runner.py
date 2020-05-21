@@ -69,7 +69,8 @@ if __name__ == "__main__":
                   'output_dim': None,
                   'input_dim': None,
                   'gpu': args.gpu,
-                  'shuffle': args.shuffle
+                  'shuffle': args.shuffle,
+                  'save_path': os.path.join(args.results, 'models/')
                   }
 
     eval_args = {'model': None,
