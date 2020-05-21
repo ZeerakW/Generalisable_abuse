@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
     parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
-    parser.add_argument('--onehot', help = "Use one-hot tensors.", action = 'store_true', default = True)
+    parser.add_argument('--onehot', help = "Use one-hot tensors.", action = 'store_true', default = False)
 
     # Experiment parameters
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
