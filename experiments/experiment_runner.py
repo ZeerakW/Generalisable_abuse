@@ -290,7 +290,7 @@ if __name__ == "__main__":
 
             # Explains losses:
             # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
-                train_args['loss_func'] = model_args['loss_func']()
+            train_args['loss_func'] = model_args['loss_func']()
             train_args['optimizer'] = model_args['optimizer'](model.parameters(), args.learning_rate)
             train_args['data_name'] = main.name
             train_args['main_name'] = main.name
