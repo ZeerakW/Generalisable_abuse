@@ -21,7 +21,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = "mlp")
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int)
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 64, type = int)
-    parser.add_argument("--save_model", help = "Directory to store models in.")
+    parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/model/')
     parser.add_argument("--results", help = "Set file to output results to.")
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"], type = str)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
                   'input_dim': None,
                   'gpu': args.gpu,
                   'shuffle': args.shuffle,
-                  'save_path': os.path.join(args.results, 'models/')
+                  'save_path': args.save_path
                   }
 
     eval_args = {'model': None,
