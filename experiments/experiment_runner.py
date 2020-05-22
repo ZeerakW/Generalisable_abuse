@@ -302,6 +302,7 @@ if __name__ == "__main__":
             for data, iterator in tqdm(zip(evals, test_sets), desc = 'Evaluate', leave = False, total = len(evals)):
                 # Test on other datasets.
                 # Process and batch the data
+                eval_args['metrics'] = Metrics(args.metrics, args.display)
                 eval_args['iterator'] = iterator
                 eval_args['data_name'] = data.name
                 eval_args['main_name'] = main.name
