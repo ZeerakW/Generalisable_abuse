@@ -265,8 +265,10 @@ if __name__ == "__main__":
     # Initialize writers
     # TODO Add experiment name to each output file.
     enc = 'a' if os.path.isfile(args.results + '_train') else 'w'
-    with open(args.results + '_train', enc, encoding = 'utf-8') as train_res,\
-            open(args.results + '_test', enc, encoding = 'utf-8') as test_res:
+    pred_enc = 'a' if os.path.isfile(args.results + '_preds.tsv') else 'w'
+    with open(args.results + '_train.tsv', enc, encoding = 'utf-8') as train_res,\
+            open(args.results + '_test.tsv', enc, encoding = 'utf-8') as test_res,\
+            open(args.results + '_preds.tsv', pred_enc, encoding = 'utf-8') as pred_fn:
 
         train_writer = csv.writer(train_res, delimiter = '\t')
         test_writer = csv.writer(test_res, delimiter = '\t')
@@ -302,6 +304,10 @@ if __name__ == "__main__":
             for data, iterator in tqdm(zip(evals, test_sets), desc = 'Evaluate', leave = False, total = len(evals)):
                 # Test on other datasets.
                 # Process and batch the data
+                eval_args['dataset'] = data
+                eval_args['train_field'] = 'text'
+                eval_args['label_field'] = 'label'
+                eval_args['pred_fn'] = pred_fn
                 eval_args['metrics'] = Metrics(args.metrics, args.display)
                 eval_args['iterator'] = iterator
                 eval_args['data_name'] = data.name
