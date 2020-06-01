@@ -1,0 +1,11 @@
+dataset	trained on	epoch	model	input dim	hidden dim	embedding dim	dropout	learning rate	window sizes	num filters	max feats	output dim	accuracy	precision	recall	f1-score	loss
+Davidson et al.	Davidson et al.	0	mlp	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	7.674147211577249
+Wulczyn et al.	Davidson et al.	0	mlp	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	14.21498423084165
+Garcia et al.	Davidson et al.	0	mlp	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	21.09156192795502
+Waseem	Davidson et al.	0	mlp	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	34.04495856665462
+Waseem-Hovy	Davidson et al.	0	mlp	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	27.992048980496453
+Davidson et al.	Davidson et al.	0	cnn	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	823006.4897135942
+Wulczyn et al.	Davidson et al.	0	cnn	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	5826745.480700433
+Garcia et al.	Davidson et al.	0	cnn	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	4181306.912133891
+Waseem	Davidson et al.	0	cnn	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	5094242.774566474
+Waseem-Hovy	Davidson et al.	0	cnn	19080	128	300	0.2	0.2	[2, 3, 4]	128	100	2	0.0	0.0	0.0	0.0	8710974.940898346
