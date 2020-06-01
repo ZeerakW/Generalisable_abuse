@@ -71,7 +71,7 @@ if __name__ == "__main__":
                   'input_dim': None,
                   'gpu': args.gpu,
                   'shuffle': args.shuffle,
-                  'save_path': "_".join([args.save_model, args.experiment, 'best_model']) + '.pkl'
+                  'save_path': "_".join([args.save_model, args.experiment, 'best_model'])
                   }
 
     eval_args = {'model': None,
@@ -119,16 +119,16 @@ if __name__ == "__main__":
         main = loaders.davidson(c, args.datadir, preprocessor = experiment,
                                 label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True)
         evals = [main,
-                 loaders.davidson(c, args.datadir, preprocessor = experiment,
-                                  label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
-                 loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True),
+                 loaders.wulczyn(c, args.datadir, preprocessor = experiment, skip_header = True),
                  loaders.garcia(c, args.datadir, preprocessor = experiment, label_processor = loaders.binarize_garcia,
                                 stratify = 'label', skip_header = True),
                  loaders.waseem(c, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
                                 stratify = 'label'),
                  loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
                                      label_processor = loaders.waseem_to_binary,
-                                     stratify = 'label')
+                                     stratify = 'label'),
+                 loaders.vidgen(c, args.datadir, preprocessor = experiment, label_processor = loaders.vidgen_to_binary,
+                                stratify = 'label')
                  ]
 
     elif args.train == 'waseem':
@@ -174,7 +174,7 @@ if __name__ == "__main__":
                  ]
 
     elif args.train == 'wulczyn':
-        main = loaders.wulczyn(c, args.datadir, preprocessor = experiment, stratify = 'label', skip_header = True)
+        main = loaders.wulczyn(c, args.datadir, preprocessor = experiment, skip_header = True) # , stratify = 'label', skip_header = True)
         evals = [main,
                  loaders.davidson(c, args.datadir, preprocessor = experiment,
                                   label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True),
@@ -309,7 +309,7 @@ if __name__ == "__main__":
                 eval_args['train_field'] = 'text'
                 eval_args['label_field'] = 'label'
                 eval_args['pred_fn'] = pred_fn
-                eval_args['metrics'] = Metrics(args.metrics, args.display)
+                eval_args['metrics'] = Metrics(args.metrics, args.display, args.display)
                 eval_args['iterator'] = iterator
                 eval_args['data_name'] = data.name
                 eval_args['main_name'] = main.name
