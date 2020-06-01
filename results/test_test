@@ -1,1 +1,0 @@
-dataset	trained on	epoch	model	input dim	hidden dim	embedding dim	dropout	learning rate	window sizes	num filters	max feats	output dim	accuracy	precision	recall	f1-score	loss

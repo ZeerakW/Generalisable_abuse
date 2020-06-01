@@ -267,10 +267,11 @@ if __name__ == "__main__":
     pred_enc = 'a' if os.path.isfile(args.results + '_preds.tsv') else 'w'
     with open(args.results + '_train.tsv', enc, encoding = 'utf-8') as train_res,\
             open(args.results + '_test.tsv', enc, encoding = 'utf-8') as test_res,\
-            open(args.results + '_preds.tsv', pred_enc, encoding = 'utf-8') as pred_fn:
+            open(args.results + '_preds.tsv', pred_enc, encoding = 'utf-8') as pred:
 
         train_writer = csv.writer(train_res, delimiter = '\t')
         test_writer = csv.writer(test_res, delimiter = '\t')
+        pred_fn = csv.writer(pred, delimiter = '\t')
 
         # Create header
         metrics = list(train_args['metrics'].list())
@@ -304,6 +305,7 @@ if __name__ == "__main__":
                 # Test on other datasets.
                 # Process and batch the data
                 eval_args['dataset'] = main
+                eval_args['test_obj'] = data.test
                 eval_args['train_field'] = 'text'
                 eval_args['label_field'] = 'label'
                 eval_args['pred_fn'] = pred_fn
