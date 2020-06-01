@@ -127,8 +127,8 @@ if __name__ == "__main__":
                  loaders.waseem_hovy(c, args.datadir, preprocessor = experiment,
                                      label_processor = loaders.waseem_to_binary,
                                      stratify = 'label'),
-                 loaders.vidgen(c, args.datadir, preprocessor = experiment, label_processor = loaders.vidgen_to_binary,
-                                stratify = 'label')
+                 # loaders.vidgen(c, args.datadir, preprocessor = experiment, label_processor = loaders.vidgen_to_binary,
+                 #                stratify = 'label')
                  ]
 
     elif args.train == 'waseem':
