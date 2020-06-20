@@ -114,3 +114,6 @@ src/pytorch_tutorial
 
 # Ignore data in trial directory
 trial/
+
+# pycharm
+.idea/
