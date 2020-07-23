@@ -17,8 +17,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Run Experiments to generalise models.")
 
     # For all models
-    parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.")
-    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = "mlp")
+    parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.",
+                        type = str.lower)
+    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", nargs = '+',
+                        default = ['mlp'], type = str.lower)
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int)
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 64, type = int)
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/model/')
@@ -36,8 +38,8 @@ if __name__ == "__main__":
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int)
     parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100, type = int)
     parser.add_argument("--dropout", help = "Set value for dropout.", default = 0.0, type = float)
-    parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam')
-    parser.add_argument("--loss", help = "Loss to use.", default = 'NLLL')
+    parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam', type = str.lower)
+    parser.add_argument("--loss", help = "Loss to use.", default = 'nlll', type = str.lower)
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = 0.01, type = float)
     parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
@@ -45,12 +47,12 @@ if __name__ == "__main__":
     parser.add_argument('--onehot', help = "Use one-hot tensors.", action = 'store_true', default = False)
 
     # Experiment parameters
-    parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token")
+    parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token", type = str.lower)
     parser.add_argument("--slur_window", help = "Set window size for slur replacement.")
 
     args = parser.parse_args()
 
-    models = oh if args.onehot else emb
+    model = oh if args.onehot else emb
 
     train_args = {'model': None,
                   'epochs': args.epochs,
@@ -88,12 +90,6 @@ if __name__ == "__main__":
     c = Cleaner(args.cleaners)
     p = Preprocessors(args.datadir)
 
-    args.experiment = args.experiment.lower()
-    args.train = args.train.lower()
-    args.loss = args.loss.lower()
-    args.optimizer = args.optimizer.lower()
-    args.model = args.model.lower()
-
     # Word token experiment
     if args.experiment == 'word':
         # Set training dataset
@@ -113,7 +109,7 @@ if __name__ == "__main__":
 
     elif args.experiment == 'slur':
         p.slur_window = args.slur_window
-        experiement = p.slur_replacement
+        experiment = p.slur_replacement
 
     if args.train == 'davidson':
         main = loaders.davidson(c, args.datadir, preprocessor = experiment,
@@ -211,48 +207,24 @@ if __name__ == "__main__":
         model_args['loss_func'] = torch.nn.CrossEntropyLoss
 
     # Set models
-    if args.model == 'mlp':
-        models = [models.MLPClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'dropout',
-                        'learning rate']
-        model_info = {'mlp': ['mlp', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                              train_args['output_dim'], train_args['dropout'], args.learning_rate]}
-
-    elif args.model == 'lstm':
-        models = [models.LSTMClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'num layers',
-                        'learning rate']
-        model_info = {'lstm': ['lstm', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                               train_args['output_dim'], train_args['num_layers'], args.learning_rate]}
-
-    elif args.model == 'rnn':
-        models = [models.RNNClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'input dim', 'embedding dim', 'hidden dim', 'output dim', 'num layers',
-                        'learning rate']
-        model_info = {'rnn': ['rnn', train_args['input_dim'], train_args['embedding_dim'], train_args['hidden_dim'],
-                              train_args['output_dim'], train_args['num_layers'], args.learning_rate]}
-
-    elif args.model == 'cnn':
-        # Make sure all documents adhere to the maximum number of features.
-        for d in evals:
-            d.modify_length = args.max_feats
-
-        models = [models.CNNClassifier(**train_args)]
-        model_header = ['epoch', 'model', 'window sizes', 'num filters', 'max feats', 'hidden dim', 'output dim']
-        model_info = {'cnn': ['cnn', train_args['window_sizes'], train_args['num_filters'], train_args['max_feats'],
-                              train_args['hidden_dim'], train_args['output_dim']]}
-
-    elif args.model == 'all':
-        model_header = ['epoch', 'model', 'input dim', 'hidden dim', 'embedding dim', 'dropout', 'learning rate',
-                        'window sizes', 'num filters', 'max feats', 'output dim']
-        model_info = {'all': [train_args['input_dim'], train_args['hidden_dim'], train_args['embedding_dim'],
-                              train_args['dropout'], args.learning_rate, train_args['window_sizes'],
-                              train_args['num_filters'], train_args['max_feats'], train_args['output_dim']]}
-
-        models = [models.MLPClassifier(**train_args),
-                  models.CNNClassifier(**train_args),
-                  models.LSTMClassifier(**train_args),
-                  models.RNNClassifier(**train_args)]
+    models = []
+    for m in args.model:
+        if m == 'mlp':
+            models.append(model.MLPClassifier(**train_args))
+        if m == 'lstm':
+            models.append(model.LSTMClassifier(**train_args))
+        if m == 'cnn':
+            models.append(model.CNNClassifier(**train_args))
+        if m == 'rnn':
+            models.append(model.RNNClassifier(**train_args))
+        if m == 'lr':
+            # TODO Handle Sklearn models.
+            pass
+        if m == 'all':
+            models = [model.MLPClassifier(**train_args),
+                      model.CNNClassifier(**train_args),
+                      model.LSTMClassifier(**train_args),
+                      model.RNNClassifier(**train_args)]
 
     train_args['iterator'] = process_and_batch(main, main.data, args.batch_size, args.onehot)
 
@@ -299,7 +271,7 @@ if __name__ == "__main__":
             train_args['main_name'] = main.name
 
             run_model('pytorch', train = True, writer = train_writer, model_info = info, head_len = len(train_header),
-                      **train_args)
+                      low_is_good = True, **train_args)
 
             for data, iterator in tqdm(zip(evals, test_sets), desc = 'Evaluate', leave = False, total = len(evals)):
                 # Test on other datasets.
