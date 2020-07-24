@@ -187,7 +187,6 @@ if __name__ == "__main__":
     # Define arugmen dictionaries
     train_args = {}
     model_args = {}
-    eval_args = {}
 
     # Set models to iterate over
     models = []
@@ -226,11 +225,20 @@ if __name__ == "__main__":
     model_hdr = ['Model', 'Input dim', 'Embedding dim', 'Hidden dim', 'Output dim', 'Window Sizes', '# Filters',
                  '# Layers', 'Dropout', 'Activation']
     if enc == 'w':
+        metric_hdr = args.metrics + ['loss'] + [f"dev {m}" for m in args.metrics] + ['dev loss']
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
+        hdr += metric_hdr
         train_writer.writerow(hdr)
         test_writer.writerow(hdr)
 
+    if pred_enc == 'w':
+        metric_hdr = args.metrics + ['loss']
+        hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
+        hdr += metric_hdr
+        pred_writer.writerow(hdr)
+
     train_args['model_hdr'] = model_hdr
+    train_args['metric_hdr'] = args.metrics + ['loss']
 
     with tqdm(args.batch_size, desc = "Batch Size Iterator") as b_loop,\
          tqdm(args.dropout, desc = "Dropout Iterator") as d_loop,\
@@ -269,10 +277,6 @@ if __name__ == "__main__":
         train_args['input_dim'] = main.vocab_size()
         train_args['output_dim'] = main.label_count()
         train_args['main_name'] = main.name
-
-# write_results needs
-# writer, model, model_hdr, data_name, main_name
-# hyper_info, metric_hdr, metrics, dev_metrics,
 
         # Batch all evaluation datasets
         test_batches = [process_and_batch(main, data.test, args.batch_size, onehot) for data in test_sets]
@@ -316,12 +320,21 @@ if __name__ == "__main__":
                                     run_model(train = True, writer = train_writer, **train_args)
 
                                     for batcher, test in zip(test_batches, test_sets):
-                                        eval_args['model'] = train_args['model']
-                                        eval_args['batchers'] = batcher
-                                        eval_args['loss'] = train_args['loss']
-                                        eval_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
-                                        eval_args['gpu'] = args.gpu
-                                        eval_args['test'] = test
+                                        eval_args = {'model': train_args['model'],
+                                                     'batchers': batcher,
+                                                     'loss': train_args['loss'],
+                                                     'metrics': Metrics(args.metrics, args.display, args.stop_metric),
+                                                     'gpu': args.gpu,
+                                                     'data': test,
+                                                     'dataset': main,
+                                                     'hyper_info': train_args['hyper_info'],
+                                                     'model_hdr': train_args['model_hdr'],
+                                                     'metric_hdr': train_args['metric_hdr'],
+                                                     'main_name': train_args['main_name'],
+                                                     'data_name': test.name,
+                                                     'train_field': 'text',
+                                                     'label_field': 'label'
+                                                     }
 
                                         run_model(train = False, writer = test_writer, pred_writer = pred_writer,
                                                   **eval_args)

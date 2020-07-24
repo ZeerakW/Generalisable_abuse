@@ -1,0 +1,8 @@
+models/embedding_davidson_word_best_model_lstm.pkl filter=lfs diff=lfs merge=lfs -text
+models/embedding_davidson_word_best_model_mlp.pkl filter=lfs diff=lfs merge=lfs -text
+models/embedding_wulczyn_word_best_model_cnn.pkl filter=lfs diff=lfs merge=lfs -text
+models/embedding_wulczyn_word_best_model_mlp.pkl filter=lfs diff=lfs merge=lfs -text
+models/onehot_wulczyn_liwc_best_model.pkl_mlp.pkl filter=lfs diff=lfs merge=lfs -text
+models/embedding_davidson_liwc_best_model_cnn.pkl filter=lfs diff=lfs merge=lfs -text
+models/embedding_davidson_liwc_best_model_mlp.pkl filter=lfs diff=lfs merge=lfs -text
+models/embedding_davidson_word_best_model_cnn.pkl filter=lfs diff=lfs merge=lfs -text
