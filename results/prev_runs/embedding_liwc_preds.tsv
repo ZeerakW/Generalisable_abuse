@@ -1,0 +1,1 @@
+Timestamp	Trained on	Evaluated on	Batch size	# Epochs	Learning Rate	Model	Input dim	Embedding dim	Hidden dim	Output dim	Window Sizes	# Filters	# Layers	Dropout	Activation	accuracy	precision	recall	auc	f1	loss
