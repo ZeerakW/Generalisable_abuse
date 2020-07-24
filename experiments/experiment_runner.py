@@ -212,8 +212,8 @@ if __name__ == "__main__":
     main.build_label_vocab(main.data)
 
     # Open output files
-    enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiments}_train.tsv') else 'w'
-    pred_enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiments}_preds.tsv') else 'w'
+    enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiment}_train.tsv') else 'w'
+    pred_enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiment}_preds.tsv') else 'w'
 
     train_writer = csv.writer(open(f"{args.results}/{args.encoding}_{args.experiment}_train.tsv", enc,
                                    encoding = 'utf-8'), delimiter = '\t')
