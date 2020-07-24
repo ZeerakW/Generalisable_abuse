@@ -23,7 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", nargs = '+',
                         default = ['mlp'], type = str.lower)
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/model/')
-    parser.add_argument("--results", help = "Set file to output results to.")
+    parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
                         type = str.lower)
@@ -212,15 +212,15 @@ if __name__ == "__main__":
     main.build_label_vocab(main.data)
 
     # Open output files
-    enc = 'a' if os.path.isfile(f'{args.results}_{args.experiments}_train.tsv') else 'w'
-    pred_enc = 'a' if os.path.isfile(f'{args.results}_{args.experiments}_preds.tsv') else 'w'
+    enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiments}_train.tsv') else 'w'
+    pred_enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiments}_preds.tsv') else 'w'
 
-    train_writer = csv.writer(open(f"{args.results}_{args.experiment}_train.tsv", enc, encoding = 'utf-8'),
-                              delimiter = '\t')
-    test_writer = csv.writer(open(f"{args.results}_{args.experiment}_test.tsv", enc, encoding = 'utf-8'),
-                             delimiter = '\t')
-    pred_writer = csv.writer(open(f"{args.results}_{args.experiment}_preds.tsv", pred_enc, encoding = 'utf-8'),
-                             delimiter = '\t')
+    train_writer = csv.writer(open(f"{args.results}/{args.encoding}_{args.experiment}_train.tsv", enc,
+                                   encoding = 'utf-8'), delimiter = '\t')
+    test_writer = csv.writer(open(f"{args.results}/{args.encoding}_{args.experiment}_test.tsv", enc,
+                                   encoding = 'utf-8'), delimiter = '\t')
+    pred_writer = csv.writer(open(f"{args.results}/{args.encoding}_{args.experiment}_preds.tsv", pred_enc,
+                                  encoding = 'utf-8'), delimiter = '\t')
 
     model_hdr = ['Model', 'Input dim', 'Embedding dim', 'Hidden dim', 'Output dim', 'Window Sizes', '# Filters',
                  '# Layers', 'Dropout', 'Activation']
