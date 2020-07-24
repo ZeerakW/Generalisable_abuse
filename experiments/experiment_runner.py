@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
                         type = str.lower)
-    parser.add_argument("--stop_metrics", help = "Set the metric to be used for early stopping", default = "loss")
+    parser.add_argument("--stop_metric", help = "Set the metric to be used for early stopping", default = "loss")
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = None, type = int)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'accuracy')
@@ -269,9 +269,9 @@ if __name__ == "__main__":
         # Explains losses:
         # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
         if args.loss == 'nlll':
-            model_args['loss_func'] = torch.nn.NLLLoss
+            model_args['loss'] = torch.nn.NLLLoss
         elif args.loss == 'crossentropy':
-            model_args['loss_func'] = torch.nn.CrossEntropyLoss
+            model_args['loss'] = torch.nn.CrossEntropyLoss
 
         # Set input and ouput dims
         train_args['input_dim'] = main.vocab_size()
@@ -279,7 +279,7 @@ if __name__ == "__main__":
         train_args['main_name'] = main.name
 
         # Batch all evaluation datasets
-        test_batches = [process_and_batch(main, data.test, args.batch_size, onehot) for data in test_sets]
+        test_batches = [process_and_batch(main, data.test, 64, onehot) for data in test_sets]
 
         for epoch in ep_loop:
             train_args['epochs'] = epoch
@@ -311,11 +311,11 @@ if __name__ == "__main__":
                                     # Intialize model, loss, optimizer, and metrics
                                     train_args['model'] = model(**train_args)
                                     train_args['loss'] = model_args['loss']()
-                                    train_args['optimizer'] = model_args['optimizer'](model.parameters(), lr)
+                                    train_args['optimizer'] = model_args['optimizer'](train_args['model'].parameters(), lr)
                                     train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
                                     train_args['dev_metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
                                     train_args['data_name'] = main.name
-                                    m_loop.set_postfix(model = model.name)  # Update loop to contain name of model.
+                                    m_loop.set_postfix(model = train_args['model'].name)  # Update loop to contain name of model.
 
                                     run_model(train = True, writer = train_writer, **train_args)
 
