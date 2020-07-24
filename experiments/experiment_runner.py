@@ -98,6 +98,11 @@ if __name__ == "__main__":
         p.slur_window = args.slur_window
         experiment = p.slur_replacement
 
+    if 'f1' in args.metrics:
+        for i, m in enumerate(args.metrics):
+            if 'f1' in m:
+                args.metrics[i] = 'f1-score'
+
     if args.train == 'davidson':
         main = loaders.davidson(c, args.datadir, preprocessor = experiment,
                                 label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True)
@@ -197,9 +202,6 @@ if __name__ == "__main__":
             models.append(mod_lib.LSTMClassifier)
         if m == 'cnn':
             models.append(mod_lib.CNNClassifier)
-            train_args['window_sizes'] = args.window_sizes
-            train_args['num_filters'] = args.filters
-            train_args['max_feats'] = args.max_feats
         if m == 'rnn':
             models.append(mod_lib.RNNClassifier)
         if m == 'all':
@@ -224,21 +226,23 @@ if __name__ == "__main__":
 
     model_hdr = ['Model', 'Input dim', 'Embedding dim', 'Hidden dim', 'Output dim', 'Window Sizes', '# Filters',
                  '# Layers', 'Dropout', 'Activation']
+    train_args.update({'model_hdr': model_hdr,
+                       'metric_hdr': args.metrics + ['loss']
+                       })
     if enc == 'w':
-        metric_hdr = args.metrics + ['loss'] + [f"dev {m}" for m in args.metrics] + ['dev loss']
+        metric_hdr = args.metrics + ['loss'] 
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
         hdr += metric_hdr
+        test_writer.writerow(hdr)  # Don't include dev columns when writing test
+
+        hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
         train_writer.writerow(hdr)
-        test_writer.writerow(hdr)
 
+    pred_metric_hdr = args.metrics + ['loss']
     if pred_enc == 'w':
-        metric_hdr = args.metrics + ['loss']
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
-        hdr += metric_hdr
+        hdr += ['Label', 'Prediction'] + pred_metric_hdr 
         pred_writer.writerow(hdr)
-
-    train_args['model_hdr'] = model_hdr
-    train_args['metric_hdr'] = args.metrics + ['loss']
 
     with tqdm(args.batch_size, desc = "Batch Size Iterator") as b_loop,\
          tqdm(args.dropout, desc = "Dropout Iterator") as d_loop,\
@@ -248,14 +252,14 @@ if __name__ == "__main__":
          tqdm(args.epochs, desc = "Epoch Count Iterator") as ep_loop,\
          tqdm(models, desc = "Iterating Models") as m_loop:
 
-        train_args = {'num_layers': 1,
-                      'shuffle': args.shuffle,
-                      'batch_first': True,
-                      'gpu': args.gpu,
-                      'save_path': f"{args.save_model}{args.experiment}_best",
-                      'early_stopping': args.patience,
-                      'low': True if args.stop_metric == 'loss' else False
-                      }
+        train_args.update({'num_layers': 1,
+                           'shuffle': args.shuffle,
+                           'batch_first': True,
+                           'gpu': args.gpu,
+                           'save_path': f"{args.save_model}{args.experiment}_best",
+                           'early_stopping': args.patience,
+                           'low': True if args.stop_metric == 'loss' else False,
+                           })
 
         if args.optimizer == 'adam':
             model_args['optimizer'] = torch.optim.Adam
@@ -272,6 +276,12 @@ if __name__ == "__main__":
             model_args['loss'] = torch.nn.NLLLoss
         elif args.loss == 'crossentropy':
             model_args['loss'] = torch.nn.CrossEntropyLoss
+
+        # Set non-hyperparameter values for models
+        train_args['window_sizes'] = args.window_sizes
+        train_args['num_filters'] = args.filters
+        # train_args['max_feats'] = args.max_feats
+        train_args['no_layers'] = args.layers
 
         # Set input and ouput dims
         train_args['input_dim'] = main.vocab_size()
@@ -309,7 +319,7 @@ if __name__ == "__main__":
 
                                 for model in m_loop:
                                     # Intialize model, loss, optimizer, and metrics
-                                    train_args['model'] = model(**train_args) if not args.gpu else model(**train_args).cuda()
+                                    train_args['model'] = model(**train_args)
                                     train_args['loss'] = model_args['loss']()
                                     train_args['optimizer'] = model_args['optimizer'](train_args['model'].parameters(), lr)
                                     train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
@@ -325,15 +335,16 @@ if __name__ == "__main__":
                                                      'loss': train_args['loss'],
                                                      'metrics': Metrics(args.metrics, args.display, args.stop_metric),
                                                      'gpu': args.gpu,
-                                                     'data': test,
+                                                     'data': test.test,
                                                      'dataset': main,
                                                      'hyper_info': train_args['hyper_info'],
                                                      'model_hdr': train_args['model_hdr'],
-                                                     'metric_hdr': train_args['metric_hdr'],
+                                                     'metric_hdr': pred_metric_hdr,
                                                      'main_name': train_args['main_name'],
                                                      'data_name': test.name,
                                                      'train_field': 'text',
-                                                     'label_field': 'label'
+                                                     'label_field': 'label',
+                                                     'store': True
                                                      }
 
                                         run_model(train = False, writer = test_writer, pred_writer = pred_writer,
