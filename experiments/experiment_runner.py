@@ -34,8 +34,8 @@ if __name__ == "__main__":
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/')
 
     # Model architecture
-    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300, type = int, nargs = '+')
-    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128, type = int, nargs = '+')
+    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = [300], type = int, nargs = '+')
+    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = [128], type = int, nargs = '+')
     parser.add_argument("--layers", help = "Set the number of layers.", default = 1, type = int)
     parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4], type = int)
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int)
@@ -46,7 +46,7 @@ if __name__ == "__main__":
                         default = ['embedding'], type = str.lower)
 
     # Model (hyper) parameters
-    parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int, nargs = '+')
+    parser.add_argument("--epochs", help = "Set the number of epochs.", default = [200], type = int, nargs = '+')
     parser.add_argument("--batch_size", help = "Set the batch size.", default = [64], type = int, nargs = '+')
     parser.add_argument("--dropout", help = "Set value for dropout.", default = [0.0], type = float, nargs = '+')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = [0.01],
