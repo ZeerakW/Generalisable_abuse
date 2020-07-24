@@ -309,7 +309,7 @@ if __name__ == "__main__":
 
                                 for model in m_loop:
                                     # Intialize model, loss, optimizer, and metrics
-                                    train_args['model'] = model(**train_args)
+                                    train_args['model'] = model(**train_args) if not args.gpu else model(**train_args).cuda()
                                     train_args['loss'] = model_args['loss']()
                                     train_args['optimizer'] = model_args['optimizer'](model.parameters(), lr)
                                     train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
