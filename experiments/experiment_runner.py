@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
                         type = str.lower)
-    parser.add_argument("--stop_metrics", help = "Set the metric to be used for early stopping", default = "loss")
+    parser.add_argument("--stop_metric", help = "Set the metric to be used for early stopping", default = "loss")
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = None, type = int)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'accuracy')
@@ -51,6 +51,8 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", help = "Set value for dropout.", default = [0.0], type = float, nargs = '+')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = [0.01],
                         type = float, nargs = '+')
+    parser.add_argument("--activation", help = "Set activation function for neural nets.", default = '[tanh]',
+                        type = str.lower, nargs = '+')
 
     # Experiment parameters
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
@@ -97,6 +99,11 @@ if __name__ == "__main__":
     elif args.experiment == 'slur':
         p.slur_window = args.slur_window
         experiment = p.slur_replacement
+
+    if 'f1' in args.metrics:
+        for i, m in enumerate(args.metrics):
+            if 'f1' in m:
+                args.metrics[i] = 'f1-score'
 
     if args.train == 'davidson':
         main = loaders.davidson(c, args.datadir, preprocessor = experiment,
@@ -197,9 +204,6 @@ if __name__ == "__main__":
             models.append(mod_lib.LSTMClassifier)
         if m == 'cnn':
             models.append(mod_lib.CNNClassifier)
-            train_args['window_sizes'] = args.window_sizes
-            train_args['num_filters'] = args.filters
-            train_args['max_feats'] = args.max_feats
         if m == 'rnn':
             models.append(mod_lib.RNNClassifier)
         if m == 'all':
@@ -212,8 +216,8 @@ if __name__ == "__main__":
     main.build_label_vocab(main.data)
 
     # Open output files
-    enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiments}_train.tsv') else 'w'
-    pred_enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiments}_preds.tsv') else 'w'
+    enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiment}_train.tsv') else 'w'
+    pred_enc = 'a' if os.path.isfile(f'{args.results}/{args.encoding}_{args.experiment}_preds.tsv') else 'w'
 
     train_writer = csv.writer(open(f"{args.results}/{args.encoding}_{args.experiment}_train.tsv", enc,
                                    encoding = 'utf-8'), delimiter = '\t')
@@ -224,37 +228,40 @@ if __name__ == "__main__":
 
     model_hdr = ['Model', 'Input dim', 'Embedding dim', 'Hidden dim', 'Output dim', 'Window Sizes', '# Filters',
                  '# Layers', 'Dropout', 'Activation']
+    train_args.update({'model_hdr': model_hdr,
+                       'metric_hdr': args.metrics + ['loss']
+                       })
     if enc == 'w':
-        metric_hdr = args.metrics + ['loss'] + [f"dev {m}" for m in args.metrics] + ['dev loss']
-        hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
-        hdr += metric_hdr
-        train_writer.writerow(hdr)
-        test_writer.writerow(hdr)
-
-    if pred_enc == 'w':
         metric_hdr = args.metrics + ['loss']
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
+        hdr += metric_hdr
+        test_writer.writerow(hdr)  # Don't include dev columns when writing test
+
+        hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
+        train_writer.writerow(hdr)
+
+    if pred_enc == 'w':
+        hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
+        hdr += ['Label', 'Prediction']
         pred_writer.writerow(hdr)
 
-    train_args['model_hdr'] = model_hdr
-    train_args['metric_hdr'] = args.metrics + ['loss']
-
-    with tqdm(args.batch_size, desc = "Batch Size Iterator") as b_loop,\
-         tqdm(args.dropout, desc = "Dropout Iterator") as d_loop,\
-         tqdm(args.learning_rate, desc = "Learning Rate Iterator") as lr_loop,\
+    with tqdm(args.learning_rate, desc = "Learning Rate Iterator") as lr_loop,\
          tqdm(args.embedding, desc = "Embedding Size Iterator") as e_loop,\
-         tqdm(args.hidden, desc = "Hidden Dim Iterator") as h_loop,\
+         tqdm(args.batch_size, desc = "Batch Size Iterator") as b_loop,\
          tqdm(args.epochs, desc = "Epoch Count Iterator") as ep_loop,\
-         tqdm(models, desc = "Iterating Models") as m_loop:
+         tqdm(args.hidden, desc = "Hidden Dim Iterator") as h_loop,\
+         tqdm(args.activation, desc = "Activation Iterator") as a_loop,\
+         tqdm(args.dropout, desc = "Dropout Iterator") as d_loop,\
+         tqdm(models, desc = "Model Iterator") as m_loop:
 
-        train_args = {'num_layers': 1,
-                      'shuffle': args.shuffle,
-                      'batch_first': True,
-                      'gpu': args.gpu,
-                      'save_path': f"{args.save_model}{args.experiment}_best",
-                      'early_stopping': args.patience,
-                      'low': True if args.stop_metric == 'loss' else False
-                      }
+        train_args.update({'num_layers': 1,
+                           'shuffle': args.shuffle,
+                           'batch_first': True,
+                           'gpu': args.gpu,
+                           'save_path': f"{args.save_model}{args.experiment}_best",
+                           'early_stopping': args.patience,
+                           'low': True if args.stop_metric == 'loss' else False,
+                           })
 
         if args.optimizer == 'adam':
             model_args['optimizer'] = torch.optim.Adam
@@ -268,9 +275,15 @@ if __name__ == "__main__":
         # Explains losses:
         # https://medium.com/udacity-pytorch-challengers/a-brief-overview-of-loss-functions-in-pytorch-c0ddb78068f7
         if args.loss == 'nlll':
-            model_args['loss_func'] = torch.nn.NLLLoss
+            model_args['loss'] = torch.nn.NLLLoss
         elif args.loss == 'crossentropy':
-            model_args['loss_func'] = torch.nn.CrossEntropyLoss
+            model_args['loss'] = torch.nn.CrossEntropyLoss
+
+        # Set non-hyperparameter values for models
+        train_args['window_sizes'] = args.window_sizes
+        train_args['num_filters'] = args.filters
+        # train_args['max_feats'] = args.max_feats
+        train_args['no_layers'] = args.layers
 
         # Set input and ouput dims
         train_args['input_dim'] = main.vocab_size()
@@ -278,7 +291,7 @@ if __name__ == "__main__":
         train_args['main_name'] = main.name
 
         # Batch all evaluation datasets
-        test_batches = [process_and_batch(main, data.test, args.batch_size, onehot) for data in test_sets]
+        test_batches = [process_and_batch(main, data.test, 64, onehot) for data in test_sets]
 
         for epoch in ep_loop:
             train_args['epochs'] = epoch
@@ -306,34 +319,43 @@ if __name__ == "__main__":
                                 # hyper_info = ['Batch size', '# Epochs', 'Learning Rate']
                                 train_args['hyper_info'] = [batch_size, epoch, lr]
 
-                                for model in m_loop:
-                                    # Intialize model, loss, optimizer, and metrics
-                                    train_args['model'] = model(**train_args)
-                                    train_args['loss'] = model_args['loss']()
-                                    train_args['optimizer'] = model_args['optimizer'](model.parameters(), lr)
-                                    train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
-                                    train_args['dev_metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
-                                    train_args['data_name'] = main.name
-                                    m_loop.set_postfix(model = model.name)  # Update loop to contain name of model.
+                                for act in a_loop:
+                                    a_loop.set_postfix(activation = act)
+                                    train_args['activation'] = act
 
-                                    run_model(train = True, writer = train_writer, **train_args)
+                                    for model in m_loop:
+                                        # Intialize model, loss, optimizer, and metrics
+                                        train_args['model'] = model(**train_args)
+                                        train_args['loss'] = model_args['loss']()
+                                        train_args['optimizer'] = model_args['optimizer'](train_args['model']
+                                                                                          .parameters(),
+                                                                                          lr)
+                                        train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
+                                        train_args['dev_metrics'] = Metrics(args.metrics, args.display,
+                                                                            args.stop_metric)
+                                        train_args['data_name'] = main.name
+                                        m_loop.set_postfix(model = train_args['model'].name)  # Show cur model name
 
-                                    for batcher, test in zip(test_batches, test_sets):
-                                        eval_args = {'model': train_args['model'],
-                                                     'batchers': batcher,
-                                                     'loss': train_args['loss'],
-                                                     'metrics': Metrics(args.metrics, args.display, args.stop_metric),
-                                                     'gpu': args.gpu,
-                                                     'data': test,
-                                                     'dataset': main,
-                                                     'hyper_info': train_args['hyper_info'],
-                                                     'model_hdr': train_args['model_hdr'],
-                                                     'metric_hdr': train_args['metric_hdr'],
-                                                     'main_name': train_args['main_name'],
-                                                     'data_name': test.name,
-                                                     'train_field': 'text',
-                                                     'label_field': 'label'
-                                                     }
+                                        run_model(train = True, writer = train_writer, **train_args)
 
-                                        run_model(train = False, writer = test_writer, pred_writer = pred_writer,
-                                                  **eval_args)
+                                        for batcher, test in zip(test_batches, test_sets):
+                                            eval_args = {'model': train_args['model'],
+                                                         'batchers': batcher,
+                                                         'loss': train_args['loss'],
+                                                         'metrics': Metrics(args.metrics, args.display,
+                                                                            args.stop_metric),
+                                                         'gpu': args.gpu,
+                                                         'data': test.test,
+                                                         'dataset': main,
+                                                         'hyper_info': train_args['hyper_info'],
+                                                         'model_hdr': train_args['model_hdr'],
+                                                         'metric_hdr': metric_hdr,
+                                                         'main_name': train_args['main_name'],
+                                                         'data_name': test.name,
+                                                         'train_field': 'text',
+                                                         'label_field': 'label',
+                                                         'store': True
+                                                         }
+
+                                            run_model(train = False, writer = test_writer, pred_writer = pred_writer,
+                                                      **eval_args)
