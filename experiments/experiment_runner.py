@@ -234,7 +234,6 @@ if __name__ == "__main__":
     if pred_enc == 'w':
         metric_hdr = args.metrics + ['loss']
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
-        hdr += metric_hdr
         pred_writer.writerow(hdr)
 
     train_args['model_hdr'] = model_hdr
@@ -309,7 +308,7 @@ if __name__ == "__main__":
 
                                 for model in m_loop:
                                     # Intialize model, loss, optimizer, and metrics
-                                    train_args['model'] = model(**train_args) if not args.gpu else model(**train_args).cuda()
+                                    train_args['model'] = model(**train_args)
                                     train_args['loss'] = model_args['loss']()
                                     train_args['optimizer'] = model_args['optimizer'](model.parameters(), lr)
                                     train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
