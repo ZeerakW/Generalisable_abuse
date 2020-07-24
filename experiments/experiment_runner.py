@@ -240,6 +240,7 @@ if __name__ == "__main__":
         hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
         train_writer.writerow(hdr)
 
+    pred_metric_hdr = args.metrics + ['loss']
     if pred_enc == 'w':
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
         hdr += ['Label', 'Prediction']
