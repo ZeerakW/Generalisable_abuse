@@ -1,7 +1,6 @@
 import os
 import csv
 import torch
-import argparse
 import numpy as np
 from tqdm import tqdm
 import mlearn.modeling.onehot as oh
@@ -11,15 +10,16 @@ import mlearn.modeling.embedding as emb
 from mlearn.utils.metrics import Metrics
 from mlearn.utils.pipeline import process_and_batch
 from mlearn.data.clean import Cleaner, Preprocessors
+from jsonargparse import ArgumentParser, ActionConfigFile
 from mlearn.utils.train import run_singletask_model as run_model
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "Run Experiments to generalise models.")
+    parser = ArgumentParser(description = "Run Experiments to generalise models.")
 
     # For all models
-    parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.",
-                        type = str.lower)
+    parser.add_argument("--train", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
+                        type = str.lower, default = 'Davidson')
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", nargs = '+',
                         default = ['mlp'], type = str.lower)
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
@@ -30,20 +30,21 @@ if __name__ == "__main__":
     parser.add_argument("--stop_metric", help = "Set the metric to be used for early stopping", default = "loss")
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = None, type = int)
-    parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'accuracy')
+    parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'f1-score')
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/')
 
     # Model architecture
     parser.add_argument("--embedding", help = "Set the embedding dimension.", default = [300], type = int, nargs = '+')
     parser.add_argument("--hidden", help = "Set the hidden dimension.", default = [128], type = int, nargs = '+')
     parser.add_argument("--layers", help = "Set the number of layers.", default = 1, type = int)
-    parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4], type = int)
-    parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int)
+    parser.add_argument("--window_sizes", help = "Set the window sizes.", nargs = '+', default = [2, 3, 4], type = list)
+    parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128, type = int,
+                        nargs = '+')
     # parser.add_argument("--max_feats", help = "Set the number of features for CNN.", default = 100, type = int)
     parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam', type = str.lower)
     parser.add_argument("--loss", help = "Loss to use.", default = 'nlll', type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Embedding, Tfidf, Count",
-                        default = ['embedding'], type = str.lower)
+                        default = 'embedding', type = str.lower)
 
     # Model (hyper) parameters
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = [200], type = int, nargs = '+')
@@ -51,17 +52,28 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", help = "Set value for dropout.", default = [0.0], type = float, nargs = '+')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = [0.01],
                         type = float, nargs = '+')
-    parser.add_argument("--activation", help = "Set activation function for neural nets.", default = '[tanh]',
+    parser.add_argument("--activation", help = "Set activation function for neural nets.", default = ['tanh'],
                         type = str.lower, nargs = '+')
 
     # Experiment parameters
-    parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
-    parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
+    parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", type = bool, default = True)
+    parser.add_argument('--gpu', help = "Set to run on GPU", type = bool, default = False)
     parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token", type = str.lower)
-    parser.add_argument("--slur_window", help = "Set window size for slur replacement.")
+    parser.add_argument("--slur_window", help = "Set window size for slur replacement.", default = None, type = int,
+                        nargs = '+')
+    parser.add_argument('--cfg', action = ActionConfigFile, default = None)
 
     args = parser.parse_args()
+
+    if 'f1' in args.metrics + [args.display, args.stop_metric]:
+        for i, m in enumerate(args.metrics):
+            if 'f1' in m:
+                args.metrics[i] = 'f1-score'
+        if args.display == 'f1':
+            args.display = 'f1-score'
+        if args.stop_metric == 'f1':
+            args.display = 'f1-score'
 
     if args.encoding == 'embedding':
         mod_lib = emb
@@ -99,11 +111,6 @@ if __name__ == "__main__":
     elif args.experiment == 'slur':
         p.slur_window = args.slur_window
         experiment = p.slur_replacement
-
-    if 'f1' in args.metrics:
-        for i, m in enumerate(args.metrics):
-            if 'f1' in m:
-                args.metrics[i] = 'f1-score'
 
     if args.train == 'davidson':
         main = loaders.davidson(c, args.datadir, preprocessor = experiment,
@@ -248,11 +255,13 @@ if __name__ == "__main__":
 
     with tqdm(args.learning_rate, desc = "Learning Rate Iterator") as lr_loop,\
          tqdm(args.embedding, desc = "Embedding Size Iterator") as e_loop,\
+         tqdm(args.window_sizes, desc = "Window size Iterator") as w_loop,\
          tqdm(args.batch_size, desc = "Batch Size Iterator") as b_loop,\
          tqdm(args.epochs, desc = "Epoch Count Iterator") as ep_loop,\
          tqdm(args.hidden, desc = "Hidden Dim Iterator") as h_loop,\
          tqdm(args.activation, desc = "Activation Iterator") as a_loop,\
          tqdm(args.dropout, desc = "Dropout Iterator") as d_loop,\
+         tqdm(args.filters, desc = "Filter Iterator") as f_loop,\
          tqdm(models, desc = "Model Iterator") as m_loop:
 
         train_args.update({'num_layers': 1,
@@ -280,9 +289,6 @@ if __name__ == "__main__":
         elif args.loss == 'crossentropy':
             model_args['loss'] = torch.nn.CrossEntropyLoss
 
-        # Set non-hyperparameter values for models
-        train_args['window_sizes'] = args.window_sizes
-        train_args['num_filters'] = args.filters
         # train_args['max_feats'] = args.max_feats
         train_args['no_layers'] = args.layers
 
@@ -293,6 +299,7 @@ if __name__ == "__main__":
 
         # Batch all evaluation datasets
         test_batches = [process_and_batch(main, data.test, 64, onehot) for data in test_sets]
+        processed = False
 
         for epoch in ep_loop:
             train_args['epochs'] = epoch
@@ -305,58 +312,67 @@ if __name__ == "__main__":
                     h_loop.set_postfix(hid_dim = hidden)
                     train_args['hidden_dim'] = hidden
 
-                    for batch_size in b_loop:
-                        b_loop.set_postfix(batch_size = batch_size)
-                        train_args['batchers'] = process_and_batch(main, main.data, batch_size, onehot)
-                        train_args['dev'] = process_and_batch(main, main.dev, batch_size, onehot)
+                    for windows in w_loop:
+                        train_args['window_sizes'] = windows
 
-                        for dropout in d_loop:
-                            d_loop.set_postfix(dropout = dropout)
-                            train_args['dropout'] = dropout
+                        for filtr in f_loop:
+                            train_args['num_filters'] = filtr
 
-                            for lr in lr_loop:
-                                lr_loop.set_postfix(learning_rate = lr)
+                            for batch_size in b_loop:
+                                b_loop.set_postfix(batch_size = batch_size)
+                                if not processed:
+                                    train_args['batchers'] = process_and_batch(main, main.data, batch_size, onehot)
+                                    train_args['dev'] = process_and_batch(main, main.dev, batch_size, onehot)
+                                    processed = True
 
-                                # hyper_info = ['Batch size', '# Epochs', 'Learning Rate']
-                                train_args['hyper_info'] = [batch_size, epoch, lr]
+                                for dropout in d_loop:
+                                    d_loop.set_postfix(dropout = dropout)
+                                    train_args['dropout'] = dropout
 
-                                for act in a_loop:
-                                    a_loop.set_postfix(activation = act)
-                                    train_args['activation'] = act
+                                    for lr in lr_loop:
+                                        lr_loop.set_postfix(learning_rate = lr)
 
-                                    for model in m_loop:
-                                        # Intialize model, loss, optimizer, and metrics
-                                        train_args['model'] = model(**train_args)
-                                        train_args['loss'] = model_args['loss']()
-                                        train_args['optimizer'] = model_args['optimizer'](train_args['model']
-                                                                                          .parameters(),
-                                                                                          lr)
-                                        train_args['metrics'] = Metrics(args.metrics, args.display, args.stop_metric)
-                                        train_args['dev_metrics'] = Metrics(args.metrics, args.display,
-                                                                            args.stop_metric)
-                                        train_args['data_name'] = main.name
-                                        m_loop.set_postfix(model = train_args['model'].name)  # Show cur model name
+                                        # hyper_info = ['Batch size', '# Epochs', 'Learning Rate']
+                                        train_args['hyper_info'] = [batch_size, epoch, lr]
 
-                                        run_model(train = True, writer = train_writer, **train_args)
+                                        for act in a_loop:
+                                            a_loop.set_postfix(activation = act)
+                                            train_args['activation'] = act
 
-                                        for batcher, test in zip(test_batches, test_sets):
-                                            eval_args = {'model': train_args['model'],
-                                                         'batchers': batcher,
-                                                         'loss': train_args['loss'],
-                                                         'metrics': Metrics(args.metrics, args.display,
-                                                                            args.stop_metric),
-                                                         'gpu': args.gpu,
-                                                         'data': test.test,
-                                                         'dataset': main,
-                                                         'hyper_info': train_args['hyper_info'],
-                                                         'model_hdr': train_args['model_hdr'],
-                                                         'metric_hdr': train_args['metric_hdr'],
-                                                         'main_name': train_args['main_name'],
-                                                         'data_name': test.name,
-                                                         'train_field': 'text',
-                                                         'label_field': 'label',
-                                                         'store': True
-                                                         }
+                                            for model in m_loop:
+                                                # Intialize model, loss, optimizer, and metrics
+                                                train_args['model'] = model(**train_args)
+                                                train_args['loss'] = model_args['loss']()
+                                                train_args['optimizer'] = model_args['optimizer'](train_args['model']
+                                                                                                  .parameters(),
+                                                                                                  lr)
+                                                train_args['metrics'] = Metrics(args.metrics, args.display,
+                                                                                args.stop_metric)
+                                                train_args['dev_metrics'] = Metrics(args.metrics, args.display,
+                                                                                    args.stop_metric)
+                                                train_args['data_name'] = main.name
+                                                m_loop.set_postfix(model = train_args['model'].name)  # Cur model name
 
-                                            run_model(train = False, writer = test_writer, pred_writer = pred_writer,
-                                                      **eval_args)
+                                                run_model(train = True, writer = train_writer, **train_args)
+
+                                                for batcher, test in zip(test_batches, test_sets):
+                                                    eval_args = {'model': train_args['model'],
+                                                                 'batchers': batcher,
+                                                                 'loss': train_args['loss'],
+                                                                 'metrics': Metrics(args.metrics, args.display,
+                                                                                    args.stop_metric),
+                                                                 'gpu': args.gpu,
+                                                                 'data': test.test,
+                                                                 'dataset': main,
+                                                                 'hyper_info': train_args['hyper_info'],
+                                                                 'model_hdr': train_args['model_hdr'],
+                                                                 'metric_hdr': train_args['metric_hdr'],
+                                                                 'main_name': train_args['main_name'],
+                                                                 'data_name': test.name,
+                                                                 'train_field': 'text',
+                                                                 'label_field': 'label',
+                                                                 'store': True
+                                                                 }
+
+                                                    run_model(train = False, writer = test_writer,
+                                                              pred_writer = pred_writer, **eval_args)
