@@ -299,6 +299,7 @@ if __name__ == "__main__":
 
         # Batch all evaluation datasets
         test_batches = [process_and_batch(main, data.test, 64, onehot) for data in test_sets]
+        processed = False
 
         for epoch in ep_loop:
             train_args['epochs'] = epoch
@@ -319,8 +320,10 @@ if __name__ == "__main__":
 
                             for batch_size in b_loop:
                                 b_loop.set_postfix(batch_size = batch_size)
-                                train_args['batchers'] = process_and_batch(main, main.data, batch_size, onehot)
-                                train_args['dev'] = process_and_batch(main, main.dev, batch_size, onehot)
+                                if not processed:
+                                    train_args['batchers'] = process_and_batch(main, main.data, batch_size, onehot)
+                                    train_args['dev'] = process_and_batch(main, main.dev, batch_size, onehot)
+                                    processed = True
 
                                 for dropout in d_loop:
                                     d_loop.set_postfix(dropout = dropout)
