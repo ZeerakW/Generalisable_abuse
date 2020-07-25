@@ -1,7 +1,6 @@
 import os
 import csv
 import torch
-import argparse
 import numpy as np
 from tqdm import tqdm
 import mlearn.modeling.onehot as oh
@@ -11,18 +10,19 @@ import mlearn.modeling.embedding as emb
 from mlearn.utils.metrics import Metrics
 from mlearn.utils.pipeline import process_and_batch
 from mlearn.data.clean import Cleaner, Preprocessors
+from jsonargparse import ArgumentParser, ActionConfigFile
 from mlearn.utils.train import run_singletask_model as run_model
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "Run Experiments to generalise models.")
+    parser = ArgumentParser(description = "Run Experiments to generalise models.")
 
     # For all models
-    parser.add_argument("--train", help = "Choose train data: davidson, Waseem, Waseem and Hovy, wulczyn, and garcia.",
-                        type = str.lower)
+    parser.add_argument("--train", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
+                        type = str.lower, default = 'Davidson')
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", nargs = '+',
                         default = ['mlp'], type = str.lower)
-    parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/model/')
+    parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument("--stop_metric", help = "Set the metric to be used for early stopping", default = "loss")
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = None, type = int)
-    parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'accuracy')
+    parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'f1-score')
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/')
 
     # Model architecture
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam', type = str.lower)
     parser.add_argument("--loss", help = "Loss to use.", default = 'nlll', type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Embedding, Tfidf, Count",
-                        default = ['embedding'], type = str.lower)
+                        default = 'embedding', type = str.lower)
 
     # Model (hyper) parameters
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = [200], type = int, nargs = '+')
@@ -51,17 +51,28 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", help = "Set value for dropout.", default = [0.0], type = float, nargs = '+')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = [0.01],
                         type = float, nargs = '+')
-    parser.add_argument("--activation", help = "Set activation function for neural nets.", default = '[tanh]',
+    parser.add_argument("--activation", help = "Set activation function for neural nets.", default = ['tanh'],
                         type = str.lower, nargs = '+')
 
     # Experiment parameters
-    parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", action = 'store_true', default = True)
-    parser.add_argument('--gpu', help = "Set to run on GPU", action = 'store_true', default = False)
+    parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", type = bool, default = True)
+    parser.add_argument('--gpu', help = "Set to run on GPU", type = bool, default = False)
     parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word_token", type = str.lower)
-    parser.add_argument("--slur_window", help = "Set window size for slur replacement.")
+    parser.add_argument("--slur_window", help = "Set window size for slur replacement.", default = None, type = int,
+                        nargs = '+')
+    parser.add_argument('--cfg', action = ActionConfigFile, default = None)
 
     args = parser.parse_args()
+
+    if 'f1' in args.metrics + [args.display, args.stop_metric]:
+        for i, m in enumerate(args.metrics):
+            if 'f1' in m:
+                args.metrics[i] = 'f1-score'
+        if args.display == 'f1':
+            args.display = 'f1-score'
+        if args.stop_metric == 'f1':
+            args.display = 'f1-score'
 
     if args.encoding == 'embedding':
         mod_lib = emb
@@ -99,11 +110,6 @@ if __name__ == "__main__":
     elif args.experiment == 'slur':
         p.slur_window = args.slur_window
         experiment = p.slur_replacement
-
-    if 'f1' in args.metrics:
-        for i, m in enumerate(args.metrics):
-            if 'f1' in m:
-                args.metrics[i] = 'f1-score'
 
     if args.train == 'davidson':
         main = loaders.davidson(c, args.datadir, preprocessor = experiment,
