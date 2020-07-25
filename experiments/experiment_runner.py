@@ -22,7 +22,7 @@ if __name__ == "__main__":
                         type = str.lower)
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", nargs = '+',
                         default = ['mlp'], type = str.lower)
-    parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/model/')
+    parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
@@ -350,7 +350,7 @@ if __name__ == "__main__":
                                                          'dataset': main,
                                                          'hyper_info': train_args['hyper_info'],
                                                          'model_hdr': train_args['model_hdr'],
-                                                         'metric_hdr': metric_hdr,
+                                                         'metric_hdr': train_args['metric_hdr'],
                                                          'main_name': train_args['main_name'],
                                                          'data_name': test.name,
                                                          'train_field': 'text',
