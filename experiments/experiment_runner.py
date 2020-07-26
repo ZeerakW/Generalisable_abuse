@@ -320,15 +320,15 @@ if __name__ == "__main__":
 
             embedding_dim = training_arg_addition['embedding_dim']
             if previous_values.get('embedding_dim') != embedding_dim:
-                e_loop.set_postfix(emb_dim = e)
+                e_loop.set_postfix(emb_dim = embedding_dim)
             train_args['embedding_dim'] = embedding_dim
             previous_values['embedding_dim'] = embedding_dim
 
             hidden = training_arg_addition['hidden_dim']
-            if previous_values.get('hidden_dim') != hidden_dim:
+            if previous_values.get('hidden_dim') != hidden:
                 h_loop.set_postfix(hid_dim = hidden)
             train_args['hidden_dim'] = hidden
-            previous_values['hidden_dim'] = hidden_dim
+            previous_values['hidden_dim'] = hidden
             
             train_args['window_sizes'] = training_arg_addition['window_sizes']
 
@@ -368,7 +368,7 @@ if __name__ == "__main__":
                 train_args['loss'] = model_args['loss']()
                 train_args['optimizer'] = model_args['optimizer'](train_args['model']
                                                                   .parameters(),
-                                                                  lr)
+                                                                  learning_rate)
                 train_args['metrics'] = Metrics(args.metrics, args.display,
                                                 args.stop_metric)
                 train_args['dev_metrics'] = Metrics(args.metrics, args.display,
