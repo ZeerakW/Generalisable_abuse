@@ -31,9 +31,8 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     # TODO Think of a way to not hardcode this.
     training.update(dict(
         batchers = process_and_batch(dataset, dataset.data, optimisable['batch_size'], modeling['onehot']),
-        hidden_dims = optimisable['hidden'] if 'hidden' in optimisable else None,
-        embedding_dims = optimisable['embedding'] if 'embedding' in optimisable else None,
-        shared_dim = optimisable['shared'],
+        hidden_dim = optimisable['hidden'] if 'hidden' in optimisable else None,
+        embedding_dim = optimisable['embedding'] if 'embedding' in optimisable else None,
         hyper_info = [optimisable['batch_size'], optimisable['epochs'], optimisable['learning_rate']],
         dropout = optimisable['dropout'],
         nonlinearity = optimisable['nonlinearity'],
@@ -122,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument("--dropout", help = "Set value for dropout.", default = [0.0], type = float, nargs = '+')
     parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = [0.01],
                         type = float, nargs = '+')
-    parser.add_argument("--activation", help = "Set activation function for neural nets.", default = ['tanh'],
+    parser.add_argument("--nonlinearity", help = "Set activation function for neural nets.", default = ['tanh'],
                         type = str.lower, nargs = '+')
     parser.add_argument("--hyperparams", help = "List of names of the hyper parameters to be searched.",
                         default = ['epochs'], type = str.lower, nargs = '+')
@@ -143,6 +142,7 @@ if __name__ == "__main__":
     # Set seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
+    torch.cuda.set_device(1)
 
     if 'f1' in args.metrics + [args.display, args.stop_metric]:
         for i, m in enumerate(args.metrics):
@@ -358,6 +358,7 @@ if __name__ == "__main__":
 
     with tqdm(models, desc = "Model Iterator") as m_loop:
         params = {param: getattr(args, param) for param in args.hyperparams}  # Get hyper-parameters to search
+        breakpoint()
         direction = 'minimize' if args.display == 'loss' else 'maximize'
         study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
         trial_file = open(f"{base}.trials", 'a', encoding = 'utf-8')
