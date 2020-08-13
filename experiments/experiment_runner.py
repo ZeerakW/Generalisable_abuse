@@ -15,7 +15,7 @@ from mlearn.utils.train import run_mtl_model as run_model
 from mlearn.utils.pipeline import process_and_batch, param_selection
 
 
-def sweeper(trial, training: dict, datasets: list, params: dict, model, modeling: dict, direction: str):
+def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling: dict, direction: str):
     """
     The function that contains all loading and setting of values and running the sweeps.
 
@@ -30,8 +30,7 @@ def sweeper(trial, training: dict, datasets: list, params: dict, model, modeling
 
     # TODO Think of a way to not hardcode this.
     training.update(dict(
-        batchers = [process_and_batch(dataset, dataset.data, optimisable['batch_size'], onehot)
-                    for dataset in datasets],
+        batchers = process_and_batch(dataset, dataset.data, optimisable['batch_size'], modeling['onehot']),
         hidden_dims = optimisable['hidden'] if 'hidden' in optimisable else None,
         embedding_dims = optimisable['embedding'] if 'embedding' in optimisable else None,
         shared_dim = optimisable['shared'],
@@ -58,7 +57,6 @@ def sweeper(trial, training: dict, datasets: list, params: dict, model, modeling
 
     eval = dict(
         model = training['model'],
-        batchers = modeling['test_batcher'],
         loss = training['loss'],
         metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
         gpu = training['gpu'],
@@ -72,10 +70,13 @@ def sweeper(trial, training: dict, datasets: list, params: dict, model, modeling
         train_field = 'text',
         label_field = 'label',
         store = False,
-        mtl = 0
     )
 
-    run_model(train = False, writer = modeling['test_writer'], pred_writer = None, **eval)
+    for dataset, batcher in zip(modeling['test_sets'], modeling['test_batcher']):
+        eval['batcher'] = batcher
+        eval['data'] = dataset.test
+        eval['data_name'] = dataset.name
+        run_model(train = False, writer = modeling['test_writer'], pred_writer = None, **eval)
 
     return metric
 
@@ -125,6 +126,8 @@ if __name__ == "__main__":
                         type = str.lower, nargs = '+')
     parser.add_argument("--hyperparams", help = "List of names of the hyper parameters to be searched.",
                         default = ['epochs'], type = str.lower, nargs = '+')
+    parser.add_argument("--n_trials", help = "Set the number of hyper-parameter search trials to run.", default = 10,
+                        type = int)
 
     # Experiment parameters
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", type = bool, default = True)
@@ -342,26 +345,29 @@ if __name__ == "__main__":
         loss = loss,
         display = args.display,
         stop = args.stop_metric,
-        test_batcher = process_and_batch(main, main.test, 64, onehot),
+        test_batcher = [process_and_batch(main, data.test, 64, onehot) for data in test_sets],
         main = main,
         train_writer = train_writer,
         test_writer = test_writer,
         pred_writer = None,
+        test_sets = test_sets,
+        onehot = onehot
     )
 
-    # Batch all evaluation datasets
-    test_batches = [process_and_batch(main, data.test, 64, onehot) for data in test_sets]
+    with tqdm(models, desc = "Model Iterator") as m_loop:
+        params = {param: getattr(args, param) for param in args.hyperparams}  # Get hyper-parameters to search
+        direction = 'minimize' if args.display == 'loss' else 'maximize'
+        study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
+        trial_file = open(f"{base}.trials", 'a', encoding = 'utf-8')
 
-    with tqdm(args.learning_rate, desc = "Learning Rate Iterator") as lr_loop,\
-         tqdm(args.embedding, desc = "Embedding Size Iterator") as e_loop,\
-         tqdm(args.window_sizes, desc = "Window size Iterator") as w_loop,\
-         tqdm(args.batch_size, desc = "Batch Size Iterator") as b_loop,\
-         tqdm(args.epochs, desc = "Epoch Count Iterator") as ep_loop,\
-         tqdm(args.hidden, desc = "Hidden Dim Iterator") as h_loop,\
-         tqdm(args.activation, desc = "Activation Iterator") as a_loop,\
-         tqdm(args.dropout, desc = "Dropout Iterator") as d_loop,\
-         tqdm(args.filters, desc = "Filter Iterator") as f_loop,\
-         tqdm(models, desc = "Model Iterator") as m_loop:
+        for m in models:
+            study.optimize(lambda trial: sweeper(trial, train_args, main, params, m, modeling, direction),
+                           n_trials = 100, gc_after_trial = True, n_jobs = 1, show_progress_bar = True)
+
+            print(f"Model: {m}", file = trial_file)
+            print(f"Best parameters: {study.best_params}", file = trial_file)
+            print(f"Best trial: {study.best_trial}", file = trial_file)
+            print(f"All trials: {study.trials}")
 
         for epoch in ep_loop:
             train_args['epochs'] = epoch
@@ -413,25 +419,3 @@ if __name__ == "__main__":
                                                 m_loop.set_postfix(model = train_args['model'].name)  # Cur model name
 
                                                 run_model(train = True, writer = train_writer, **train_args)
-
-                                                for batcher, test in zip(test_batches, test_sets):
-                                                    eval_args = {'model': train_args['model'],
-                                                                 'batchers': batcher,
-                                                                 'loss': train_args['loss'],
-                                                                 'metrics': Metrics(args.metrics, args.display,
-                                                                                    args.stop_metric),
-                                                                 'gpu': args.gpu,
-                                                                 'data': test.test,
-                                                                 'dataset': main,
-                                                                 'hyper_info': train_args['hyper_info'],
-                                                                 'model_hdr': train_args['model_hdr'],
-                                                                 'metric_hdr': metric_hdr,
-                                                                 'main_name': train_args['main_name'],
-                                                                 'data_name': test.name,
-                                                                 'train_field': 'text',
-                                                                 'label_field': 'label',
-                                                                 'store': True
-                                                                 }
-
-                                                    run_model(train = False, writer = test_writer,
-                                                              pred_writer = pred_writer, **eval_args)
