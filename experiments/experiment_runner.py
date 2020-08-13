@@ -11,7 +11,7 @@ import mlearn.modeling.embedding as emb
 from mlearn.utils.metrics import Metrics
 from mlearn.data.clean import Cleaner, Preprocessors
 from jsonargparse import ArgumentParser, ActionConfigFile
-from mlearn.utils.train import run_mtl_model as run_model
+from mlearn.utils.train import run_singletask_model as run_model
 from mlearn.utils.pipeline import process_and_batch, param_selection
 
 
@@ -39,6 +39,7 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         epochs = optimisable['epochs'],
         hyperopt = trial
     ))
+    breakpoint()
     training['model'] = model(**training)
     training.update(dict(
         loss = modeling['loss'](),
@@ -345,6 +346,7 @@ if __name__ == "__main__":
     modeling = dict(
         optimizer = optimizer,
         loss = loss,
+        metrics = args.metrics,
         display = args.display,
         stop = args.stop_metric,
         test_batcher = [process_and_batch(main, data.test, 64, onehot) for data in test_sets],
