@@ -1,5 +1,4 @@
 # File: embedding_davidson_word.yaml
-# Sets up experiments for Word vocab (no reduction) using the Davidson et al dataset as the training dataset
 #
 # Storage, GPU, etc.
 datadir: data/
@@ -11,7 +10,7 @@ tokenizer: bpe
 
 # Experiment
 train: davidson
-experiment: liwc
+experiment: word
 cleaners: [username, hashtag, url, lower]
 
 # Model

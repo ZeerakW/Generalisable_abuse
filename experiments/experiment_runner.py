@@ -293,6 +293,8 @@ if __name__ == "__main__":
         batch_first = True,
         early_stopping = args.patience,
         num_layers = args.layers,
+        window_sizes = args.window_sizes[0],
+        num_filters = args.filters[0],
         # max_feats = args.max_feats,
         input_dim = main.vocab_size(),
         output_dim = main.label_count(),
@@ -368,54 +370,3 @@ if __name__ == "__main__":
             print(f"Best parameters: {study.best_params}", file = trial_file)
             print(f"Best trial: {study.best_trial}", file = trial_file)
             print(f"All trials: {study.trials}")
-
-        for epoch in ep_loop:
-            train_args['epochs'] = epoch
-
-            for e in e_loop:
-                e_loop.set_postfix(emb_dim = e)
-                train_args['embedding_dim'] = e
-
-                for hidden in h_loop:
-                    h_loop.set_postfix(hid_dim = hidden)
-                    train_args['hidden_dim'] = hidden
-
-                    for windows in w_loop:
-                        train_args['window_sizes'] = windows
-
-                        for filtr in f_loop:
-                            train_args['num_filters'] = filtr
-
-                            for batch_size in b_loop:
-                                b_loop.set_postfix(batch_size = batch_size)
-                                train_args['batchers'] = process_and_batch(main, main.data, batch_size, onehot)
-
-                                for dropout in d_loop:
-                                    d_loop.set_postfix(dropout = dropout)
-                                    train_args['dropout'] = dropout
-
-                                    for lr in lr_loop:
-                                        lr_loop.set_postfix(learning_rate = lr)
-
-                                        # hyper_info = ['Batch size', '# Epochs', 'Learning Rate']
-                                        train_args['hyper_info'] = [batch_size, epoch, lr]
-
-                                        for act in a_loop:
-                                            a_loop.set_postfix(activation = act)
-                                            train_args['activation'] = act
-
-                                            for model in m_loop:
-                                                # Intialize model, loss, optimizer, and metrics
-                                                train_args['model'] = model(**train_args)
-                                                train_args['loss'] = modeling['loss']()
-                                                train_args['optimizer'] = modeling['optimizer'](train_args['model']
-                                                                                                  .parameters(),
-                                                                                                  lr)
-                                                train_args['metrics'] = Metrics(args.metrics, args.display,
-                                                                                args.stop_metric)
-                                                train_args['dev_metrics'] = Metrics(args.metrics, args.display,
-                                                                                    args.stop_metric)
-                                                train_args['data_name'] = main.name
-                                                m_loop.set_postfix(model = train_args['model'].name)  # Cur model name
-
-                                                run_model(train = True, writer = train_writer, **train_args)
