@@ -37,9 +37,9 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         dropout = optimisable['dropout'],
         nonlinearity = optimisable['nonlinearity'],
         epochs = optimisable['epochs'],
-        hyperopt = trial
+        hyperopt = trial,
+        data_name = dataset.name
     ))
-    breakpoint()
     training['model'] = model(**training)
     training.update(dict(
         loss = modeling['loss'](),
@@ -73,7 +73,7 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     )
 
     for dataset, batcher in zip(modeling['test_sets'], modeling['test_batcher']):
-        eval['batcher'] = batcher
+        eval['batchers'] = batcher
         eval['data'] = dataset.test
         eval['data_name'] = dataset.name
         run_model(train = False, writer = modeling['test_writer'], pred_writer = None, **eval)
@@ -306,7 +306,7 @@ if __name__ == "__main__":
         # Met information
         shuffle = args.shuffle,
         gpu = args.gpu,
-        save_path = f"{args.save_model}{args.experiment}_best",
+        save_path = f"{args.save_model}{args.experiment}_{args.train}_best",
         low = True if args.stop_metric == 'loss' else False,
     )
 
@@ -360,7 +360,6 @@ if __name__ == "__main__":
 
     with tqdm(models, desc = "Model Iterator") as m_loop:
         params = {param: getattr(args, param) for param in args.hyperparams}  # Get hyper-parameters to search
-        breakpoint()
         direction = 'minimize' if args.display == 'loss' else 'maximize'
         study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
         trial_file = open(f"{base}.trials", 'a', encoding = 'utf-8')
