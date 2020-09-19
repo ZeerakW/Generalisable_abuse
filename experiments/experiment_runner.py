@@ -143,7 +143,7 @@ if __name__ == "__main__":
     # Set seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
-    torch.cuda.set_device(0)
+    torch.cuda.set_device(1)
 
     if 'f1' in args.metrics + [args.display, args.stop_metric]:
         for i, m in enumerate(args.metrics):
@@ -361,10 +361,10 @@ if __name__ == "__main__":
     with tqdm(models, desc = "Model Iterator") as m_loop:
         params = {param: getattr(args, param) for param in args.hyperparams}  # Get hyper-parameters to search
         direction = 'minimize' if args.display == 'loss' else 'maximize'
-        study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
-        trial_file = open(f"{base}.trials", 'a', encoding = 'utf-8')
+        trial_file = open(f"{base}_{args.train}.trials", 'a', encoding = 'utf-8')
 
-        for m in models:
+        for m in m_loop:
+            study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
             study.optimize(lambda trial: sweeper(trial, train_args, main, params, m, modeling, direction),
                            n_trials = 100, gc_after_trial = True, n_jobs = 1, show_progress_bar = True)
 
