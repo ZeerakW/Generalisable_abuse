@@ -14,7 +14,7 @@ experiment: liwc
 cleaners: [username, hashtag, url, lower]
 
 # Model
-model: [all]
+model: [cnn, rnn, lstm]
 encoding: onehot
 optimizer: adam
 loss: nlll
