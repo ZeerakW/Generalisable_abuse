@@ -143,7 +143,7 @@ if __name__ == "__main__":
     # Set seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(args.gpu)
 
     if 'f1' in args.metrics + [args.display, args.stop_metric]:
         for i, m in enumerate(args.metrics):
