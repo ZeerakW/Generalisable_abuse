@@ -5,12 +5,13 @@ import optuna
 import numpy as np
 from tqdm import tqdm
 from mlearn.utils.metrics import Metrics
-from mlearn.modeling import multitask as mod_lib
+from mlearn.modeling import onehot as oh
+from mlearn.modeling import embedding as emb
 from mlearn.utils.pipeline import param_selection
 from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
 from jsonargparse import ArgumentParser, ActionConfigFile
-from mlearn.utils.train import run_mtl_model as run_model
+from mlearn.utils.train import run_singletask_model as run_model
 from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 
 
@@ -26,15 +27,18 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     """
     optimisable = param_selection(trial, params)
     if not modeling['onehot']:
-        dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
-        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets)
+        train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
+                                       sort_key = lambda x: len(x), shuffle = training['shuffle'])
+        train = TorchtextExtractor('text', 'label', dataset['name'], train_buckets)
     else:
-        dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
-        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, len(main['text'].vocab.stoi))
+        train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
+                                       sort_key = lambda x: len(x), shuffle = training['shuffle'])
+        train = TorchtextExtractor('text', 'label', dataset['name'], train_buckets, len(main['text'].vocab.stoi))
+    training['shuffle'] = False
 
     # TODO Think of a way to not hardcode this.
     training.update(dict(
-        batchers = process_and_batch(dataset, dataset.data, optimisable['batch_size'], modeling['onehot']),
+        batchers = train,
         hidden_dim = optimisable['hidden'] if 'hidden' in optimisable else None,
         embedding_dim = optimisable['embedding'] if 'embedding' in optimisable else None,
         hyper_info = [optimisable['batch_size'], optimisable['epochs'], optimisable['learning_rate']],
@@ -42,7 +46,7 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         nonlinearity = optimisable['nonlinearity'],
         epochs = optimisable['epochs'],
         hyperopt = trial,
-        data_name = dataset.name
+        data_name = dataset['name']
     ))
     training['model'] = model(**training)
 
@@ -60,28 +64,28 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     else:
         metric = np.mean(training['dev_metrics'].scores[modeling['display']])
 
-    eval = dict(
-        model = training['model'],
-        loss = training['loss'],
-        metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
-        gpu = training['gpu'],
-        data = modeling['main'].test,
-        dataset = modeling['main'],
-        hyper_info = training['hyper_info'],
-        model_hdr = training['model_hdr'],
-        metric_hdr = training['metric_hdr'],
-        main_name = training['main_name'],
-        data_name = training['main_name'],
-        train_field = 'text',
-        label_field = 'label',
-        store = False,
-    )
+    # eval = dict(
+    #     model = training['model'],
+    #     loss = training['loss'],
+    #     metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
+    #     gpu = training['gpu'],
+    #     data = training['test'],
+    #     dataset = modeling['main'],
+    #     hyper_info = training['hyper_info'],
+    #     model_hdr = training['model_hdr'],
+    #     metric_hdr = training['metric_hdr'],
+    #     main_name = training['main_name'],
+    #     data_name = training['main_name'],
+    #     train_field = 'text',
+    #     label_field = 'label',
+    #     store = False,
+    # )
 
-    for dataset, batcher in zip(modeling['test_sets'], modeling['test_batcher']):
-        eval['batchers'] = batcher
-        eval['data'] = dataset.test
-        eval['data_name'] = dataset.name
-        run_model(train = False, writer = modeling['test_writer'], pred_writer = None, **eval)
+    # for dataset, batcher in zip(modeling['test_sets'], modeling['test_batcher']):
+    #     eval['batchers'] = batcher
+    #     eval['data'] = dataset['test']
+    #     eval['data_name'] = dataset['name']
+    #     run_model(train = False, writer = modeling['test_writer'], pred_writer = None, **eval)
 
     return metric
 
@@ -90,8 +94,9 @@ if __name__ == "__main__":
     parser = ArgumentParser(description = "Run Experiments to generalise models.")
 
     # For all models
-    parser.add_argument("--train", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
+    parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
                         type = str.lower, default = 'Davidson')
+    parser.add_argument("--aux", help = "Choose out of domain datasets.", type = str.lower, nargs = '+')
     parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", nargs = '+',
                         default = ['mlp'], type = str.lower)
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
@@ -164,6 +169,8 @@ if __name__ == "__main__":
     experiment = Preprocessors(args.datadir).select_experiment(args.experiment)
     onehot = True if args.encoding == 'onehot' else False
 
+    mod_lib = oh if onehot else emb
+
     if args.tokenizer == 'spacy':
         tokenizer = c.tokenize
     elif args.tokenizer == 'bpe':
@@ -185,8 +192,8 @@ if __name__ == "__main__":
         label.build_vocab(train)
     elif args.main == 'waseem-hovy':
         fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
-        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem-hovy_train.json',
-                                                 validation = 'waseem-hovy_dev.json', test = 'waseem-hovy_test.json',
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_hovy_train.json',
+                                                 validation = 'waseem_hovy_dev.json', test = 'waseem_hovy_test.json',
                                                  format = 'json', fields = fields)
         text.build_vocab(train)
         label.build_vocab(train)
@@ -216,11 +223,11 @@ if __name__ == "__main__":
             train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_train.json',
                                                      validation = 'waseem_dev.json', test = 'waseem_test.json',
                                                      format = 'json', fields = fields)
-        elif aux == 'waseem-hovy':
+        elif aux == 'waseem_hovy':
             fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
-            train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem-hovy_train.json',
-                                                     validation = 'waseem-hovy_dev.json',
-                                                     test = 'waseem-hovy_test.json',
+            train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_hovy_train.json',
+                                                     validation = 'waseem_hovy_dev.json',
+                                                     test = 'waseem_hovy_test.json',
                                                      format = 'json', fields = fields)
         elif aux == 'wulczyn':
             fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
@@ -240,7 +247,7 @@ if __name__ == "__main__":
 
         text.build_vocab(train)
         label.build_vocab(train)
-        test_sets.append({'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': 'davidson'})
+        test_sets.append({'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': aux})
 
     # Open output files
     base = f'{args.results}/{args.encoding}_{args.experiment}'
@@ -271,9 +278,13 @@ if __name__ == "__main__":
     if not onehot:
         dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
         dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets)
+        test_buckets = BucketIterator(dataset = main['test'], batch_size = 64, sort_key = lambda x: len(x))
+        test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
     else:
         dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
         dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, len(main['text'].vocab.stoi))
+        test_buckets = BucketIterator(dataset = main['test'], batch_size = 64, sort_key = lambda x: len(x))
+        test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
 
     train_args = dict(
         # For writers
@@ -282,6 +293,7 @@ if __name__ == "__main__":
 
         # Batch dev
         dev = dev,
+        test = test,
 
         # Set model dimensionality
         batch_first = True,
@@ -290,16 +302,16 @@ if __name__ == "__main__":
         window_sizes = args.window_sizes[0],
         num_filters = args.filters[0],
         # max_feats = args.max_feats,
-        input_dim = main.vocab_size(),
-        output_dim = main.label_count(),
+        input_dim = len(main['text'].vocab.stoi),
+        output_dim = len(main['labels'].vocab.stoi),
 
         # Main task information
-        main_name = main.name,
+        main_name = main['name'],
 
         # Met information
         shuffle = args.shuffle,
         gpu = args.gpu,
-        save_path = f"{args.save_model}{args.experiment}_{args.train}_best",
+        save_path = f"{args.save_model}{args.experiment}_{args.main}_best",
         low = True if args.stop_metric == 'loss' else False,
     )
 
@@ -336,13 +348,23 @@ if __name__ == "__main__":
     elif args.loss == 'crossentropy':
         loss = torch.nn.CrossEntropyLoss
 
+    batched_test = []
+    for dataset in test_sets:
+        test_buckets = BucketIterator(dataset = dataset['test'], batch_size = 64, sort_key = lambda x: len(x))
+        if not onehot:
+            test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
+        else:
+            test = TorchtextExtractor('text', 'label', main['name'], test_buckets, len(main['text'].vocab.stoi))
+        dataset['test_buckets'] = test_buckets
+        batched_test.append(test)
+
     modeling = dict(
         optimizer = optimizer,
         loss = loss,
         metrics = args.metrics,
         display = args.display,
         stop = args.stop_metric,
-        test_batcher = [process_and_batch(main, data.test, 64, onehot) for data in test_sets],
+        test_batcher = batched_test,
         main = main,
         train_writer = train_writer,
         test_writer = test_writer,
@@ -354,7 +376,7 @@ if __name__ == "__main__":
     with tqdm(models, desc = "Model Iterator") as m_loop:
         params = {param: getattr(args, param) for param in args.hyperparams}  # Get hyper-parameters to search
         direction = 'minimize' if args.display == 'loss' else 'maximize'
-        trial_file = open(f"{base}_{args.train}.trials", 'a', encoding = 'utf-8')
+        trial_file = open(f"{base}_{args.main}.trials", 'a', encoding = 'utf-8')
 
         for m in m_loop:
             study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
