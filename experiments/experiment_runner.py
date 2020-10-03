@@ -26,6 +26,7 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     :model: The model to train.
     :modeling (dict): The arguments for the model and metrics objects.
     """
+    breakpoint()
     optimisable = param_selection(trial, params)
 
     # TODO Think of a way to not hardcode this.
@@ -119,9 +120,10 @@ if __name__ == "__main__":
     # Model (hyper) parameters
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = [200], type = int, nargs = '+')
     parser.add_argument("--batch_size", help = "Set the batch size.", default = [64], type = int, nargs = '+')
-    parser.add_argument("--dropout", help = "Set value for dropout.", default = [0.0], type = float, nargs = '+')
-    parser.add_argument('--learning_rate', help = "Set the learning rate for the model.", default = [0.01],
-                        type = float, nargs = '+')
+    parser.add_argument("--dropout.high", help = "Set value for dropout.", default = [0.0], type = float)
+    parser.add_argument("--dropout.low", help = "Set value for dropout.", default = [0.0], type = float)
+    parser.add_argument('--learning_rate.high', help = "Set the learning rate for the model.", default = 0.01, type = float)
+    parser.add_argument('--learning_rate.low', help = "Set the learning rate for the model.", default = 0.01, type = float)
     parser.add_argument("--nonlinearity", help = "Set activation function for neural nets.", default = ['tanh'],
                         type = str.lower, nargs = '+')
     parser.add_argument("--hyperparams", help = "List of names of the hyper parameters to be searched.",
@@ -131,7 +133,7 @@ if __name__ == "__main__":
 
     # Experiment parameters
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", type = bool, default = True)
-    parser.add_argument('--gpu', help = "Set to run on GPU", type = bool, default = False)
+    parser.add_argument('--gpu', help = "Set to run on GPU", type = int, default = 0)
     parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word", type = str.lower)
     parser.add_argument("--slur_window", help = "Set window size for slur replacement.", default = None, type = int,
@@ -366,7 +368,7 @@ if __name__ == "__main__":
         for m in m_loop:
             study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
             study.optimize(lambda trial: sweeper(trial, train_args, main, params, m, modeling, direction),
-                           n_trials = 100, gc_after_trial = True, n_jobs = 1, show_progress_bar = True)
+                           n_trials = args.n_trials, gc_after_trial = True, n_jobs = 1, show_progress_bar = True)
 
             print(f"Model: {m}", file = trial_file)
             print(f"Best parameters: {study.best_params}", file = trial_file)
