@@ -4,30 +4,33 @@ import torch
 import optuna
 import numpy as np
 from tqdm import tqdm
-import mlearn.modeling.onehot as oh
-import mlearn.modeling.linear as lin
-import mlearn.data.loaders as loaders
-import mlearn.modeling.embedding as emb
 from mlearn.utils.metrics import Metrics
+from mlearn.modeling import multitask as mod_lib
+from mlearn.utils.pipeline import param_selection
+from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
 from jsonargparse import ArgumentParser, ActionConfigFile
-from mlearn.utils.train import run_singletask_model as run_model
-from mlearn.utils.pipeline import process_and_batch, param_selection
+from mlearn.utils.train import run_mtl_model as run_model
+from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 
 
 def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling: dict, direction: str):
     """
     The function that contains all loading and setting of values and running the sweeps.
-
-    :trial: The Optuna trial.
+:trial: The Optuna trial.
     :training (dict): Dictionary containing training modeling.
     :datasets (list): List of datasets objects.
     :params (dict): A dictionary of the different tunable parameters and their values.
     :model: The model to train.
     :modeling (dict): The arguments for the model and metrics objects.
     """
-    breakpoint()
     optimisable = param_selection(trial, params)
+    if not modeling['onehot']:
+        dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
+        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets)
+    else:
+        dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
+        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, len(main['text'].vocab.stoi))
 
     # TODO Think of a way to not hardcode this.
     training.update(dict(
@@ -42,6 +45,7 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         data_name = dataset.name
     ))
     training['model'] = model(**training)
+
     training.update(dict(
         loss = modeling['loss'](),
         optimizer = modeling['optimizer'](training['model'].parameters(), optimisable['learning_rate']),
@@ -143,121 +147,100 @@ if __name__ == "__main__":
     parser.add_argument('--cfg', action = ActionConfigFile, default = None)
     args = parser.parse_args()
 
+    if 'f1' in args.metrics:
+        args.metrics[args.metrics.index('f1')] = 'f1-score'
+    if args.display == 'f1':
+        args.display = 'f1-score'
+    if args.stop_metric == 'f1':
+        args.display = 'f1-score'
+
     # Set seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
     torch.cuda.set_device(args.gpu)
 
-    if 'f1' in args.metrics + [args.display, args.stop_metric]:
-        for i, m in enumerate(args.metrics):
-            if 'f1' in m:
-                args.metrics[i] = 'f1-score'
-        if args.display == 'f1':
-            args.display = 'f1-score'
-        if args.stop_metric == 'f1':
-            args.display = 'f1-score'
-
-    if args.encoding == 'embedding':
-        mod_lib = emb
-        onehot = False
-    elif args.encoding == 'onehot':
-        mod_lib = oh
-        onehot = True
-    elif args.encoding in ['tfidf', 'count']:
-        mod_lib = lin
-
+    # Initialize experiment
     c = Cleaner(args.cleaners)
-    p = Preprocessors(args.datadir)
-    tokenizer = c.tokenize if args.tokenizer == 'spacy' else c.bpe_tokenize
-    experiment = p.select_experiment(args.experiment, args.slur_window)
+    experiment = Preprocessors(args.datadir).select_experiment(args.experiment)
+    onehot = True if args.encoding == 'onehot' else False
 
-    if args.train == 'davidson':
-        main = loaders.davidson(tokenizer, args.datadir, preprocessor = experiment,
-                                label_processor = loaders.davidson_to_binary, stratify = 'label', skip_header = True)
-        test_sets = [main,
-                     loaders.wulczyn(tokenizer, args.datadir, preprocessor = experiment, stratify = 'label',
-                                     skip_header = True),
-                     loaders.garcia(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.binarize_garcia, stratify = 'label', skip_header = True),
-                     loaders.waseem(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.waseem_to_binary, stratify = 'label'),
-                     loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment,
-                                         label_processor = loaders.waseem_to_binary,
-                                         stratify = 'label')
-                     ]
+    if args.tokenizer == 'spacy':
+        tokenizer = c.tokenize
+    elif args.tokenizer == 'bpe':
+        tokenizer = c.bpe_tokenize
+    elif args.tokenizer == 'ekphrasis':
+        tokenizer = c.ekphrasis_tokenize
+        annotate = {'elongated', 'emphasis'}
+        filters = [f"<{filtr}>" for filtr in annotate]
+        c._load_ekphrasis(annotate, filters)
 
-    elif args.train == 'waseem':
-        main = loaders.waseem(tokenizer, args.datadir, preprocessor = experiment,
-                              label_processor = loaders.waseem_to_binary, stratify = 'label'),
-        test_sets = [main,
-                     loaders.wulczyn(tokenizer, args.datadir, preprocessor = experiment, stratify = 'label',
-                                     skip_header = True),
-                     loaders.garcia(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.binarize_garcia, stratify = 'label', skip_header = True),
-                     loaders.davidson(tokenizer, args.datadir, preprocessor = experiment,
-                                      label_processor = loaders.davidson_to_binary, stratify = 'label',
-                                      skip_header = True),
-                     loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment,
-                                         label_processor = loaders.waseem_to_binary,
-                                         stratify = 'label')
-                     ]
+    text = Field(tokenize = tokenizer, lower = True, batch_first = True)
+    label = LabelField()
+    if args.main == 'waseem':
+        fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_train.json',
+                                                 validation = 'waseem_dev.json', test = 'waseem_test.json',
+                                                 format = 'json', fields = fields)
+        text.build_vocab(train)
+        label.build_vocab(train)
+    elif args.main == 'waseem-hovy':
+        fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem-hovy_train.json',
+                                                 validation = 'waseem-hovy_dev.json', test = 'waseem-hovy_test.json',
+                                                 format = 'json', fields = fields)
+        text.build_vocab(train)
+        label.build_vocab(train)
+    elif args.main == 'wulczyn':
+        fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'wulczyn_train.json',
+                                                 validation = 'wulczyn_dev.json', test = 'wulczyn_test.json',
+                                                 format = 'json', fields = fields)
+        text.build_vocab(train)
+        label.build_vocab(train)
+    elif args.main == 'davidson':
+        fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'davidson_train.json',
+                                                 validation = 'davidson_dev.json', test = 'davidson_test.json',
+                                                 format = 'json', fields = fields)
+        text.build_vocab(train)
+        label.build_vocab(train)
+    main = {'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': args.main}
 
-    elif args.train == 'waseem_hovy':
-        main = loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment,
-                                   label_processor = loaders.waseem_to_binary,
-                                   stratify = 'label')
-        test_sets = [main,
-                     loaders.davidson(tokenizer, args.datadir, preprocessor = experiment,
-                                      label_processor = loaders.davidson_to_binary, stratify = 'label',
-                                      skip_header = True),
-                     loaders.wulczyn(tokenizer, args.datadir, preprocessor = experiment, stratify = 'label',
-                                     skip_header = True),
-                     loaders.garcia(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.binarize_garcia,
-                                    stratify = 'label', skip_header = True),
-                     loaders.waseem(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.waseem_to_binary,
-                                    stratify = 'label')
-                     ]
+    test_sets = []
+    for aux in args.aux:
+        text = Field(tokenize = tokenizer, lower = True, batch_first = True)
+        label = LabelField()
 
-    elif args.train == 'garcia':
-        main = loaders.garcia(tokenizer, args.datadir, preprocessor = experiment,
-                              label_processor = loaders.binarize_garcia, stratify = 'label', skip_header = True),
-        test_sets = [main,
-                     loaders.davidson(tokenizer, args.datadir, preprocessor = experiment,
-                                      label_processor = loaders.davidson_to_binary, stratify = 'label',
-                                      skip_header = True),
-                     loaders.wulczyn(tokenizer, args.datadir, preprocessor = experiment, stratify = 'label',
-                                     skip_header = True),
-                     loaders.waseem(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.waseem_to_binary,
-                                    stratify = 'label'),
-                     loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment,
-                                         label_processor = loaders.waseem_to_binary,
-                                         stratify = 'label')
-                     ]
+        if aux == 'waseem':
+            fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+            train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_train.json',
+                                                     validation = 'waseem_dev.json', test = 'waseem_test.json',
+                                                     format = 'json', fields = fields)
+        elif aux == 'waseem-hovy':
+            fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+            train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem-hovy_train.json',
+                                                     validation = 'waseem-hovy_dev.json',
+                                                     test = 'waseem-hovy_test.json',
+                                                     format = 'json', fields = fields)
+        elif aux == 'wulczyn':
+            fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+            train, dev, test = TabularDataset.splits(args.datadir, train = 'wulczyn_train.json',
+                                                     validation = 'wulczyn_dev.json', test = 'wulczyn_test.json',
+                                                     format = 'json', fields = fields)
+        elif aux == 'davidson':
+            fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+            train, dev, test = TabularDataset.splits(args.datadir, train = 'davidson_train.json',
+                                                     validation = 'davidson_dev.json', test = 'davidson_test.json',
+                                                     format = 'json', fields = fields)
+        elif aux == 'garcia':
+            fields = {'text': ('text', text), 'label': ('label', label)}  # Because we load from json we just need this.
+            train, dev, test = TabularDataset.splits(args.datadir, train = 'garcia_train.json',
+                                                     validation = 'garcia_dev.json', test = 'garcia_test.json',
+                                                     format = 'json', fields = fields)
 
-    elif args.train == 'wulczyn':
-        main = loaders.wulczyn(tokenizer, args.datadir, preprocessor = experiment, stratify = 'label',
-                               skip_header = True)
-        test_sets = [main,
-                     loaders.davidson(tokenizer, args.datadir, preprocessor = experiment,
-                                      label_processor = loaders.davidson_to_binary, stratify = 'label',
-                                      skip_header = True),
-                     loaders.garcia(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.binarize_garcia,
-                                    stratify = 'label', skip_header = True),
-                     loaders.waseem(tokenizer, args.datadir, preprocessor = experiment,
-                                    label_processor = loaders.waseem_to_binary,
-                                    stratify = 'label'),
-                     loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment,
-                                         label_processor = loaders.waseem_to_binary,
-                                         stratify = 'label')
-                     ]
-
-    # Build token and label vocabularies
-    main.build_token_vocab(main.data)
-    main.build_label_vocab(main.data)
+        text.build_vocab(train)
+        label.build_vocab(train)
+        test_sets.append({'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': 'davidson'})
 
     # Open output files
     base = f'{args.results}/{args.encoding}_{args.experiment}'
@@ -285,13 +268,20 @@ if __name__ == "__main__":
         hdr += ['Label', 'Prediction']
         pred_writer.writerow(hdr)
 
+    if not onehot:
+        dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
+        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets)
+    else:
+        dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
+        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, len(main['text'].vocab.stoi))
+
     train_args = dict(
         # For writers
         model_hdr = model_hdr,
         metric_hdr = args.metrics + ['loss'],
 
         # Batch dev
-        dev = process_and_batch(main, main.dev, 64, onehot),
+        dev = dev,
 
         # Set model dimensionality
         batch_first = True,
