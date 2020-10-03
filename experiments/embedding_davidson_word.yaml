@@ -14,7 +14,7 @@ experiment: word
 cleaners: [username, hashtag, url, lower]
 
 # Model
-model: [all]
+model: [cnn, rnn, lstm]
 encoding: embedding
 optimizer: adam
 loss: nlll

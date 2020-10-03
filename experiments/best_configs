@@ -1,0 +1,3 @@
+{Onehot_davidson_liwc: {'batch_size': 32, 'epochs': 50, 'learning_rate': 0.001, 'dropout': 0.0, 'embedding': 100, 'hidden': 300, 'nonlinearity': 'relu'}}
+{Embedding_davidson_liwc: {'batch_size': 16, 'epochs': 200, 'learning_rate': 0.001, 'dropout': 0.1, 'embedding': 100, 'hidden': 300, 'nonlinearity': 'relu', 'trial': 92}}
+{Embedding_davidson_word: {'batch_size': 16, 'epochs': 100, 'learning_rate': 0.001, 'dropout': 0.2, 'embedding': 100, 'hidden': 100, 'nonlinearity': 'tanh', 'trial': 198}}
