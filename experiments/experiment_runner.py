@@ -41,6 +41,7 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         data_name = dataset.name
     ))
     training['model'] = model(**training)
+
     training.update(dict(
         loss = modeling['loss'](),
         optimizer = modeling['optimizer'](training['model'].parameters(), optimisable['learning_rate']),
