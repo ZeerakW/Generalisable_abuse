@@ -18,7 +18,8 @@ from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling: dict, direction: str):
     """
     The function that contains all loading and setting of values and running the sweeps.
-:trial: The Optuna trial.
+
+    :trial: The Optuna trial.
     :training (dict): Dictionary containing training modeling.
     :datasets (list): List of datasets objects.
     :params (dict): A dictionary of the different tunable parameters and their values.
