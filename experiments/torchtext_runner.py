@@ -18,14 +18,23 @@ from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling: dict, direction: str):
     """
     The function that contains all loading and setting of values and running the sweeps.
-:trial: The Optuna trial.
+    :trial: The Optuna trial.
     :training (dict): Dictionary containing training modeling.
     :datasets (list): List of datasets objects.
     :params (dict): A dictionary of the different tunable parameters and their values.
     :model: The model to train.
     :modeling (dict): The arguments for the model and metrics objects.
     """
-    optimisable = param_selection(trial, params)
+    model_params = ['batch_size', 'epochs', 'learning_rate', 'dropout', 'embedding']
+    if train_args['model_name'] in ['rnn', 'mlp']:
+        model_params += ['hidden', 'nonlinearity']
+    if train_args['model_name'] == 'lstm':
+        model_params += ['hidden']
+    if train_args['model_name'] == 'cnn':
+        model_params += ['window_sizes', 'filters', 'nonlinearity']
+    param_space = {p: params[p] for p in set(model_params)}
+
+    optimisable = param_selection(trial, param_space)
     if not modeling['onehot']:
         train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
                                        sort_key = lambda x: len(x), shuffle = training['shuffle'])
@@ -215,6 +224,7 @@ if __name__ == "__main__":
 
     test_sets = []
     for aux in args.aux:
+        # This is wrong. It's using a new tokenization so a new vocabulary. We need to pass through the old vocabulary.
         text = Field(tokenize = tokenizer, lower = True, batch_first = True)
         label = LabelField()
 
@@ -317,20 +327,26 @@ if __name__ == "__main__":
 
     # Set models to iterate over
     models = []
+    model_names = []
     for m in args.model:
         if m == 'mlp':
             models.append(mod_lib.MLPClassifier)
+            model_names.append(m)
         if m == 'lstm':
             models.append(mod_lib.LSTMClassifier)
+            model_names.append(m)
         if m == 'cnn':
             models.append(mod_lib.CNNClassifier)
+            model_names.append(m)
         if m == 'rnn':
             models.append(mod_lib.RNNClassifier)
+            model_names.append(m)
         if m == 'all':
             models = [mod_lib.MLPClassifier,
                       mod_lib.CNNClassifier,
                       mod_lib.LSTMClassifier,
                       mod_lib.RNNClassifier]
+            model_names.extend(['mlp', 'cnn', 'lstm', 'rnn'])
 
     # Set optimizer and loss
     if args.optimizer == 'adam':
@@ -378,7 +394,8 @@ if __name__ == "__main__":
         direction = 'minimize' if args.display == 'loss' else 'maximize'
         trial_file = open(f"{base}_{args.main}.trials", 'a', encoding = 'utf-8')
 
-        for m in m_loop:
+        for i, m in enumerate(m_loop):
+            train_args['model_name'] = model_names[i]
             study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
             study.optimize(lambda trial: sweeper(trial, train_args, main, params, m, modeling, direction),
                            n_trials = args.n_trials, gc_after_trial = True, n_jobs = 1, show_progress_bar = True)
