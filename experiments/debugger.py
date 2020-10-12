@@ -1,47 +1,105 @@
 import os
 import csv
+import json
 import torch
-# import optuna
+import optuna
 import numpy as np
-# from mlearn import base
-# from tqdm import tqdm, trange
-# from mlearn.utils.metrics import Metrics
+from tqdm import tqdm
+from mlearn import base
+from mlearn.utils.metrics import Metrics
 from mlearn.modeling import onehot as oh
 from mlearn.modeling import embedding as emb
-# from mlearn.utils.evaluate import eval_torch_model
-from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.dataset import GeneralDataset
+from mlearn.utils.pipeline import param_selection
+from mlearn.utils.evaluate import eval_torch_model
+from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
-# from mlearn.utils.train import train_singletask_model
+from mlearn.utils.train import train_singletask_model
 from jsonargparse import ArgumentParser, ActionConfigFile
-# from mlearn.utils.train import train_singletask_model
-# from mlearn.utils.pipeline import process_and_batch, param_selection
 from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
-from mlearn import base
 
-# # Selected by sweeper.
-# batch_size = args.batch_size[0]
-# epochs = args.epochs[0]
-# dropout = args.dropout.low
-# embedding = args.embedding[0]
-# hidden = args.hidden[0]
-# nonlinearity = args.nonlinearity[0]
-# filters = args.filters[0]
-# window_sizes = args.window_sizes[0]
-# learning_rate = args.learning_rate.high
-#
-# # Set in sweeper
-# train_metrics = Metrics(metrics, display_metric, stop_metric)
-# dev_metrics = Metrics(metrics, display_metric, stop_metric)
-# Some stuff here
-# train_ds = BucketIterator(dataset = train, batch_size = batch_size)
-# dev_ds = BucketIterator(dataset = dev, batch_size = batch_size)
-# batched_train = TorchtextExtractor('text', 'label', 'davidson_binary_train', train_ds)
-# batched_dev = TorchtextExtractor('text', 'label', 'davidson_binary_dev', dev_ds)
-#
-# train_singletask_model(model, save_path, epochs, batched_train, loss, optimizer, train_metrics, clip = 1.0,
-#                        dev = batched_dev, dev_metrics = dev_metrics, shuffle = False, gpu = True)
-#
+
+def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling: dict, direction: str):
+    """
+    The function that contains all loading and setting of values and running the sweeps.
+
+    :trial: The Optuna trial.
+    :training (dict): Dictionary containing training modeling.
+    :datasets (list): List of datasets objects.
+    :params (dict): A dictionary of the different tunable parameters and their values.
+    :model: The model to train.
+    :modeling (dict): The arguments for the model and metrics objects.
+    """
+    model_params = ['batch_size', 'epochs', 'learning_rate', 'dropout', 'embedding']
+    if train_args['model_name'] in ['rnn', 'mlp']:
+        model_params += ['hidden', 'nonlinearity']
+    if train_args['model_name'] == 'lstm':
+        model_params += ['hidden']
+    if train_args['model_name'] == 'cnn':
+        model_params += ['window_sizes', 'filters', 'nonlinearity']
+    param_space = {p: params[p] for p in set(model_params)}
+
+    optimisable = param_selection(trial, param_space)
+    if not modeling['onehot']:
+        train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
+                                       sort_key = lambda x: len(x), shuffle = training['shuffle'])
+        train = TorchtextExtractor('text', 'label', dataset['name'], train_buckets)
+    else:
+        train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
+                                       sort_key = lambda x: len(x), shuffle = training['shuffle'])
+        train = TorchtextExtractor('text', 'label', dataset['name'], train_buckets, len(main['text'].vocab.stoi))
+    training['shuffle'] = True
+
+    # TODO Think of a way to not hardcode this.
+    training.update(dict(
+        batchers = train,
+        hidden_dim = optimisable['hidden'] if 'hidden' in optimisable else None,
+        embedding_dim = optimisable['embedding'] if 'embedding' in optimisable else None,
+        hyper_info = [optimisable['batch_size'], optimisable['epochs'], optimisable['learning_rate']],
+        dropout = optimisable['dropout'],
+        nonlinearity = optimisable['nonlinearity'],
+        epochs = optimisable['epochs'],
+        hyperopt = trial,
+        data_name = dataset['name'],
+        train_metrics = Metrics(train_args['metrics'], train_args['display_metric'], train_args['stop_metric']),
+        dev_metrics = Metrics(train_args['metrics'], train_args['display_metric'], train_args['stop_metric']),
+        clip = 1.0
+    ))
+    training['model'] = model(**training)
+    train_singletask_model(train = True, writer = modeling['train_writer'], **training)
+
+    if not training['onehot']:
+        batched = BucketIterator(dataset = training['test'], batch_size = 64)
+        test = TorchtextExtractor('text', 'label', batched)
+    else:
+        batched = BucketIterator(dataset = training['test'], batch_size = 64)
+        test = TorchtextExtractor('text', 'label', batched, len(main['text'].vocab.stoi))
+
+    eval = dict(
+        model = training['model'],
+        loss = training['loss'],
+        metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
+        gpu = training['gpu'],
+        data = training['test'],
+        dataset = modeling['main'],
+        hyper_info = training['hyper_info'],
+        model_hdr = training['model_hdr'],
+        metric_hdr = training['metric_hdr'],
+        main_name = training['main_name'],
+        data_name = training['main_name'],
+        train_field = 'text',
+        label_field = 'label',
+        store = False,
+        batchers = test,
+    )
+
+    eval_torch_model(**eval)
+
+    # TODO: Need to do some processing of all of the test sets.
+    # TODO Evalaute on test set
+    # TODO Evaluate on all other test sets.
+
+
 # batched_test = []
 # for dataset in test_sets:  # TODO From here
 #     ds = [indices(doc) for doc in dataset]
@@ -192,6 +250,12 @@ if __name__ == "__main__":
     label.build_vocab(train)
     main = {'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': args.main}
 
+    with open(f'{args.results}/vocabs/{args.encoding}_{experiment}.vocab', 'w', encoding = 'utf-8') as vocab_file:
+        vocab_file.write(json.dumps(text.vocab.stoi))
+
+    with open(f'{args.results}/vocabs/{args.encoding}_{experiment}.label', 'w', encoding = 'utf-8') as label_file:
+        label_file.write(json.dumps(label.vocab.stoi))
+
     auxiliary = []
     m_text = base.Field('text', train = True, label = False, ignore = False, ix = 1, cname = 'text')
     m_label = base.Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 2)
@@ -268,9 +332,6 @@ if __name__ == "__main__":
         batch_first = True,
         early_stopping = args.patience,
         num_layers = args.layers,
-        window_sizes = args.window_sizes[0],
-        num_filters = args.filters[0],
-        # max_feats = args.max_feats,
         input_dim = len(main['text'].vocab.stoi),
         output_dim = len(main['labels'].vocab.stoi),
 
@@ -283,28 +344,7 @@ if __name__ == "__main__":
         save_path = f"{args.save_model}{args.experiment}_{args.main}_best",
         low = True if args.stop_metric == 'loss' else False,
     )
-
-    mod_lib = oh if onehot == 'onehot' else emb
-    models, model_names = [], []
-    for m in args.model:
-        if m == 'mlp':
-            models.append(mod_lib.MLPClassifier)
-            model_names.append(m)
-        if m == 'lstm':
-            models.append(mod_lib.LSTMClassifier)
-            model_names.append(m)
-        if m == 'cnn':
-            models.append(mod_lib.CNNClassifier)
-            model_names.append(m)
-        if m == 'rnn':
-            models.append(mod_lib.RNNClassifier)
-            model_names.append(m)
-        if m == 'all':
-            models = [mod_lib.MLPClassifier,
-                      mod_lib.CNNClassifier,
-                      mod_lib.LSTMClassifier,
-                      mod_lib.RNNClassifier]
-            model_names.extend(['mlp', 'cnn', 'lstm', 'rnn'])
+    train_args.update(train_dict)
 
     # Set optimizer and loss
     if args.optimizer == 'adam':
@@ -332,6 +372,44 @@ if __name__ == "__main__":
         train_writer = train_writer,
         test_writer = test_writer,
         pred_writer = None,
-        onehot = onehot
+        onehot = onehot,
+        aux = auxiliary
     )
-    # TODO: Need to do some processing of all of the test sets.
+
+    mod_lib = oh if onehot == 'onehot' else emb
+    models, model_names = [], []
+    for m in args.model:
+        if m == 'mlp':
+            models.append(mod_lib.MLPClassifier)
+            model_names.append(m)
+        if m == 'lstm':
+            models.append(mod_lib.LSTMClassifier)
+            model_names.append(m)
+        if m == 'cnn':
+            models.append(mod_lib.CNNClassifier)
+            model_names.append(m)
+        if m == 'rnn':
+            models.append(mod_lib.RNNClassifier)
+            model_names.append(m)
+        if m == 'all':
+            models = [mod_lib.MLPClassifier,
+                      mod_lib.CNNClassifier,
+                      mod_lib.LSTMClassifier,
+                      mod_lib.RNNClassifier]
+            model_names.extend(['mlp', 'cnn', 'lstm', 'rnn'])
+
+    with tqdm(models, desc = "Model Iterator") as m_loop:
+        params = {param: getattr(args, param) for param in args.hyperparams}  # Get hyper-parameters to search
+        direction = 'minimize' if args.display == 'loss' else 'maximize'
+        trial_file = open(f"{base}_{args.main}.trials", 'a', encoding = 'utf-8')
+
+        for i, m in enumerate(m_loop):
+            train_args['model_name'] = model_names[i]
+            study = optuna.create_study(study_name = 'Vocab Redux', direction = direction)
+            study.optimize(lambda trial: sweeper(trial, train_args, main, params, m, modeling, direction),
+                           n_trials = args.n_trials, gc_after_trial = True, n_jobs = 1, show_progress_bar = True)
+
+            print(f"Model: {m}", file = trial_file)
+            print(f"Best parameters: {study.best_params}", file = trial_file)
+            print(f"Best trial: {study.best_trial}", file = trial_file)
+            print(f"All trials: {study.trials}", file = trial_file)
