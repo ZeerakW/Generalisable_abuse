@@ -40,6 +40,16 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     param_space = {p: params[p] for p in set(model_params)}
 
     optimisable = param_selection(trial, param_space)
+    optimisable['batch_size'] = 64
+    optimisable['epochs'] = 200
+    optimisable['learning_rate'] = 0.01
+    optimisable['dropout'] = 0.1
+    optimisable['embedding'] = 200
+    optimisable['hidden'] = 200
+    optimisable['nonlinearity'] = 'relu'
+    optimisable['filters'] = 128
+    optimisable['window_sizes'] = [2, 3, 4]
+
     if not modeling['onehot']:
         train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
                                        sort_key = lambda x: len(x), shuffle = training['shuffle'])
@@ -68,14 +78,15 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     training['model'] = model(**training)
     training['loss'] = modeling['loss']()
     training['optimizer'] = modeling['optimizer'](training['model'].parameters(), optimisable['learning_rate'])
+
     train_singletask_model(train = True, writer = modeling['train_writer'], **training)
 
-    if not training['onehot']:
-        batched = BucketIterator(dataset = training['test'], batch_size = 64)
-        test = TorchtextExtractor('text', 'label', batched)
+    if not modeling['onehot']:
+        batched = BucketIterator(dataset = training['test'], batch_size = 64, sort_key = lambda x: len(x))
+        test = TorchtextExtractor('text', 'label', dataset['name'], batched)
     else:
-        batched = BucketIterator(dataset = training['test'], batch_size = 64)
-        test = TorchtextExtractor('text', 'label', batched, len(main['text'].vocab.stoi))
+        batched = BucketIterator(dataset = training['test'], batch_size = 64, sort_key = lambda x: len(x))
+        test = TorchtextExtractor('text', 'label', dataset['name'], batched, len(main['text'].vocab.stoi))
 
     eval = dict(
         model = training['model'],
