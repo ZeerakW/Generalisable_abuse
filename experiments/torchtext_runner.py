@@ -74,6 +74,29 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     else:
         metric = np.mean(training['dev_metrics'].scores[modeling['display']])
 
+    # eval = dict(
+    #     model = training['model'],
+    #     loss = training['loss'],
+    #     metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
+    #     gpu = training['gpu'],
+    #     data = training['test'],
+    #     dataset = modeling['main'],
+    #     hyper_info = training['hyper_info'],
+    #     model_hdr = training['model_hdr'],
+    #     metric_hdr = training['metric_hdr'],
+    #     main_name = training['main_name'],
+    #     data_name = training['main_name'],
+    #     train_field = 'text',
+    #     label_field = 'label',
+    #     store = False,
+    # )
+
+    # for dataset, batcher in zip(modeling['test_sets'], modeling['test_batcher']):
+    #     eval['batchers'] = batcher
+    #     eval['data'] = dataset['test']
+    #     eval['data_name'] = dataset['name']
+    #     run_model(train = False, writer = modeling['test_writer'], pred_writer = None, **eval)
+
     return metric
 
 
