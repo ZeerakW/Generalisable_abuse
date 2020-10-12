@@ -32,13 +32,13 @@ if __name__ == "__main__":
     datasets = []
     datasets.append(loaders.garcia(tokenizer, args.datadir, preprocessor = experiment,
                                    label_processor = loaders.binarize_garcia, stratify = 'label', skip_header = True))
-    datasets.append(loaders.waseem(tokenizer, args.datadir, preprocessor = experiment, label_processor = None,
+    datasets.append(loaders.waseem(tokenizer, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
                                    stratify = 'label'))
-    datasets.append(loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment, label_processor = None,
+    datasets.append(loaders.waseem_hovy(tokenizer, args.datadir, preprocessor = experiment, label_processor = loaders.waseem_to_binary,
                                         stratify = 'label'))
     datasets.append(loaders.wulczyn(tokenizer, args.datadir, preprocessor = experiment, label_processor = None,
                                     stratify = 'label', skip_header = True))
-    datasets.append(loaders.davidson(tokenizer, args.datadir, preprocessor = experiment, label_processor = None,
+    datasets.append(loaders.davidson(tokenizer, args.datadir, preprocessor = experiment, label_processor = loaders.davidson_to_binary,
                                      stratify = 'label', skip_header = True))
 
     for dataset in tqdm(datasets, desc = "Dump datasets"):
