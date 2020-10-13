@@ -71,8 +71,8 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         epochs = optimisable['epochs'],
         hyperopt = trial,
         data_name = dataset['name'],
-        metrics = Metrics(training['metrics'], training['display_metric'], training['stop_metric']),
-        dev_metrics = Metrics(train_args['metrics'], train_args['display_metric'], train_args['stop_metric']),
+        metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
+        dev_metrics = Metrics(modeling['metrics'], modeling['display'], modeling['stop']),
         clip = 1.0,
     ))
     training['model'] = model(**training)
@@ -80,13 +80,6 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     training['optimizer'] = modeling['optimizer'](training['model'].parameters(), optimisable['learning_rate'])
 
     train_singletask_model(train = True, writer = modeling['train_writer'], **training)
-
-    if not modeling['onehot']:
-        batched = BucketIterator(dataset = training['test'], batch_size = 64, sort_key = lambda x: len(x))
-        test = TorchtextExtractor('text', 'label', dataset['name'], batched)
-    else:
-        batched = BucketIterator(dataset = training['test'], batch_size = 64, sort_key = lambda x: len(x))
-        test = TorchtextExtractor('text', 'label', dataset['name'], batched, len(main['text'].vocab.stoi))
 
     eval = dict(
         model = training['model'],
@@ -103,10 +96,16 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
         train_field = 'text',
         label_field = 'label',
         store = False,
-        batchers = test,
+        batchers = training['test'],
     )
 
     eval_torch_model(**eval)
+
+    if direction == 'minimize':
+        return training['dev_metrics'].loss
+    else:
+        return np.mean(training['dev_metrics'].scores[modeling['display']])
+
 
     # TODO: Need to do some processing of all of the test sets.
     # TODO Evalaute on test set
@@ -204,9 +203,6 @@ if __name__ == "__main__":
 
     # Initialize experiment
     train_dict = dict(datadir = args.datadir,
-                      metrics = args.metrics,
-                      display_metric = args.display,
-                      stop_metric = args.stop_metric,
                       gpu = args.gpu,
                       hyperopt = True,
                       save_path = args.save_model
@@ -263,10 +259,12 @@ if __name__ == "__main__":
     label.build_vocab(train)
     main = {'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': args.main}
 
-    with open(f'{args.results}/vocabs/{args.encoding}_{args.experiment}.vocab', 'w', encoding = 'utf-8') as vocab_file:
+    with open(f'{args.results}/vocabs/{args.main}_{args.encoding}_{args.experiment}.vocab', 'w',
+              encoding = 'utf-8') as vocab_file:
         vocab_file.write(json.dumps(text.vocab.stoi))
 
-    with open(f'{args.results}/vocabs/{args.encoding}_{args.experiment}.label', 'w', encoding = 'utf-8') as label_file:
+    with open(f'{args.results}/vocabs/{args.main}_{args.encoding}_{args.experiment}.label', 'w',
+             encoding = 'utf-8') as label_file:
         label_file.write(json.dumps(label.vocab.stoi))
 
     auxiliary = []
