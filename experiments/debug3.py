@@ -88,40 +88,18 @@ if __name__ == "__main__":
    if args.stop_metric == 'f1':
        args.stop_metric= 'f1-score'
 
-   # # Initialize experiment
-   # datadir = args.datadir # 'data/json'
-   # torch.random.manual_seed(args.seed) # 42)
-   # np.random.seed(args.seed) #42)
-   # metrics = args.metrics # ['f1-score', 'precision', 'recall', 'accuracy']
-   # # display_metric = stop_metric = 'f1-score'
-   # display_metric = args.display
-   # stop_metric = args.stop_metric
-   # batch_size = args.batch_size[0] # 64
-   # epochs = args.epochs[0] # 200
-   # learning_rate = args.learning_rate.high # 0.01
-   # dropout = args.dropout.low # 0.1
-   # embedding = args.embedding[0] # 200
-   # hidden = args.hidden[0] # 200
-   # nonlinearity = args.nonlinearity[0] # 'relu'
-   # filters = args.filters[0] # 128
-   # window_sizes = args.window_sizes[0] # [2,3,4]
-   # gpu = args.gpu
-   # hyperopt = False
-   # save_path = None
-   # train_metrics = Metrics(metrics, display_metric, stop_metric)
-   # dev_metrics = Metrics(metrics, display_metric, stop_metric)
-
+# 'epochs': 100, 'learning_rate': 0.4653820065445793, 'nonlinearity': 'relu', 'batch_size': 64, 'hidden': 300, 'dropout': 0.03623935933654854, 'embedding': 200
    datadir = 'data/json'
    torch.random.manual_seed(42)
    np.random.seed(42)
    metrics = ['f1-score', 'precision', 'recall', 'accuracy']
    display_metric = stop_metric = 'f1-score'
    batch_size = 64
-   epochs = 200
-   learning_rate = 0.01
-   dropout = 0.1
+   epochs = 100# 200
+   learning_rate = 0.4653820065445793 # 0.01
+   dropout = 0.03623935933654854 # 0.1
    embedding = 200
-   hidden = 200
+   hidden = 300 #200
    nonlinearity = 'relu'
    filters = 128
    window_sizes = [2,3,4]
@@ -190,4 +168,10 @@ if __name__ == "__main__":
    batched_train = TorchtextExtractor('text', 'label', 'davidson_binary_train', train_ds)
    batched_dev = TorchtextExtractor('text', 'label', 'davidson_binary_dev', dev_ds)
 
-   train_singletask_model(model, save_path, epochs, batched_train, loss, optimizer, train_metrics, dev = batched_dev, dev_metrics = dev_metrics, shuffle = False, gpu = True, clip = 1.0)
+   train_singletask_model(model, 'data/', epochs, batched_train, loss, optimizer, train_metrics, dev = batched_dev, dev_metrics = dev_metrics, shuffle = False, gpu = True, clip = 1.0, early_stopping = 10)
+
+   arg = np.argmax(train_metrics.scores['f1-score'])
+   print(arg, train_metrics.scores['f1-score'][arg])
+
+   arg = np.argmax(dev_metrics.scores['f1-score'])
+   print(arg, dev_metrics.scores['f1-score'][arg])

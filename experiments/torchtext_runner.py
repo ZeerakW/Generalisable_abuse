@@ -14,7 +14,7 @@ from mlearn.utils.pipeline import param_selection
 from mlearn.utils.evaluate import eval_torch_model
 from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
-from mlearn.utils.train import train_singletask_model
+from mlearn.utils.train import train_singletask_model, run_singletask_model
 from jsonargparse import ArgumentParser, ActionConfigFile
 from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 
@@ -40,15 +40,17 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     param_space = {p: params[p] for p in set(model_params)}
 
     optimisable = param_selection(trial, param_space)
-    optimisable['batch_size'] = 64
-    optimisable['epochs'] = 200
-    optimisable['learning_rate'] = 0.01
-    optimisable['dropout'] = 0.1
-    optimisable['embedding'] = 200
-    optimisable['hidden'] = 200
-    optimisable['nonlinearity'] = 'relu'
-    optimisable['filters'] = 128
-    optimisable['window_sizes'] = [2, 3, 4]
+    # optimisable['batch_size'] = 64
+    # optimisable['epochs'] = 200
+    # optimisable['learning_rate'] = 0.01
+    # optimisable['dropout'] = 0.1
+    # optimisable['embedding'] = 200
+    # optimisable['hidden'] = 200
+    # optimisable['nonlinearity'] = 'relu'
+    # optimisable['filters'] = 128
+    # optimisable['window_sizes'] = [2, 3, 4]
+
+    optimisable.update({'epochs': 100, 'learning_rate': 0.5990888403604528, 'nonlinearity': 'relu', 'batch_size': 16, 'hidden': 200, 'dropout': 0.18355907900465548, 'embedding': 200})
 
     if not modeling['onehot']:
         train_buckets = BucketIterator(dataset = dataset['train'], batch_size = optimisable['batch_size'],
@@ -79,6 +81,9 @@ def sweeper(trial, training: dict, dataset: list, params: dict, model, modeling:
     training['loss'] = modeling['loss']()
     training['optimizer'] = modeling['optimizer'](training['model'].parameters(), optimisable['learning_rate'])
 
+    print(training)
+
+    # run_singletask_model(train = True, writer = modeling['train_writer'], **training)
     train_singletask_model(train = True, writer = modeling['train_writer'], **training)
 
     eval = dict(
