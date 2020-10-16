@@ -175,7 +175,7 @@ if __name__ == "__main__":
    batched_train = TorchtextExtractor('text', 'label', 'davidson_binary_train', train_ds)
    batched_dev = TorchtextExtractor('text', 'label', 'davidson_binary_dev', dev_ds)
 
-   train_singletask_model(model, 'data/', config.epochs, batched_train, loss, optimizer, train_metrics,
+   train_singletask_model(model, 'results/models/', config.epochs, batched_train, loss, optimizer, train_metrics,
                           dev = batched_dev, dev_metrics = dev_metrics, shuffle = False, gpu = gpu,
                           clip = 1.0, early_stopping = 10)
 
