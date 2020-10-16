@@ -176,8 +176,14 @@ if __name__ == "__main__":
    batched_dev = TorchtextExtractor('text', 'label', 'davidson_binary_dev', dev_ds)
 
    train_singletask_model(model, 'results/models/', config.epochs, batched_train, loss, optimizer, train_metrics,
-                          dev = batched_dev, dev_metrics = dev_metrics, shuffle = False, gpu = gpu,
+                          dev = batched_dev, dev_metrics = dev_metrics, shuffle = False, gpu = gpu, hyperopt = True,
                           clip = 1.0, early_stopping = 10)
+
+   # for key in train_metrics.scores:
+   #     for val in train_metrics.scores[key]:
+   #         wandb.log({key: val})
+   #     for val in dev_metrics.scores[key]:
+   #         wandb.log({f'dev_{key}': val})
 
    arg = np.argmax(train_metrics.scores['f1-score'])
    print(arg, train_metrics.scores['f1-score'][arg])
