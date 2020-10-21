@@ -5,6 +5,7 @@ import wandb
 import torch
 import numpy as np
 from tqdm import tqdm
+from mlearn import base
 from argparse import ArgumentParser
 from mlearn.utils.metrics import Metrics
 from mlearn.modeling import onehot as oh
@@ -23,8 +24,8 @@ if __name__ == "__main__":
     # Data inputs and outputs
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
                         type = str.lower, default = 'Davidson')
-    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+')
-    parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/')
+    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['waseem'])
+    parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/json/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
 
@@ -43,8 +44,8 @@ if __name__ == "__main__":
     # Modelling
     # All models
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
-                        default = None, type = int)
-    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = ['mlp'],
+                        default = 15, type = int)
+    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'mlp',
                         type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Index, Tfidf, Count",
                         default = 'index', type = str.lower)
@@ -57,24 +58,20 @@ if __name__ == "__main__":
     parser.add_argument("--layers", help = "Set the number of layers.", default = 1, type = int)
 
     # Hyper Parameters
-    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = [100],
-                        type = int, nargs = '+')
-    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = [128], type = int,
-                        nargs = '+')
-    parser.add_argument("--epochs", help = "Set the number of epochs.", default = [200], type = int,
-                        nargs = '+')
-    parser.add_argument("--batch_size", help = "Set the batch size.", default = [64], type = int,
-                        nargs = '+')
+    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 100, type = int)
+    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128, type = int)
+    parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int)
+    parser.add_argument("--batch_size", help = "Set the batch size.", default = 64, type = int)
     parser.add_argument("--nonlinearity", help = "Set nonlinearity function for neural nets.",
-                        default = ['tanh'], type = str.lower, nargs = '+')
+                        default = 'tanh', type = str.lower)
     parser.add_argument('--learning_rate', help = "Set the upper limit for the learning rate.",
                         default = 1.0, type = float)
     parser.add_argument("--dropout", help = "Set upper limit for dropout.", default = 1.0, type = float)
     # CNN
-    parser.add_argument('--window_sizes', help = "Set CNN window sizes.", default = ["2,3,4"],
-                        type = str, nargs = '+')
-    parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = [128],
-                        type = int, nargs = '+')
+    parser.add_argument('--window_sizes', help = "Set CNN window sizes.", default = "2,3,4",
+                        type = str)
+    parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128,
+                        type = int)
     args = parser.parse_args()
 
     if 'f1' in args.metrics:
@@ -85,7 +82,7 @@ if __name__ == "__main__":
         args.stop_metric = 'f1-score'
 
     # Set up WandB logging
-    wandb.init(f'{args.experiment}_{args.model}', project = 'vocab_redux', entity = 'zeerak')
+    wandb.init(config = args)
     config = wandb.config
 
     # Initialise random seeds
@@ -103,12 +100,12 @@ if __name__ == "__main__":
         selected_tok  = c.tokenize
     elif args.tokenizer == 'bpe':
         selected_tok = c.bpe_tokenize
-    elif args.tokenizer == 'ekphrasis' and exp == 'word':
+    elif args.tokenizer == 'ekphrasis' and args.experiment == 'word':
         selected_tok = c.ekphrasis_tokenize
         annotate = {'elongated', 'emphasis'}
         flters = [f"<{filtr}>" for filtr in annotate]
         c._load_ekphrasis(annotate, flters)
-    elif args.tokenizer == 'ekphrasis' and exp == 'liwc':
+    elif args.tokenizer == 'ekphrasis' and args.experiment == 'liwc':
         ekphr = c.ekphrasis_tokenize
         annotate = {'elongated', 'emphasis'}
         flters = [f"<{filtr}>" for filtr in annotate]
@@ -118,7 +115,6 @@ if __name__ == "__main__":
             tokens = ekphr(doc)
             tokens = exp(tokens)
             return tokens
-
         selected_tok = liwc_toks
     tokenizer = selected_tok
 
@@ -197,9 +193,9 @@ if __name__ == "__main__":
 
     # Info about losses: https://bit.ly/3irxvYK
     if args.loss == 'nlll':
-        loss = torch.nn.NLLLoss
+        loss = torch.nn.NLLLoss()
     elif args.loss == 'crossentropy':
-        loss = torch.nn.CrossEntropyLoss
+        loss = torch.nn.CrossEntropyLoss()
 
     # Set optimizer and loss
     if args.optimizer == 'adam':
@@ -214,7 +210,7 @@ if __name__ == "__main__":
     # Batch train, dev and test set
     if not onehot:
         train_buckets = BucketIterator(dataset = main['train'], batch_size = batch_size,
-                                       sort_key = lambda x: len(x), shuffle = args.shuffle)
+                                       sort_key = lambda x: len(x))
         train = TorchtextExtractor('text', 'label', main['name'], train_buckets)
         dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
         dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets)
@@ -222,7 +218,7 @@ if __name__ == "__main__":
         test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
     else:
         train_buckets = BucketIterator(dataset = main['train'], batch_size = batch_size,
-                                       sort_key = lambda x: len(x), shuffle = args.shuffle)
+                                       sort_key = lambda x: len(x))
         train = TorchtextExtractor('text', 'label', main['name'], train_buckets, len(main['text'].vocab.stoi))
         dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
         dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, len(main['text'].vocab.stoi))
@@ -230,13 +226,13 @@ if __name__ == "__main__":
         test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
 
     # Open output files
-    base = f'{args.results}/{args.encoding}_{args.experiment}'
-    enc = 'a' if os.path.isfile(f'{base}_train.tsv') else 'w'
-    pred_enc = 'a' if os.path.isfile(f'{base}_preds.tsv') else 'w'
+    base_path = f'{args.results}/{args.encoding}_{args.experiment}'
+    enc = 'a' if os.path.isfile(f'{base_path}_train.tsv') else 'w'
+    pred_enc = 'a' if os.path.isfile(f'{base_path}_preds.tsv') else 'w'
 
-    train_writer = csv.writer(open(f"{base}_train.tsv", enc, encoding = 'utf-8'), delimiter = '\t')
-    test_writer = csv.writer(open(f"{base}_test.tsv", enc, encoding = 'utf-8'), delimiter = '\t')
-    pred_writer = csv.writer(open(f"{base}_preds.tsv", pred_enc, encoding = 'utf-8'), delimiter = '\t')
+    train_writer = csv.writer(open(f"{base_path}_train.tsv", enc, encoding = 'utf-8'), delimiter = '\t')
+    test_writer = csv.writer(open(f"{base_path}_test.tsv", enc, encoding = 'utf-8'), delimiter = '\t')
+    pred_writer = csv.writer(open(f"{base_path}_preds.tsv", pred_enc, encoding = 'utf-8'), delimiter = '\t')
 
     hyper_info = [batch_size, epochs, learning_rate]
     model_hdr = ['Model', 'Input dim', 'Embedding dim', 'Hidden dim', 'Output dim', 'Window Sizes', '# Filters',
@@ -256,12 +252,13 @@ if __name__ == "__main__":
         hdr += ['Label', 'Prediction']
         pred_writer.writerow(hdr)
 
+    gpu = True if args.gpu != -1 else False
     train_dict = dict(train = True,
 
                       # Set args
                       save_path = f"{args.save_model}{args.experiment}_{args.main}_best",
                       hyperopt = True,
-                      gpu = args.gpu,
+                      gpu = gpu,
                       shuffle = False,
 
                       # Hyper-parameters
@@ -284,25 +281,12 @@ if __name__ == "__main__":
                       # Writing
                       writer = train_writer,
                       main_name = main['name'],
+                      data_name = main['name'],
                       model_hdr = model_hdr,
                       metric_hdr = args.metrics + ['loss'],
                       hyper_info = hyper_info
                       )
     run_singletask_model(**train_dict)
-
-    # TODO Load test data sets and process them through training vocabularies
-    # text_vocab = text.vocab.stoi
-    # label_vocab = label.vocab.stoi
-
-    # batched_test = []
-    # for dataset in test_sets:  # TODO From here
-    #     ds = [indices(doc) for doc in dataset]
-    #     if not onehot:
-    #         test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
-    #     else:
-    #         test = TorchtextExtractor('text', 'label', main['name'], test_buckets, len(main['text'].vocab.stoi))
-    #     dataset['test_buckets'] = test_buckets
-    #     batched_test.append(test)
 
     m_text = base.Field('text', train = True, label = False, ignore = False, ix = 1, cname = 'text')
     m_label = base.Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 2)
@@ -311,6 +295,7 @@ if __name__ == "__main__":
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'waseem', 'waseem_binary_train.json',
                                     None, 'waseem_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
+
             loaded.stoi = text.vocab.stoi
             loaded.ltoi = label.vocab.stoi
             loaded.process_labels(loaded.test)
@@ -355,7 +340,7 @@ if __name__ == "__main__":
                          batchers = batcher,
                          loss = loss,
                          metrics = Metrics(args.metrics, args.display, args.stop_metric),
-                         gpu = args.gpu,
+                         gpu = gpu,
 
                          # Storing predictions
                          store = False,
