@@ -8,7 +8,10 @@ command:
   - "--main"
   - davidson
   - "--aux"
-  - [wulczyn, garcia, waseem, waseem_hovy]
+  - wulczyn
+  - garcia
+  - waseem
+  - waseem_hovy
   - "--model"
   - cnn
   - "--patience"
@@ -28,7 +31,10 @@ command:
   - "--experiment"
   - word
   - "--cleaners"
-  - [username, hashtag, url, lower]
+  - username
+  - hashtag
+  - url
+  - lower
   - "--encoding"
   - "index"
   - "--optimizer"
