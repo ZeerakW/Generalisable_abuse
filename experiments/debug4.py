@@ -9,7 +9,7 @@ from argparse import ArgumentParser
 from jsonargparse import ArgumentParser, ActionConfigFile
 from mlearn.utils.train import run_singletask_model as run_model
 from mlearn.modeling.embedding import MLPClassifier, CNNClassifier
-from mlearn.utils.pipeline import process_and_batch, param_selection
+from mlearn.utils.pipeline import process_and_batch
 from mlearn.data.batching import TorchtextExtractor
 from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 
@@ -162,10 +162,10 @@ if __name__ == "__main__":
    train_metrics = Metrics(metrics, display_metric, stop_metric)
    dev_metrics = Metrics(metrics, display_metric, stop_metric)
 
-   # model = MLPClassifier(len(text.vocab.stoi), config.embedding, config.hidden, len(label.vocab.stoi), 
-   #                       config.dropout, True, config.nonlinearity)
-   model = CNNClassifier([int(win) for win in config.window_sizes.split(',')], config.filters, len(text.vocab.stoi),
-                          config.embedding, len(label.vocab.stoi), config.nonlinearity, True)
+   model = MLPClassifier(len(text.vocab.stoi), config.embedding, config.hidden, len(label.vocab.stoi), 
+                         config.dropout, True, config.nonlinearity)
+   # model = CNNClassifier([int(win) for win in config.window_sizes.split(',')], config.filters, len(text.vocab.stoi),
+   #                        config.embedding, len(label.vocab.stoi), config.nonlinearity, True)
    loss = torch.nn.CrossEntropyLoss()
    optimizer = torch.optim.SGD(model.parameters(), config.learning_rate)
 

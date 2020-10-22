@@ -4,13 +4,13 @@ command:
   - python3
   - ${program}
   - "--tokenizer"
-  - bpe
+  - ekphrasis
   - "--main"
   - davidson
   - "--aux"
   - [wulczyn, garcia, waseem, waseem_hovy]
   - "--model"
-  - mlp
+  - cnn
   - "--patience"
   - 15
   - "--layers"
@@ -26,7 +26,7 @@ command:
   - "--shuffle"
   - True
   - "--experiment"
-  - word
+  - liwc
   - "--cleaners"
   - [username, hashtag, url, lower]
   - "--encoding"

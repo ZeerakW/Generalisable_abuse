@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
 
     # Cleaning and metrics
-    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = None)
+    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = ['lower', 'url'])
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
                         type = str.lower)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'f1-score')
@@ -89,9 +89,10 @@ if __name__ == "__main__":
     # Initialise random seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
+    torch.cuda.set_device(args.gpu)
 
     # Set up experiment and cleaner
-    c = Cleaner(args.cleaners)
+    c = Cleaner(processes = args.cleaners)
     exp = Preprocessors('data/').select_experiment(args.experiment)
     onehot = True if args.encoding == 'onehot' else False
     mod_lib = oh if onehot else emb
@@ -173,7 +174,7 @@ if __name__ == "__main__":
     elif args.model == 'lstm':
         params = dict(embedding_dim = config.embedding,
                       hidden_dim = config.hidden,
-                      num_layers = args.num_layers,
+                      num_layers = 1,
                       dropout = dropout,
                       )
         mdl = mod_lib.LSTMClassifier
@@ -247,7 +248,6 @@ if __name__ == "__main__":
         hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
         train_writer.writerow(hdr)
 
-    pred_metric_hdr = args.metrics + ['loss']
     if pred_enc == 'w':
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
         hdr += ['Label', 'Prediction']
@@ -291,49 +291,60 @@ if __name__ == "__main__":
 
     m_text = base.Field('text', train = True, label = False, ignore = False, ix = 1, cname = 'text')
     m_label = base.Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 2)
-    for aux in tqdm(args.aux, desc = "Loading test sets"):
+    for aux in tqdm(args.aux, desc = "Loading test sets", leave = False):
+        print(aux)
         if aux == 'waseem':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'waseem', 'waseem_binary_train.json',
                                     None, 'waseem_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
-
+            loaded.load('test')
+            loaded.build_label_vocab(loaded.test)
+            loaded.build_token_vocab(loaded.test)
             loaded.stoi = text.vocab.stoi
             loaded.ltoi = label.vocab.stoi
-            loaded.process_labels(loaded.test)
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'waseem_hovy':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'waseem-hovy',
                                     'waseem_hovy_binary_train.json', None, 'waseem_hovy_binary_test.json', None, None,
                                     None, None, tokenizer, None, None, None, None, None, True)
+            loaded.load('test')
+            loaded.build_label_vocab(loaded.test)
+            loaded.build_token_vocab(loaded.test)
             loaded.stoi = text.vocab.stoi
             loaded.ltoi = label.vocab.stoi
-            loaded.process_labels(loaded.test)
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'wulczyn':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'wulczyn', 'wulczyn_binary_train.json',
                                     None, 'wulczyn_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
+            loaded.load('test')
+            loaded.build_label_vocab(loaded.test)
+            loaded.build_token_vocab(loaded.test)
             loaded.stoi = text.vocab.stoi
             loaded.ltoi = label.vocab.stoi
-            loaded.process_labels(loaded.test)
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'davidson':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'davidson', 'davidson_binary_train.json',
                                     None, 'davidson_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
+            loaded.load('test')
+            loaded.build_label_vocab(loaded.test)
+            loaded.build_token_vocab(loaded.test)
             loaded.stoi = text.vocab.stoi
             loaded.ltoi = label.vocab.stoi
-            loaded.process_labels(loaded.test)
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'garcia':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'garcia', 'garcia_binary_train.json',
                                     None, 'garcia_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
+            loaded.load('test')
+            loaded.build_label_vocab(loaded.test)
+            loaded.build_token_vocab(loaded.test)
             loaded.stoi = text.vocab.stoi
             loaded.ltoi = label.vocab.stoi
-            loaded.process_labels(loaded.test)
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
 
+        breakpoint()
         eval_dict = dict(train = False,
 
                          # Evaluating
@@ -349,6 +360,7 @@ if __name__ == "__main__":
                          # Prediction writer
                          writer = pred_writer,
                          model_hdr = model_hdr,
+                         metric_hdr = args.metrics + ['loss'],
                          data_name = aux,
                          main_name = args.main,
                          hyper_info = hyper_info,
