@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
 
     # Cleaning and metrics
-    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = ['lower', 'url'])
+    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = ['lower'])
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
                         type = str.lower)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'f1-score')
