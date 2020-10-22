@@ -1,7 +1,6 @@
 import wandb
 import torch
 import numpy as np
-from mlearn import base
 from tqdm import tqdm, trange
 from mlearn.utils.metrics import Metrics
 from mlearn.data.clean import Cleaner, Preprocessors

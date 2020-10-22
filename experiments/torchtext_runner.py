@@ -24,7 +24,8 @@ if __name__ == "__main__":
     # Data inputs and outputs
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
                         type = str.lower, default = 'Davidson')
-    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['waseem'])
+    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+',
+                        default = ['waseem'])
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/json/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
