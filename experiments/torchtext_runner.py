@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # Data inputs and outputs
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
                         type = str.lower, default = 'Davidson')
-    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['waseem'])
+    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['wulczyn'])
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/json/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # All models
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = 15, type = int)
-    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'mlp',
+    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'cnn',
                         type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Index, Tfidf, Count",
                         default = 'index', type = str.lower)
@@ -343,7 +343,6 @@ if __name__ == "__main__":
             loaded.ltoi = label.vocab.stoi
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
 
-        breakpoint()
         eval_dict = dict(train = False,
 
                          # Evaluating
@@ -369,3 +368,4 @@ if __name__ == "__main__":
                          label_field = 'label',
                          )
         run_singletask_model(**eval_dict)
+        wandb.log({f'{aux}_{key}': eval_dict['metrics'].scores[key] for key in eval_dict['metrics'].scores})
