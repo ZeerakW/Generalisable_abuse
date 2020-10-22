@@ -88,6 +88,7 @@ if __name__ == "__main__":
     # Initialise random seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
+    torch.cuda.set_device(args.gpu)
 
     # Set up experiment and cleaner
     c = Cleaner(processes = args.cleaners)
@@ -172,7 +173,7 @@ if __name__ == "__main__":
     elif args.model == 'lstm':
         params = dict(embedding_dim = config.embedding,
                       hidden_dim = config.hidden,
-                      num_layers = args.num_layers,
+                      num_layers = 1,
                       dropout = dropout,
                       )
         mdl = mod_lib.LSTMClassifier
@@ -246,7 +247,6 @@ if __name__ == "__main__":
         hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
         train_writer.writerow(hdr)
 
-    pred_metric_hdr = args.metrics + ['loss']
     if pred_enc == 'w':
         hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
         hdr += ['Label', 'Prediction']
@@ -290,7 +290,8 @@ if __name__ == "__main__":
 
     m_text = base.Field('text', train = True, label = False, ignore = False, ix = 1, cname = 'text')
     m_label = base.Field('label', train = False, label = True, cname = 'label', ignore = False, ix = 2)
-    for aux in tqdm(args.aux, desc = "Loading test sets"):
+    for aux in tqdm(args.aux, desc = "Loading test sets", leave = False):
+        print(aux)
         if aux == 'waseem':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'waseem', 'waseem_binary_train.json',
                                     None, 'waseem_binary_test.json', None, None, None, None, tokenizer, None, None,
@@ -342,6 +343,7 @@ if __name__ == "__main__":
             loaded.ltoi = label.vocab.stoi
             batcher = process_and_batch(loaded, loaded.test, 64, onehot)
 
+        breakpoint()
         eval_dict = dict(train = False,
 
                          # Evaluating
@@ -357,6 +359,7 @@ if __name__ == "__main__":
                          # Prediction writer
                          writer = pred_writer,
                          model_hdr = model_hdr,
+                         metric_hdr = args.metrics + ['loss'],
                          data_name = aux,
                          main_name = args.main,
                          hyper_info = hyper_info,

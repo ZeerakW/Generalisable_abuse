@@ -4,13 +4,13 @@ command:
   - python3
   - ${program}
   - "--tokenizer"
-  - bpe
+  - ekphrasis
   - "--main"
   - davidson
   - "--aux"
   - [wulczyn, garcia, waseem, waseem_hovy]
   - "--model"
-  - mlp
+  - lstm
   - "--patience"
   - 15
   - "--layers"

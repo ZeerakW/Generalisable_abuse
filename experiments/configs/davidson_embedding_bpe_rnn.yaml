@@ -10,7 +10,7 @@ command:
   - "--aux"
   - [wulczyn, garcia, waseem, waseem_hovy]
   - "--model"
-  - mlp
+  - rnn
   - "--patience"
   - 15
   - "--layers"
