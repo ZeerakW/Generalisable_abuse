@@ -253,7 +253,7 @@ if __name__ == "__main__":
     train_dict = dict(train = True,
 
                       # Set args
-                      save_path = f"{args.save_model}{args.experiment}_{args.main}_best",
+                      save_path = f"{args.save_model}{args.experiment}_{args.tokenizer}_{args.main}_best",
                       hyperopt = True,
                       gpu = gpu,
                       shuffle = False,
