@@ -256,7 +256,7 @@ if __name__ == "__main__":
     train_dict = dict(train = True,
 
                       # Set args
-                      save_path = f"{args.save_model}{args.experiment}_{args.tokenizer}_{args.main}_best",
+                      save_path = f"{args.save_model}{args.experiment}_{args.main}_best",
                       hyperopt = True,
                       gpu = gpu,
                       shuffle = False,
@@ -287,3 +287,27 @@ if __name__ == "__main__":
                       hyper_info = hyper_info
                       )
     run_singletask_model(**train_dict)
+
+    for aux in args.aux:
+        aux_fp = open(os.path.join(args.datadir, f'{aux}_binary_test.json'), 'r', encoding = 'utf-8')
+        aux_test, aux_labels = [], []
+
+        for line in aux_fp:
+            line = json.loads(line)
+            aux_test.append(line['text'])
+            aux_labels.append(line['label'])
+
+        predictions = []
+
+        for label, doc in zip(aux_labels, aux_test):
+            breakpoint()
+            # Tensorize data
+            tokenized = tokenizer(doc)
+            indices = [main['text'].vocab.stoi[tok] for tok in tokenized]
+            tensor = torch.tensor(indices, dtype = torch.long).unsqueeze(1).T  # Reshape to batch, no. words
+            pred = model(tensor)
+            predictions.append(main['label'].vocab.itos[pred])
+            print(pred, main['label'].vocab.itos[pred])
+        # TODO Run eval model
+        # TODO Store predictions
+        # TODO Store scores
