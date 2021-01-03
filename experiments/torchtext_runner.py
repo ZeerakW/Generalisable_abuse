@@ -4,10 +4,14 @@ import json
 import wandb
 import torch
 import numpy as np
+from tqdm import tqdm
+from mlearn import base
 from argparse import ArgumentParser
 from mlearn.utils.metrics import Metrics
 from mlearn.modeling import onehot as oh
 from mlearn.modeling import embedding as emb
+from mlearn.data.dataset import GeneralDataset
+from mlearn.utils.pipeline import process_and_batch
 from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
 from mlearn.utils.train import run_singletask_model
@@ -20,14 +24,13 @@ if __name__ == "__main__":
     # Data inputs and outputs
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
                         type = str.lower, default = 'Davidson')
-    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+',
-                        default = ['wulczyn'])
+    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['wulczyn'])
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/json/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
 
     # Cleaning and metrics
-    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = ['lower'])
+    parser.add_argument("--cleaners", help = "Set the cleaning routines to be used.", nargs = '+', default = ['lower', 'url'])
     parser.add_argument("--metrics", help = "Set the metrics to be used.", nargs = '+', default = ["f1"],
                         type = str.lower)
     parser.add_argument("--display", help = "Metric to display in TQDM loops.", default = 'f1-score')
