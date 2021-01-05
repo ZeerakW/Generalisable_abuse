@@ -4,9 +4,10 @@ import json
 import wandb
 import torch
 import numpy as np
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from mlearn import base
 from argparse import ArgumentParser
+from collections import defaultdict
 from mlearn.utils.metrics import Metrics
 from mlearn.modeling import onehot as oh
 from mlearn.modeling import embedding as emb
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     # All models
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = 15, type = int)
-    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'cnn',
+    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'mlp',
                         type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Index, Tfidf, Count",
                         default = 'index', type = str.lower)
@@ -288,26 +289,43 @@ if __name__ == "__main__":
                       )
     run_singletask_model(**train_dict)
 
-    for aux in args.aux:
+    predictions = defaultdict(lambda: defaultdict(list))
+
+    eval_loop = tqdm([main['name']] + args.aux, desc = "Evaluation")
+    for aux in eval_loop:
+        eval_loop.set_postfix(dataset = aux)
+        test_scores = Metrics(args.metrics, args.display, args.stop_metric)
+
+        # Load AUX data
         aux_fp = open(os.path.join(args.datadir, f'{aux}_binary_test.json'), 'r', encoding = 'utf-8')
         aux_test, aux_labels = [], []
-
         for line in aux_fp:
             line = json.loads(line)
             aux_test.append(line['text'])
-            aux_labels.append(line['label'])
+            aux_labels.append(line['label'].strip('\r\n'))
 
-        predictions = []
-
+        preds = []
         for label, doc in zip(aux_labels, aux_test):
-            breakpoint()
             # Tensorize data
             tokenized = tokenizer(doc)
             indices = [main['text'].vocab.stoi[tok] for tok in tokenized]
             tensor = torch.tensor(indices, dtype = torch.long).unsqueeze(1).T  # Reshape to batch, no. words
-            pred = model(tensor)
-            predictions.append(main['label'].vocab.itos[pred])
-            print(pred, main['label'].vocab.itos[pred])
-        # TODO Run eval model
-        # TODO Store predictions
-        # TODO Store scores
+
+            if gpu:
+                tensor = tensor.cuda()
+
+            # Make and store predictions
+            pred = torch.argmax(model(tensor), dim = 1).item()
+            preds.append(main['labels'].vocab.itos[pred])
+
+        # Store predictions
+        predictions[aux]['preds'] = preds
+        predictions[aux]['true'] = aux_labels
+        predictions[aux]['data'] = aux_test
+
+        # Compute & store metrics
+        predictions[aux]['scores'] = test_score.compute(aux_labels, preds)
+        wandb.log({f'{aux}_test': scores for _, scores in test_scores.scores})
+
+        # Store scores
+        testwriter
