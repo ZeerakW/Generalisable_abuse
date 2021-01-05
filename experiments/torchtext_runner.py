@@ -4,14 +4,14 @@ import json
 import wandb
 import torch
 import numpy as np
-from tqdm import tqdm, trange
-from mlearn import base
+from tqdm import tqdm
 from argparse import ArgumentParser
 from collections import defaultdict
 from mlearn.utils.metrics import Metrics
 from mlearn.modeling import onehot as oh
 from mlearn.modeling import embedding as emb
 from mlearn.data.dataset import GeneralDataset
+from mlearn.utils.pipeline import _get_datestr
 from mlearn.utils.pipeline import process_and_batch
 from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
@@ -228,30 +228,34 @@ if __name__ == "__main__":
         test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
 
     # Open output files
-    base_path = f'{args.results}/{args.encoding}_{args.experiment}'
-    enc = 'a' if os.path.isfile(f'{base_path}_train.tsv') else 'w'
-    pred_enc = 'a' if os.path.isfile(f'{base_path}_preds.tsv') else 'w'
+    base = f'{args.results}/{args.encoding}_{args.experiment}'
 
-    train_writer = csv.writer(open(f"{base_path}_train.tsv", enc, encoding = 'utf-8'), delimiter = '\t')
-    test_writer = csv.writer(open(f"{base_path}_test.tsv", enc, encoding = 'utf-8'), delimiter = '\t')
-    pred_writer = csv.writer(open(f"{base_path}_preds.tsv", pred_enc, encoding = 'utf-8'), delimiter = '\t')
+    train_writer = csv.writer(open(f"{base}_train.tsv", 'w', encoding = 'utf-8'), delimiter = '\t')
+    test_writer = csv.writer(open(f"{base}_test.tsv", 'w', encoding = 'utf-8'), delimiter = '\t')
 
     hyper_info = [batch_size, epochs, learning_rate]
-    model_hdr = ['Model', 'Input dim', 'Embedding dim', 'Hidden dim', 'Output dim', 'Window Sizes', '# Filters',
-                 '# Layers', 'Dropout', 'Activation']
-    if enc == 'w':
-        metric_hdr = args.metrics + ['loss']
-        hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
-        hdr += metric_hdr
-        test_writer.writerow(hdr)  # Don't include dev columns when writing test
+    model_hdr = ['Model',
+                 'Input dim',
+                 'Embedding dim',
+                 'Hidden dim',
+                 'Output dim',
+                 'Window Sizes',
+                 '# Filters',
+                 '# Layers',
+                 'Dropout',
+                 'Activation']
 
-        hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
-        train_writer.writerow(hdr)
-
-    if pred_enc == 'w':
-        hdr = ['Timestamp', 'Trained on', 'Evaluated on', 'Batch size', '# Epochs', 'Learning Rate'] + model_hdr
-        hdr += ['Label', 'Prediction']
-        pred_writer.writerow(hdr)
+    metric_hdr = args.metrics + ['loss']
+    hdr = ['Timestamp',
+           'Trained on',
+           'Evaluated on',
+           'Batch size',
+           '# Epochs',
+           'Learning Rate'] + model_hdr
+    hdr += metric_hdr
+    test_writer.writerow(hdr)  # Don't include dev columns when writing test
+    hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
+    train_writer.writerow(hdr)
 
     gpu = True if args.gpu != -1 else False
     train_dict = dict(train = True,
@@ -289,43 +293,62 @@ if __name__ == "__main__":
                       )
     run_singletask_model(**train_dict)
 
-    predictions = defaultdict(lambda: defaultdict(list))
+    with torch.no_grad():  # Do evaluations
 
-    eval_loop = tqdm([main['name']] + args.aux, desc = "Evaluation")
-    for aux in eval_loop:
-        eval_loop.set_postfix(dataset = aux)
-        test_scores = Metrics(args.metrics, args.display, args.stop_metric)
+        predictions = defaultdict(lambda: defaultdict(list))
+        eval_loop = tqdm([main['name']] + args.aux, desc = "Evaluation")
 
-        # Load AUX data
-        aux_fp = open(os.path.join(args.datadir, f'{aux}_binary_test.json'), 'r', encoding = 'utf-8')
-        aux_test, aux_labels = [], []
-        for line in aux_fp:
-            line = json.loads(line)
-            aux_test.append(line['text'])
-            aux_labels.append(line['label'].strip('\r\n'))
+        for aux in eval_loop:
+            eval_loop.set_postfix(dataset = aux)
+            test_scores = Metrics(args.metrics, args.display, args.stop_metric)
 
-        preds = []
-        for label, doc in zip(aux_labels, aux_test):
-            # Tensorize data
-            tokenized = tokenizer(doc)
-            indices = [main['text'].vocab.stoi[tok] for tok in tokenized]
-            tensor = torch.tensor(indices, dtype = torch.long).unsqueeze(1).T  # Reshape to batch, no. words
+            # Load AUX data
+            aux_fp = open(os.path.join(args.datadir, f'{aux}_binary_test.json'), 'r', encoding = 'utf-8')
+            aux_test, aux_labels = [], []
+            for line in aux_fp:
+                line = json.loads(line)
+                aux_test.append(line['text'])
+                aux_labels.append(line['label'].strip('\r\n'))
 
-            if gpu:
-                tensor = tensor.cuda()
+            preds = []
+            for label, doc in zip(aux_labels, aux_test):
+                # Tensorize data
+                tokenized = tokenizer(doc)
+                indices = [main['text'].vocab.stoi[tok] for tok in tokenized]
+                tensor = torch.tensor(indices, dtype = torch.long).unsqueeze(1).T  # Reshape to batch, no. words
 
-            # Make and store predictions
-            pred = torch.argmax(model(tensor), dim = 1).item()
-            preds.append(main['labels'].vocab.itos[pred])
+                if gpu:
+                    tensor = tensor.cuda()
 
-        # Store predictions
-        predictions[aux]['preds'] = preds
-        predictions[aux]['true'] = aux_labels
-        predictions[aux]['data'] = aux_test
+                # Make and store predictions
+                pred = torch.argmax(model(tensor), dim = 1).item()
+                preds.append(main['labels'].vocab.itos[pred])
 
-        # Compute & store metrics
-        predictions[aux]['scores'] = test_score.compute(aux_labels, preds)
-        wandb.log({f'{aux}_test': scores for _, scores in test_scores.scores})
+            # Store predictions
+            predictions[aux]['preds'] = preds
+            predictions[aux]['true'] = aux_labels
+            predictions[aux]['data'] = aux_test
+
+            # Compute & store metrics
+            predictions[aux]['scores'] = test_score.compute(aux_labels, preds)
+            wandb.log({f'{aux}_test': scores for _, scores in test_scores.scores})
 
         # Store scores
-        testwriter
+        pred_writer = csv.writer(open(f"{base}_preds.tsv", 'w', encoding = 'utf-8'), delimiter = '\t')
+
+        hdr = ['Timestamp',
+               'Trained on',
+               'Evaluated on',
+               'Text',
+               'Label',
+               'Prediction'] + args.metrics
+        pred_writer.writerow(hdr)
+
+        timestamp = _get_datestr()
+        out = []
+        for aux in predictions:
+            aux_dict = predictions[aux]
+            for doc, prediction, label in zip(aux_dict['data'], aux_dict['preds'], aux_dict['true']):
+                out.append([timestamp, main['name'], aux, doc, label, prediction])
+        pred_writer.writerows(out)
+        wandb.log(f"{base}_preds.tsv")
