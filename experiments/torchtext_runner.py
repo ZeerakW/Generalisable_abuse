@@ -340,7 +340,7 @@ if __name__ == "__main__":
 
             # Compute & store metrics
             predictions[aux]['scores'] = test_scores.compute(aux_labels, preds)
-            wandb.log({f'{aux}_{score_n}_test': scores for score_n, scores in test_scores.scores.items()})
+            wandb.log({f'test/{aux}_{score_n}_test': scores for score_n, scores in test_scores.scores.items()})
 
         # Store scores
         pred_writer = csv.writer(open(f"{base}_preds.tsv", 'w', encoding = 'utf-8'), delimiter = '\t')
@@ -357,8 +357,9 @@ if __name__ == "__main__":
         out = []
         for aux in predictions:
             aux_dict = predictions[aux]
+            print(aux_dict['scores'])
             for doc, prediction, label in zip(aux_dict['data'], aux_dict['preds'], aux_dict['true']):
-                test_m = [aux_dict['scores'][m][0] for m in args.metrics]
+                test_m = [aux_dict['scores'][m][0] for m in aux_dict['scores'].keys() if len(aux_dict['scores'][m]) != 0]
                 out.append([timestamp, main['name'], aux, doc, label, prediction] + test_m)
         pred_writer.writerows(out)
         wandb.save(f"{base}_preds.tsv")
