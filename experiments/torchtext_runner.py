@@ -323,7 +323,14 @@ if __name__ == "__main__":
                     tensor = tensor.cuda()
 
                 # Make and store predictions
-                pred = torch.argmax(model(tensor), dim = 1).item()
+                try:
+                    pred = torch.argmax(model(tensor), dim = 1).item()
+                except RuntimeError as e: # Catching this to prevent failing due to bigger kernel size than document.
+                    indices += 5 * [main['text'].vocab.stoi['<pad>']]
+                    tensor = torch.tensor(indices, dtype = torch.long).unsqueeze(1).T
+                    if gpu:
+                        tensor = tensor.cuda()
+                    pred = torch.argmax(model(tensor), dim = 1).item()
                 preds.append(main['labels'].vocab.itos[pred])
 
             # Store predictions
