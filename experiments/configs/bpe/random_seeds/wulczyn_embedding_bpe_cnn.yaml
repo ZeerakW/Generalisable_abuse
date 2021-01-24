@@ -50,6 +50,8 @@ command:
   - 0.00009431
   - "--embedding"
   - 200
+  - "--hidden"
+  - 128
   - "--epochs"
   - 100
   - "--batch_size"

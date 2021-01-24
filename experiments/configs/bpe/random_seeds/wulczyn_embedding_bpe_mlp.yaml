@@ -46,8 +46,6 @@ command:
   - adam
   - "--loss"
   - nlll
-  - "--seed"
-  - 42
   - "--dropout"
   - 0.3273
   - "--learning_rate"
