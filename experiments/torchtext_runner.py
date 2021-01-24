@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     # Data inputs and outputs
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
-                        type = str.lower, default = 'Davidson')
+                        type = str.lower, default = 'Wulczyn')
     parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['wulczyn'])
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/json/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     # All models
     parser.add_argument("--patience", help = "Set the number of epochs to keep trying to find a new best",
                         default = 15, type = int)
-    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'mlp',
+    parser.add_argument("--model", help = "Choose the model to be run: CNN, RNN, LSTM, MLP, LR.", default = 'lstm',
                         type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Index, Tfidf, Count",
                         default = 'index', type = str.lower)
@@ -74,6 +74,8 @@ if __name__ == "__main__":
     parser.add_argument("--filters", help = "Set the number of filters for CNN.", default = 128,
                         type = int)
     args = parser.parse_args()
+    if args.gpu == 1:
+        args.gpu = 0
 
     if 'f1' in args.metrics:
         args.metrics[args.metrics.index('f1')] = 'f1-score'
@@ -87,9 +89,9 @@ if __name__ == "__main__":
     config = wandb.config
 
     # Initialise random seeds
-    torch.random.manual_seed(args.seed)
-    np.random.seed(args.seed)
-    torch.cuda.set_device(args.gpu)
+    torch.random.manual_seed(config.seed)
+    np.random.seed(config.seed)
+    torch.cuda.set_device(config.gpu)
 
     # Set up experiment and cleaner
     c = Cleaner(processes = args.cleaners)
@@ -267,7 +269,7 @@ if __name__ == "__main__":
                       shuffle = False,
 
                       # Hyper-parameters
-                      clip = 1.0,
+                      clip = 1.0, 
                       epochs = epochs,
                       early_stopping = args.patience,
                       low = True if args.stop_metric == 'loss' else False,
