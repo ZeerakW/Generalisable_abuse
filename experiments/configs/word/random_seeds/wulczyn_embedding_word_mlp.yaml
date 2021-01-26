@@ -1,0 +1,71 @@
+program: experiments/torchtext_runner.py
+command:
+  - ${env}
+  - python3
+  - ${program}
+  - "--tokenizer"
+  - ekphrasis
+  - "--experiment"
+  - word
+  - "--encoding"
+  - index
+  - "--model"
+  - mlp
+  - "--main"
+  - wulczyn
+  - "--aux"
+  - davidson
+  - garcia
+  - waseem
+  - waseem_hovy
+  - "--gpu"
+  - 0
+  - "--patience"
+  - 15
+  - "--layers"
+  - 1
+  - "--datadir"
+  - data/json/
+  - "--results"
+  - results/
+  - "--save_model"
+  - results/models/
+  - "--shuffle"
+  - True
+  - "--cleaners"
+  - username
+  - hashtag
+  - url
+  - lower
+  - "--metrics"
+  - f1_score
+  - accuracy
+  - precision
+  - recall
+  - "--optimizer"
+  - adam
+  - "--loss"
+  - nlll
+  - "--epochs"
+  - 100
+  - "--batch_size"
+  - 64
+  - "--learning_rate"
+  - 0.000853
+  - "--dropout"
+  - 0.1695
+  - "--hidden"
+  - 200
+  - "--embedding"
+  - 100
+  - "--nonlinearity"
+  - tanh
+method: bayes
+
+metric:
+  goal: maximize 
+  name: dev/f1-score
+
+parameters:
+  seed:
+    values: [22, 32, 42, 922, 310]
