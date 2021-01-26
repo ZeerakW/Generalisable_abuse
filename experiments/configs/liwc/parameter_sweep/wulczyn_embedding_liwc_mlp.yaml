@@ -19,7 +19,7 @@ command:
   - waseem
   - waseem_hovy
   - "--gpu"
-  - 1
+  - 0
   - "--patience"
   - 15
   - "--layers"
