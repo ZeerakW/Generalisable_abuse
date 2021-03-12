@@ -62,7 +62,7 @@ command:
   - "2,3,4"
   - "--nonlinearity"
   - tanh
-method: bayes
+method: grid
 
 metric:
   goal: maximize 

@@ -1,7 +1,7 @@
 program: experiments/torchtext_runner.py
 command:
   - ${env}
-  - python3
+  - python
   - ${program}
   - "--tokenizer"
   - bpe
@@ -60,11 +60,11 @@ command:
   - 64
   - "--nonlinearity"
   - relu
-method: bayes
+method: grid
 
 metric:
   goal: maximize 
-  name: dev_f1-score
+  name: dev/f1-score
 
 parameters:
   seed:

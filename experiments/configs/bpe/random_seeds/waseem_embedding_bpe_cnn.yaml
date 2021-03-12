@@ -1,0 +1,71 @@
+program: experiments/torchtext_runner.py
+command:
+  - ${env}
+  - python
+  - ${program}
+  - "--tokenizer"
+  - bpe
+  - "--experiment"
+  - word
+  - "--encoding"
+  - index
+  - "--model"
+  - cnn
+  - "--main"
+  - waseem
+  - "--aux"
+  - wulczyn
+  - garcia
+  - davidson
+  - waseem_hovy
+  - "--patience"
+  - 15
+  - "--layers"
+  - 1
+  - "--datadir"
+  - data/json/
+  - "--results"
+  - results/
+  - "--save_model"
+  - results/models/
+  - "--shuffle"
+  - True
+  - "--cleaners"
+  - username
+  - hashtag
+  - url
+  - lower
+  - "--metrics"
+  - f1_score
+  - accuracy
+  - precision
+  - recall
+  - "--optimizer"
+  - adam
+  - "--loss"
+  - nlll
+  - "--batch_size"
+  - 64
+  - "--embedding"
+  - 200
+  - "--epochs"
+  - 100
+  - "--filters"
+  - 128
+  - "--hidden"
+  - 128
+  - "--learning_rate"
+  - 0.002686
+  - "--nonlinearity"
+  - relu
+  - "--window_sizes"
+  - "1,2,3"
+method: grid
+
+metric:
+  goal: maximize 
+  name: dev/f1-score
+
+parameters:
+  seed:
+    values: [22, 32, 42, 922, 310]

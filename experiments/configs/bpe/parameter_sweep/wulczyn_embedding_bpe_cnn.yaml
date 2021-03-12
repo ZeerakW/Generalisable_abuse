@@ -52,7 +52,7 @@ method: bayes
 
 metric:
   goal: maximize 
-  name: dev_f1-score
+  name: dev/f1-score
 
 parameters:
   epochs:

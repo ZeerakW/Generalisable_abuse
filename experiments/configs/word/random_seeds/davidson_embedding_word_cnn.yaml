@@ -1,7 +1,7 @@
 program: experiments/torchtext_runner.py
 command:
   - ${env}
-  - python3
+  - python
   - ${program}
   - "--tokenizer"
   - ekphrasis

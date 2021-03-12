@@ -61,7 +61,7 @@ command:
   - "--nonlinearity"
   - relu
 
-method: bayes
+method: grid
 
 metric:
   goal: maximize 

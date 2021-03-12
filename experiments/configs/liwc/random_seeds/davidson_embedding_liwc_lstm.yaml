@@ -58,7 +58,7 @@ command:
   - 100
   - "--batch_size"
   - 64
-method: bayes
+method: grid
 
 metric:
   goal: maximize 
