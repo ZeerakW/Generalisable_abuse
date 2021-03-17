@@ -1,6 +1,7 @@
 import os
 import csv
 import json
+import time
 import wandb
 import torch
 import numpy as np
@@ -16,6 +17,7 @@ from mlearn.utils.pipeline import process_and_batch
 from mlearn.data.batching import TorchtextExtractor
 from mlearn.data.clean import Cleaner, Preprocessors
 from mlearn.utils.train import run_singletask_model
+from torch.nn.functional import one_hot as onehot_encoder
 from torchtext.data import TabularDataset, Field, LabelField, BucketIterator
 
 
@@ -23,6 +25,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description = "Run Experiments using MTL.")
 
     # Data inputs and outputs
+    parser.add_argument("--project", help = "Set WandB project name", type = str.lower, default = 'vocab_redux_seeds')
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
                         type = str.lower, default = 'Wulczyn')
     parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['wulczyn'])
@@ -85,7 +88,7 @@ if __name__ == "__main__":
         args.stop_metric = 'f1-score'
 
     # Set up WandB logging
-    wandb.init(config = args)
+    wandb.init(project = args.project, config = args)
     config = wandb.config
 
     # Initialise random seeds
