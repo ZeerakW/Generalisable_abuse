@@ -307,7 +307,11 @@ if __name__ == "__main__":
                       metric_hdr = args.metrics + ['loss'],
                       hyper_info = hyper_info
                       )
+
+    start = time.time()
     run_singletask_model(**train_dict)
+    end = time.time()
+    wandb.log({'Training time (s)': end - start, 'Training time (m)': (end - start) / 60})
 
     with torch.no_grad():  # Do evaluations
 
