@@ -12,11 +12,11 @@ command:
   - "--model"
   - lstm
   - "--main"
-  - garcia
+  - waseem
   - "--aux"
   - wulczyn
   - davidson
-  - waseem
+  - garcia
   - waseem_hovy
   - "--patience"
   - 15
