@@ -142,13 +142,23 @@ if __name__ == "__main__":
                                                  test = 'wulczyn_test.json',
                                                  format = 'json', skip_header = True, fields = fields)
     elif args.main == 'waseem':
-        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_train.json',
-                                                 validation = 'waseem_dev.json',
-                                                 test = 'waseem_test.json',
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_binary_train.json',
+                                                 validation = 'waseem_binary_dev.json',
+                                                 test = 'waseem_binary_test.json',
                                                  format = 'json', skip_header = True, fields = fields)
-    text.build_vocab(train)
+    elif args.main == 'waseem_hovy':
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'waseem_hovy_binary_train.json',
+                                                 validation = 'waseem_hovy_binary_dev.json',
+                                                 test = 'waseem_hovy_binary_test.json',
+                                                 format = 'json', skip_header = True, fields = fields)
+    elif args.main == 'garcia':
+        train, dev, test = TabularDataset.splits(args.datadir, train = 'garcia_binary_train.json',
+                                                 validation = 'garcia_binary_dev.json',
+                                                 test = 'garcia_binary_test.json',
+                                                 format = 'json', skip_header = True, fields = fields)
+    text.build_vocab(train)  # TODO This is where max_size should be set.
     label.build_vocab(train)
-    main = {'train': train, 'dev': dev, 'test': test, 'text': text, 'labels': label, 'name': args.main}
+    main = {'train': train, 'dev': dev, 'test': test, 'text': {key: item for key, item in text.vocab.stoi.items()}, 'labels': label, 'name': args.main}
 
     # Dump Vocabulary files
     with open(f'{args.results}/vocabs/{args.main}_{args.encoding}_{args.experiment}.vocab', 'w',
@@ -226,11 +236,11 @@ if __name__ == "__main__":
     else:
         train_buckets = BucketIterator(dataset = main['train'], batch_size = batch_size,
                                        sort_key = lambda x: len(x))
-        train = TorchtextExtractor('text', 'label', main['name'], train_buckets, len(main['text'].vocab.stoi))
+        train = TorchtextExtractor('text', 'label', main['name'], train_buckets, model_params['input_dim'])
         dev_buckets = BucketIterator(dataset = main['dev'], batch_size = 64, sort_key = lambda x: len(x))
-        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, len(main['text'].vocab.stoi))
+        dev = TorchtextExtractor('text', 'label', main['name'], dev_buckets, model_params['input_dim'])
         test_buckets = BucketIterator(dataset = main['test'], batch_size = 64, sort_key = lambda x: len(x))
-        test = TorchtextExtractor('text', 'label', main['name'], test_buckets)
+        test = TorchtextExtractor('text', 'label', main['name'], test_buckets, model_params['input_dim'])
 
     # Open output files
     base = f'{args.results}/{args.encoding}_{args.experiment}'
@@ -257,6 +267,7 @@ if __name__ == "__main__":
            'Batch size',
            '# Epochs',
            'Learning Rate'] + model_hdr
+
     hdr += metric_hdr
     test_writer.writerow(hdr)  # Don't include dev columns when writing test
     hdr += [f"dev {m}" for m in args.metrics] + ['dev loss']
