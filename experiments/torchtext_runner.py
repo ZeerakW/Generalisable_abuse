@@ -332,7 +332,7 @@ if __name__ == "__main__":
                 aux_test.append(tokenizer(line['text']))
                 aux_labels.append(line['label'].strip('\r\n'))
                 lens.append(len(aux_test[-1]))
-                
+
             max_len = max(lens)
             pretensors = []
             for label, doc in tqdm(zip(aux_labels, aux_test), desc = "Encoding data", leave = False):
