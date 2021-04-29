@@ -98,7 +98,8 @@ if __name__ == "__main__":
 
     # Set up experiment and cleaner
     c = Cleaner(processes = args.cleaners)
-    exp = Preprocessors('data/').select_experiment(args.experiment)
+    exp = 'word' if args.experiment != 'liwc' else args.experiment
+    exp = Preprocessors('data/').select_experiment(exp)
     onehot = True if args.encoding == 'onehot' else False
     mod_lib = oh if onehot else emb
 
