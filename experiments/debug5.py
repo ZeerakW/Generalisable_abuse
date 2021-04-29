@@ -23,8 +23,9 @@ if __name__ == "__main__":
 
     # Data inputs and outputs
     parser.add_argument("--main", help = "Choose train data: Davidson, Waseem, Waseem and Hovy, Wulczyn, and Garcia.",
-                        type = str.lower, default = 'Davidson')
-    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+', default = ['wulczyn'])
+                        type = str.lower, default = 'davidson')
+    parser.add_argument("--aux", help = "Specify the auxiliary datasets to be loaded.", type = str, nargs = '+',
+                        default = ['wulczyn'])
     parser.add_argument("--datadir", help = "Path to the datasets.", default = 'data/json/')
     parser.add_argument("--results", help = "Set file to output results to.", default = 'results/')
     parser.add_argument("--save_model", help = "Directory to store models in.", default = 'results/models/')
@@ -38,7 +39,7 @@ if __name__ == "__main__":
 
     # Experiment
     parser.add_argument('--tokenizer', help = "select the tokenizer to be used: Spacy, Ekphrasis, BPE",
-                        default = 'ekphrasis', type = str.lower)
+                        default = 'bpe', type = str.lower)
     parser.add_argument("--experiment", help = "Set experiment to run.", default = "word", type = str.lower)
 
     # Modelling
@@ -49,7 +50,7 @@ if __name__ == "__main__":
                         type = str.lower)
     parser.add_argument('--encoding', help = "Select encoding to be used: Onehot, Index, Tfidf, Count",
                         default = 'index', type = str.lower)
-    parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'adam', type = str.lower)
+    parser.add_argument("--optimizer", help = "Optimizer to use.", default = 'sgd', type = str.lower)
     parser.add_argument("--loss", help = "Loss to use.", default = 'nlll', type = str.lower)
     parser.add_argument('--seed', help = "Set the random seed.", type = int, default = 32)
     parser.add_argument('--shuffle', help = "Shuffle dataset between epochs", type = bool, default = True)
@@ -58,15 +59,15 @@ if __name__ == "__main__":
     parser.add_argument("--layers", help = "Set the number of layers.", default = 1, type = int)
 
     # Hyper Parameters
-    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 100, type = int)
-    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 128, type = int)
+    parser.add_argument("--embedding", help = "Set the embedding dimension.", default = 300, type = int)
+    parser.add_argument("--hidden", help = "Set the hidden dimension.", default = 200, type = int)
     parser.add_argument("--epochs", help = "Set the number of epochs.", default = 200, type = int)
     parser.add_argument("--batch_size", help = "Set the batch size.", default = 64, type = int)
     parser.add_argument("--nonlinearity", help = "Set nonlinearity function for neural nets.",
                         default = 'tanh', type = str.lower)
     parser.add_argument('--learning_rate', help = "Set the upper limit for the learning rate.",
-                        default = 1.0, type = float)
-    parser.add_argument("--dropout", help = "Set upper limit for dropout.", default = 1.0, type = float)
+                        default = 0.9801156839944773, type = float)
+    parser.add_argument("--dropout", help = "Set upper limit for dropout.", default = 0.016488574428153935, type = float)
     # CNN
     parser.add_argument('--window_sizes', help = "Set CNN window sizes.", default = "2,3,4",
                         type = str)
@@ -88,7 +89,8 @@ if __name__ == "__main__":
     # Initialise random seeds
     torch.random.manual_seed(args.seed)
     np.random.seed(args.seed)
-    torch.cuda.set_device(args.gpu)
+    breakpoint()
+    torch.cuda.set_device(2)
 
     # Set up experiment and cleaner
     c = Cleaner(processes = args.cleaners)
@@ -296,53 +298,31 @@ if __name__ == "__main__":
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'waseem', 'waseem_binary_train.json',
                                     None, 'waseem_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
-            loaded.load('test')
-            loaded.build_label_vocab(loaded.test)
-            loaded.build_token_vocab(loaded.test)
-            loaded.stoi = text.vocab.stoi
-            loaded.ltoi = label.vocab.stoi
-            batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'waseem_hovy':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'waseem-hovy',
                                     'waseem_hovy_binary_train.json', None, 'waseem_hovy_binary_test.json', None, None,
                                     None, None, tokenizer, None, None, None, None, None, True)
-            loaded.load('test')
-            loaded.build_label_vocab(loaded.test)
-            loaded.build_token_vocab(loaded.test)
-            loaded.stoi = text.vocab.stoi
-            loaded.ltoi = label.vocab.stoi
-            batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'wulczyn':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'wulczyn', 'wulczyn_binary_train.json',
                                     None, 'wulczyn_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
-            loaded.load('test')
-            loaded.build_label_vocab(loaded.test)
-            loaded.build_token_vocab(loaded.test)
-            loaded.stoi = text.vocab.stoi
-            loaded.ltoi = label.vocab.stoi
-            batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'davidson':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'davidson', 'davidson_binary_train.json',
                                     None, 'davidson_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
-            loaded.load('test')
-            loaded.build_label_vocab(loaded.test)
-            loaded.build_token_vocab(loaded.test)
-            loaded.stoi = text.vocab.stoi
-            loaded.ltoi = label.vocab.stoi
-            batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         elif aux == 'garcia':
             loaded = GeneralDataset(args.datadir, 'json', [m_text, m_label], 'garcia', 'garcia_binary_train.json',
                                     None, 'garcia_binary_test.json', None, None, None, None, tokenizer, None, None,
                                     None, None, None, True)
-            loaded.load('test')
-            loaded.build_label_vocab(loaded.test)
-            loaded.build_token_vocab(loaded.test)
-            loaded.stoi = text.vocab.stoi
-            loaded.ltoi = label.vocab.stoi
-            batcher = process_and_batch(loaded, loaded.test, 64, onehot)
 
+        loaded.load('test')
+
+        # TODO Something with for doc in loaded.test: torch.tensor([text.vocab.stoi.get(tok, '<unk>') for tok in doc], dtype = torch.long())
+        loaded.build_label_vocab(loaded.test)
+        loaded.build_token_vocab(loaded.test)
+        loaded.rebuild_token_vocab(text.vocab.stoi)
+        loaded.rebuild_label_vocab(label.vocab.stoi)
+        batcher = process_and_batch(loaded, loaded.test, 64, onehot)
         eval_dict = dict(train = False,
 
                          # Evaluating
